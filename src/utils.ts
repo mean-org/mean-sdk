@@ -24,7 +24,8 @@ export const enum PROGRAM_ACTIONS {
     proposeUpdate = 4,
     answerUpdate = 5,
     closeStream = 6,
-    closeTreasury = 7
+    closeTreasury = 7,
+    listStreams = 8
 }
 
 export const AVAILABLE_PROGRAM_ACTIONS = [

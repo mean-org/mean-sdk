@@ -22,6 +22,7 @@ import {
 import { Constants } from './src/constants';
 import { Layout } from './src/layout';
 import { u64Number } from './src/u64Number';
+import { Streaming } from './src/stream';
 
 const prompt = require('prompt-sync')();
 const connection = new Connection('https://devnet.solana.com', 'confirmed');
@@ -103,6 +104,7 @@ async function create_stream() {
     console.log('');
     const programAccount = await getProgramAccount();
     console.log('Program account: ' + programAccount.publicKey.toBase58());
+    const payerAccountKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ID);
     const payerAccount = await getPayerAccount();
     console.log('Payer account: ' + payerAccount.publicKey.toBase58());
     console.log('');
@@ -145,7 +147,7 @@ async function create_stream() {
                 treasuryAccount = Keypair.generate();
                 treasuryAddressKey = treasuryAccount.publicKey;
                 createTreasuryInstruction = SystemProgram.createAccount({
-                    fromPubkey: treasurerAccount.publicKey,
+                    fromPubkey: payerAccountKey,
                     newAccountPubkey: treasuryAddressKey,
                     lamports: amount,
                     space: 0,
@@ -155,6 +157,8 @@ async function create_stream() {
             .catch((e) => { console.log(e); })
             .finally(() => { });
     }
+
+    console.log(`Stream account: ${treasuryAddressKey}`);
 
     let streamFriendlyName = prompt('Enter a friendly name for the money stream (OPTIONAL): ');
     let initialAmount = prompt('Initial deposit amount (OPTIONAL): ');
@@ -171,7 +175,7 @@ async function create_stream() {
         .then((amount) => {
             streamAccount = Keypair.generate();
             createStreamAccountInstruction = SystemProgram.createAccount({
-                fromPubkey: treasurerAccount.publicKey,
+                fromPubkey: payerAccountKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: amount,
                 space: Layout.StreamLayout.span,
@@ -180,6 +184,8 @@ async function create_stream() {
         })
         .catch((e) => { console.log(e); })
         .finally(() => { });
+
+    console.log(`Stream account: ${streamAccount.publicKey}`);
 
     let data = Buffer.alloc(Layout.createStreamLayout.span)
     {
@@ -207,13 +213,13 @@ async function create_stream() {
         data = data.slice(0, encodeLength);
     };
 
-    console.log(data);
+    // console.log(data);
 
     let createStreamInstruction = new TransactionInstruction({
         keys: [
             { pubkey: treasurerAccount.publicKey, isSigner: true, isWritable: false },
             { pubkey: beneficiaryAddressKey, isSigner: false, isWritable: false },
-            { pubkey: treasuryAddressKey, isSigner: false, isWritable: true },
+            { pubkey: treasuryAddressKey, isSigner: false, isWritable: false },
             { pubkey: streamAccount.publicKey, isSigner: false, isWritable: true },
         ],
         programId: programAccount.publicKey,
@@ -221,7 +227,7 @@ async function create_stream() {
     });
 
     const createStreamTx = new Transaction();
-    createStreamTx.feePayer = treasurerAccount.publicKey;
+    createStreamTx.feePayer = payerAccount.publicKey;
     let signers: Array<Signer> = [treasurerAccount];
 
     if (createTreasuryInstruction !== undefined) {
@@ -281,6 +287,19 @@ async function close_stream() {
 
 }
 
+async function list_streams() {
+    const programId = new PublicKey(prompt('Type the program address: '));
+    console.log('');
+    console.log('Program streams');
+    console.log('');
+
+    const streaming = new Streaming(connection, programId);
+    const streams = await streaming.listStreams();
+
+    console.log(JSON.stringify(streams));
+    console.log('');
+}
+
 async function main() {
 
     console.log('Initializing Streaming Program ...');
@@ -303,6 +322,10 @@ async function main() {
         }
         case PROGRAM_ACTIONS.createStream: {
             await close_stream();
+            break;
+        }
+        case PROGRAM_ACTIONS.listStreams: {
+            await list_streams();
             break;
         }
         default: {
