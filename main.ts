@@ -147,7 +147,7 @@ async function create_stream() {
                 treasuryAccount = Keypair.generate();
                 treasuryAddressKey = treasuryAccount.publicKey;
                 createTreasuryInstruction = SystemProgram.createAccount({
-                    fromPubkey: payerAccountKey,
+                    fromPubkey: treasurerAccount.publicKey,
                     newAccountPubkey: treasuryAddressKey,
                     lamports: amount,
                     space: 0,
@@ -171,11 +171,13 @@ async function create_stream() {
     let streamAccount = Keypair.generate(); //Keypair;
     let createStreamAccountInstruction = undefined;
 
+    console.log(`Layout size: ${Layout.StreamLayout.span}`);
+
     await connection.getMinimumBalanceForRentExemption(Layout.StreamLayout.span)
         .then((amount) => {
             streamAccount = Keypair.generate();
             createStreamAccountInstruction = SystemProgram.createAccount({
-                fromPubkey: payerAccountKey,
+                fromPubkey: treasurerAccount.publicKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: amount,
                 space: Layout.StreamLayout.span,
@@ -191,15 +193,15 @@ async function create_stream() {
     {
         let nameBuffer = Buffer.alloc(32, streamFriendlyName);
 
-        console.log(nameBuffer);
+        // console.log(nameBuffer);
 
         const decodedData = {
             tag: 0,
             stream_name: nameBuffer,
             treasurer_address: Buffer.from(treasurerAccount.publicKey.toBuffer()),
-            treasury_address: Buffer.from(treasuryAddressKey.toBuffer()),
             beneficiary_withdrawal_address: Buffer.from(beneficiaryAddressKey.toBuffer()),
             escrow_token_address: Buffer.from(new PublicKey(Constants.ASSOCIATED_TOKEN_ACCOUNT).toBuffer()),
+            treasury_address: Buffer.from(treasuryAddressKey.toBuffer()),
             funding_amount: new u64Number(parseInt(initialAmount)).toBuffer(),
             rate_amount: new u64Number(rateAmount).toBuffer(),
             rate_interval_in_seconds: new u64Number(parseInt(rateInterval)).toBuffer(), // default = MIN
@@ -227,7 +229,7 @@ async function create_stream() {
     });
 
     const createStreamTx = new Transaction();
-    createStreamTx.feePayer = payerAccount.publicKey;
+    createStreamTx.feePayer = treasurerAccount.publicKey;
     let signers: Array<Signer> = [treasurerAccount];
 
     if (createTreasuryInstruction !== undefined) {
@@ -300,6 +302,20 @@ async function list_streams() {
     console.log('');
 }
 
+async function get_stream() {
+    const streamId = new PublicKey(prompt('Type the stream address: '));
+    console.log('');
+    console.log('Stream info');
+    console.log('');
+
+    const programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
+    const streaming = new Streaming(connection, programId);
+    const stream = await streaming.getStream(streamId);
+
+    console.log(JSON.stringify(stream));
+    console.log('');
+}
+
 async function main() {
 
     console.log('Initializing Streaming Program ...');
@@ -326,6 +342,10 @@ async function main() {
         }
         case PROGRAM_ACTIONS.listStreams: {
             await list_streams();
+            break;
+        }
+        case PROGRAM_ACTIONS.getStream: {
+            await get_stream();
             break;
         }
         default: {
