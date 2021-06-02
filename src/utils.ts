@@ -10,12 +10,12 @@ import {
 
 import { readFile } from 'mz/fs';
 import { Buffer } from 'buffer';
-import * as BN from 'bn.js';
-import * as BufferLayout from 'buffer-layout';
+import BN from 'bn.js';
+// import BufferLayout from 'buffer-layout';
 var pathUtil = require('path');
 export const PROGRAM_PATH = pathUtil.resolve(__dirname);
 export const STREAM_SIZE = 232;
-export const PROGRAM_ID = '8gGPr3whMoMRG5sRUnv9tykpNX5VxveDEL4pAfYGtjnX';
+export const PROGRAM_ID = '2HEkjrj21DX2ecNQjAEUPKwr2pEnwSBjgi9GUHWtKnhH';
 
 export const enum PROGRAM_ACTIONS {
     createStream = 1,
@@ -68,40 +68,40 @@ async function getAccount(path: string) {
 }
 
 export async function getProgramAccount() {
-    return await getAccount('dist/money_streaming-keypair.json');
+    return await getAccount('../../program/dist/money_streaming-keypair.json');
 }
 
 export async function getPayerAccount() {
-    return await getAccount('keys/payer-keypair.json');
+    return await getAccount('../../program/keys/payer-keypair.json');
 }
 
-export const publicKey = (property: string = 'publicKey'): Object => {
-    return BufferLayout.blob(32, property);
-};
+// export const publicKey = (property: string = 'publicKey'): Object => {
+//     return BufferLayout.blob(32, property);
+// };
 
-export const cstring = (property: string = 'string'): Object => {
-    const layout = BufferLayout.blob(16, property);
+// export const cstring = (property: string = 'string'): Object => {
+//     const layout = BufferLayout.blob(16, property);
 
-    layout.decode = (buffer: Buffer) => {
-        return String.fromCharCode.apply(null, new Uint16Array(buffer));
-    };
+//     layout.decode = (buffer: Buffer) => {
+//         return String.fromCharCode.apply(null, new Uint16Array(buffer));
+//     };
 
-    layout.encode = (str: String) => {
-        var buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
-        var bufView = new Uint16Array(buf);
-        for (var i = 0, strLen = str.length; i < strLen; i++) {
-            bufView[i] = str.charCodeAt(i);
-        }
-        return buf;
-    };
+//     layout.encode = (str: String) => {
+//         var buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
+//         var bufView = new Uint16Array(buf);
+//         for (var i = 0, strLen = str.length; i < strLen; i++) {
+//             bufView[i] = str.charCodeAt(i);
+//         }
+//         return buf;
+//     };
 
-    return layout;
-    // return BufferLayout.blob(32, property);
-};
+//     return layout;
+//     // return BufferLayout.blob(32, property);
+// };
 
-export const uint64 = (property = "uint64"): Object => {
-    return BufferLayout.blob(8, property);
-};
+// export const uint64 = (property = "uint64"): Object => {
+//     return BufferLayout.blob(8, property);
+// };
 
 
 

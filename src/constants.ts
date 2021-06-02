@@ -1,7 +1,9 @@
 
 export class Constants {
 
+    static STREAM_PROGRAM_ID = '2HEkjrj21DX2ecNQjAEUPKwr2pEnwSBjgi9GUHWtKnhH';
     static MEMO_PROGRAM_ID = '';
     static TOKEN_PROGRAM_ID = '';
     static ASSOCIATED_TOKEN_PROGRAM_ID = '';
+    static ASSOCIATED_TOKEN_ACCOUNT = 'So11111111111111111111111111111111111111112';
 }

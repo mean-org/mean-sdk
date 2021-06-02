@@ -1,7 +1,9 @@
 import { Buffer } from 'buffer';
-import assert from 'assert';
-import BN from 'bn.js';
-import * as BufferLayout from 'buffer-layout';
+// import * as assert from 'assert';
+// import * as BN from 'bn.js';
+// import * as BufferLayout from 'buffer-layout';
+import { Layout } from './layout';
+import { u64Number } from './u64Number';
 
 import {
     Keypair,
@@ -9,7 +11,9 @@ import {
     SystemProgram,
     Transaction,
     TransactionInstruction,
-    SYSVAR_RENT_PUBKEY
+    SYSVAR_RENT_PUBKEY,
+    Struct,
+    ParsedAccountData
 
 } from '@solana/web3.js';
 
@@ -20,10 +24,7 @@ import type {
     TransactionSignature
 
 } from '@solana/web3.js';
-
-import { sendAndConfirmTransaction } from '@solana/web3.js';
-import * as Layout from './layout';
-import { u64Number } from './u64Number';
+import { sign } from 'crypto';
 
 export type StreamInfo = {
     initialized: boolean,
@@ -53,9 +54,11 @@ export class Streaming {
     /**
      * @private
      */
-    connection: Connection;
-    programId: PublicKey;
-    payer: Signer;
+    connection!: Connection;
+
+    programId!: PublicKey;
+
+    payer!: Signer;
 
     /**
      * Create a Streaming API object
@@ -76,29 +79,45 @@ export class Streaming {
         });
     }
 
-    static async getStream(
-        id: PublicKey
+    // static async getStream(
+    //     id: PublicKey
 
-    ): Promise<StreamInfo> {
+    // ): Promise<StreamInfo> {
 
-        return null;
-    }
+    //     return false;
+    // }
 
-    static async listStreams(
+    async listStreams(
         treasurer: null | PublicKey,
         beneficiary: null | PublicKey
 
     ): Promise<Array<StreamInfo>> {
 
-        return null;
+        let streams: Array<StreamInfo> = new Array<StreamInfo>();
+        const parsedAccounts = await this.connection.getParsedProgramAccounts(this.programId);
+
+        if (parsedAccounts === null || !parsedAccounts.length) {
+            return streams;
+        }
+
+        for (var item of parsedAccounts) {
+            let publicKey = item.pubkey;
+            let data = item.account.data;
+            let info = Streaming.parseStreamData(publicKey, data);
+
+            if (info !== null) {
+                streams.push(info);
+            }
+        }
+
+        return streams;
     }
 
-    static async authorizeWallet() {
+    // static async authorizeWallet() {
 
-    }
+    // }
 
-    static async createStream(
-        signer: Signer,
+    async getCreateStreamTransaction(
         treasurer: PublicKey,
         beneficiary: PublicKey,
         treasury: PublicKey,
@@ -112,30 +131,30 @@ export class Streaming {
         cliffVestAmount?: number,
         cliffVestPercent?: number
 
-    ): Promise<string> {
+    ): Promise<Transaction> {
 
         const transaction = new Transaction();
 
         let treasuryKey = treasury;
-        let treasuryAccount: Keypair;
+        let treasuryAccount = Keypair.generate();
 
-        if (treasuryKey !== null) {
-            const minBalanceForTreasury = await this.prototype.connection.getMinimumBalanceForRentExemption(0);
+        if (treasuryKey === null) {
+            const minBalanceForTreasury = await this.connection.getMinimumBalanceForRentExemption(0);
             treasuryAccount = Keypair.generate();
             treasuryKey = treasuryAccount.publicKey;
 
             transaction.add(
                 SystemProgram.createAccount({
-                    fromPubkey: this.prototype.payer.publicKey,
+                    fromPubkey: this.payer.publicKey,
                     newAccountPubkey: treasuryKey,
                     lamports: minBalanceForTreasury,
                     space: 0,
-                    programId: this.prototype.programId,
+                    programId: this.programId,
                 }),
             );
         }
 
-        const minBalanceForStream = await this.prototype.connection.getMinimumBalanceForRentExemption(
+        const minBalanceForStream = await this.connection.getMinimumBalanceForRentExemption(
             Layout.StreamLayout.span
         );
 
@@ -143,17 +162,17 @@ export class Streaming {
 
         transaction.add(
             SystemProgram.createAccount({
-                fromPubkey: this.prototype.payer.publicKey,
+                fromPubkey: this.payer.publicKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: minBalanceForStream,
                 space: Layout.StreamLayout.span,
-                programId: this.prototype.programId,
+                programId: this.programId,
             }),
         );
 
         transaction.add(
             Streaming.createStreamInstruction(
-                this.prototype.programId,
+                this.programId,
                 treasurer,
                 beneficiary,
                 treasuryKey,
@@ -170,20 +189,10 @@ export class Streaming {
             ),
         );
 
-        let { blockhash } = await this.prototype.connection.getRecentBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = treasurer;
-        transaction.sign(signer);
-
-        return await this.prototype.connection.sendTransaction(
-            transaction,
-            [signer],
-            {
-                skipPreflight: false, preflightCommitment: 'singleGossip'
-            });
+        return transaction;
     }
 
-    static async addFunds(
+    async getAddFundsTransaction(
         signer: Signer,
         treasury: PublicKey,
         stream: PublicKey,
@@ -191,14 +200,14 @@ export class Streaming {
         contributorToken: PublicKey,
         amount: number
 
-    ): Promise<boolean> {
+    ): Promise<Transaction> {
 
         const transaction = new Transaction();
 
         transaction.add(
             transaction.add(
                 Streaming.addFundsInstruction(
-                    this.prototype.programId,
+                    this.programId,
                     treasury,
                     stream,
                     contributor,
@@ -208,23 +217,7 @@ export class Streaming {
             )
         );
 
-        let { blockhash } = await this.prototype.connection.getRecentBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = contributor;
-        transaction.sign(signer);
-
-        let txId = await this.prototype.connection.sendTransaction(
-            transaction,
-            [signer],
-            {
-                skipPreflight: false, preflightCommitment: 'singleGossip'
-            });
-
-        if (txId.length) {
-            return true;
-        }
-
-        false;
+        return transaction;
     }
 
     static async withdraw(
@@ -253,10 +246,10 @@ export class Streaming {
 
     ): TransactionInstruction {
         const keys = [
-            { pubkey: treasurer, isSigner: false, isWritable: true },
+            { pubkey: treasurer, isSigner: true, isWritable: false },
             { pubkey: beneficiary, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
-            { pubkey: stream, isSigner: false, isWritable: false },
+            { pubkey: stream, isSigner: false, isWritable: true },
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
@@ -268,13 +261,13 @@ export class Streaming {
                 treasury_address: Buffer.from(treasury.toBuffer()),
                 beneficiary_withdrawal_address: Buffer.from(beneficiary.toBuffer()),
                 escrow_token_address: Buffer.from(associatedToken.toBuffer()),
-                funding_amount: new u64Number(fundingAmount).toBuffer(),
+                funding_amount: new u64Number(fundingAmount || 0).toBuffer(),
                 rate_amount: new u64Number(rateAmount).toBuffer(),
                 rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
                 start_utc: new u64Number(startUtcNow).toBuffer(),
-                rate_cliff_in_seconds: new u64Number(rateCliffInSeconds).toBuffer(),
-                cliff_vest_amount: new u64Number(cliffVestAmount).toBuffer(),
-                cliff_vest_percent: new u64Number(cliffVestPercent).toBuffer(),
+                rate_cliff_in_seconds: new u64Number(rateCliffInSeconds || 0).toBuffer(),
+                cliff_vest_amount: new u64Number(cliffVestAmount || 0).toBuffer(),
+                cliff_vest_percent: new u64Number(cliffVestPercent || 100).toBuffer(),
             };
 
             const encodeLength = Layout.createStreamLayout.encode(decodedData, data);
@@ -321,5 +314,13 @@ export class Streaming {
             programId,
             data,
         });
+    }
+
+    static parseStreamData(
+        streamId: PublicKey,
+        streamData: Buffer | ParsedAccountData
+
+    ): null | StreamInfo {
+        return null;
     }
 }
