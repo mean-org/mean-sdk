@@ -6,12 +6,10 @@ import {
     Connection,
     Keypair,
     PublicKey,
-    Struct,
     SystemProgram,
     Transaction,
     TransactionInstruction,
 } from '@solana/web3.js';
-
 import { Constants } from './constants';
 import EventEmitter from 'eventemitter3';
 
@@ -46,11 +44,12 @@ export type StreamInfo = {
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API 
  */
-export class Streaming {
+export class MoneyStreaming {
 
     private connection: Connection;
 
     private programId: PublicKey;
+    private feePayer: PublicKey;
 
     private defaultStream: StreamInfo = {
         id: undefined,
@@ -83,8 +82,9 @@ export class Streaming {
         //     connection,
         //     programId
         // });
-        this.connection = new Connection(cluster);
+        this.connection = new Connection(cluster, 'confirmed');
         this.programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
+        this.feePayer = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ID);
     }
 
     public async getStream(
@@ -96,7 +96,7 @@ export class Streaming {
         let accountInfo = await this.connection.getAccountInfo(id);
 
         if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
-            stream = Streaming.parseStreamData(id, accountInfo?.data);
+            stream = MoneyStreaming.parseStreamData(id, accountInfo?.data);
         }
 
         return stream;
@@ -118,7 +118,7 @@ export class Streaming {
         for (var item of accounts) {
 
             if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
-                var info = Streaming.parseStreamData(
+                var info = MoneyStreaming.parseStreamData(
                     item.pubkey,
                     item.account.data
                 );
@@ -163,7 +163,6 @@ export class Streaming {
 
         const transaction = new Transaction();
 
-        let payerKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ID);
         let treasuryKey = treasury;
         let treasuryAccount = Keypair.generate();
 
@@ -174,7 +173,7 @@ export class Streaming {
 
             transaction.add(
                 SystemProgram.createAccount({
-                    fromPubkey: payerKey,
+                    fromPubkey: this.feePayer,
                     newAccountPubkey: treasuryKey,
                     lamports: minBalanceForTreasury,
                     space: 0,
@@ -191,7 +190,7 @@ export class Streaming {
 
         transaction.add(
             SystemProgram.createAccount({
-                fromPubkey: payerKey,
+                fromPubkey: this.feePayer,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: minBalanceForStream,
                 space: Layout.streamLayout.span,
@@ -200,7 +199,7 @@ export class Streaming {
         );
 
         transaction.add(
-            Streaming.createStreamInstruction(
+            MoneyStreaming.createStreamInstruction(
                 this.programId,
                 treasurer,
                 beneficiary,
@@ -218,6 +217,11 @@ export class Streaming {
             ),
         );
 
+        transaction.feePayer = this.feePayer;
+        let hash = await this.connection.getRecentBlockhash('confirmed');
+        console.log("blockhash", hash);
+        transaction.recentBlockhash = hash.blockhash;
+
         return transaction;
     }
 
@@ -234,7 +238,7 @@ export class Streaming {
 
         transaction.add(
             transaction.add(
-                Streaming.addFundsInstruction(
+                MoneyStreaming.addFundsInstruction(
                     this.programId,
                     treasury,
                     stream,
@@ -261,10 +265,13 @@ export class Streaming {
         transaction: Transaction
     ): Promise<Transaction> {
         try {
+
+            console.log("Sending transaction to wallet for approval...");
             let signedTrans = await wallet.signTransaction(transaction);
-            console.log("sign transaction");
             return signedTrans;
         } catch (error) {
+            console.log("signTransaction failed!");
+            console.log(error);
             throw error;
         }
     }
@@ -281,7 +288,7 @@ export class Streaming {
 
     public async confirmTransaction(signature: any): Promise<any> {
         try {
-            const result = await this.connection.confirmTransaction(signature, "singleGossip");
+            const result = await this.connection.confirmTransaction(signature, 'confirmed');
             console.log("send raw transaction");
             return result;
         } catch (error) {
@@ -311,7 +318,7 @@ export class Streaming {
             { pubkey: beneficiary, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: programId, isSigner: true, isWritable: false }
+            { pubkey: SystemProgram.programId, isSigner: true, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
@@ -387,13 +394,7 @@ export class Streaming {
     ): StreamInfo {
 
         let stream: StreamInfo = Object.assign({}, this.prototype.defaultStream);
-        console.log(streamData.length);
-        console.log(streamData);
-        console.log('');
         let decodedData = Layout.streamLayout.decode(streamData);
-        console.log(Layout.streamLayout.span);
-        console.log(decodedData);
-        console.log('');
         let totalDeposits = parseFloat(u64Number.fromBuffer(decodedData.total_deposits).toString());
         let totalWithdrawals = parseFloat(u64Number.fromBuffer(decodedData.total_withdrawals).toString());
         let startUtc = parseInt(u64Number.fromBuffer(decodedData.start_utc).toString());

@@ -22,7 +22,7 @@ import {
 import { Constants } from './src/constants';
 import { Layout } from './src/layout';
 import { u64Number } from './src/u64Number';
-import { Streaming } from './src/stream';
+import { MoneyStreaming } from './src/money-streaming';
 
 const prompt = require('prompt-sync')();
 const connection = new Connection('https://devnet.solana.com', 'confirmed');
@@ -296,7 +296,7 @@ async function list_streams() {
     console.log('Program streams');
     console.log('');
 
-    const streaming = new Streaming(Constants.DEVNET_CLUSTER);
+    const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     const streams = await streaming.listStreams();
 
     console.log(JSON.stringify(streams));
@@ -310,7 +310,7 @@ async function get_stream() {
     console.log('');
 
     const programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
-    const streaming = new Streaming(Constants.DEVNET_CLUSTER);
+    const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     const stream = await streaming.getStream(streamId);
 
     console.log(JSON.stringify(stream));
