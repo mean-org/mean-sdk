@@ -325,7 +325,7 @@ export class MoneyStreaming {
             { pubkey: beneficiary, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: SystemProgram.programId, isSigner: true, isWritable: false }
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
