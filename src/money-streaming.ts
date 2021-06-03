@@ -6,6 +6,7 @@ import {
     Connection,
     Keypair,
     PublicKey,
+    Signer,
     SystemProgram,
     Transaction,
     TransactionInstruction,
@@ -164,7 +165,7 @@ export class MoneyStreaming {
         const transaction = new Transaction();
 
         let treasuryKey = treasury;
-        let treasuryAccount = Keypair.generate();
+        let treasuryAccount;
 
         if (treasuryKey === null) {
             const minBalanceForTreasury = await this.connection.getMinimumBalanceForRentExemption(0);
@@ -173,7 +174,7 @@ export class MoneyStreaming {
 
             transaction.add(
                 SystemProgram.createAccount({
-                    fromPubkey: this.feePayer,
+                    fromPubkey: treasurer,
                     newAccountPubkey: treasuryKey,
                     lamports: minBalanceForTreasury,
                     space: 0,
@@ -190,7 +191,7 @@ export class MoneyStreaming {
 
         transaction.add(
             SystemProgram.createAccount({
-                fromPubkey: this.feePayer,
+                fromPubkey: treasurer,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: minBalanceForStream,
                 space: Layout.streamLayout.span,
@@ -217,10 +218,16 @@ export class MoneyStreaming {
             ),
         );
 
-        transaction.feePayer = this.feePayer;
+        transaction.feePayer = treasurer;
         let hash = await this.connection.getRecentBlockhash('confirmed');
-        console.log("blockhash", hash);
         transaction.recentBlockhash = hash.blockhash;
+        let signers: Array<Signer> = [streamAccount];
+
+        if (treasuryAccount !== undefined) {
+            signers.push(treasuryAccount);
+        }
+
+        transaction.partialSign(...signers);
 
         return transaction;
     }

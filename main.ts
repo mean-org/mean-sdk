@@ -147,7 +147,7 @@ async function create_stream() {
                 treasuryAccount = Keypair.generate();
                 treasuryAddressKey = treasuryAccount.publicKey;
                 createTreasuryInstruction = SystemProgram.createAccount({
-                    fromPubkey: payerAccount.publicKey,
+                    fromPubkey: treasurerAccount.publicKey,
                     newAccountPubkey: treasuryAddressKey,
                     lamports: amount,
                     space: 0,
@@ -177,7 +177,7 @@ async function create_stream() {
         .then((amount) => {
             streamAccount = Keypair.generate();
             createStreamAccountInstruction = SystemProgram.createAccount({
-                fromPubkey: payerAccount.publicKey,
+                fromPubkey: treasurerAccount.publicKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: amount,
                 space: Layout.streamLayout.span,
@@ -231,8 +231,8 @@ async function create_stream() {
     });
 
     const createStreamTx = new Transaction();
-    createStreamTx.feePayer = payerAccount.publicKey;
-    let signers: Array<Signer> = [payerAccount];
+    createStreamTx.feePayer = treasurerAccount.publicKey;
+    let signers: Array<Signer> = [];
 
     if (createTreasuryInstruction !== undefined) {
         createStreamTx.add(createTreasuryInstruction);
@@ -244,14 +244,16 @@ async function create_stream() {
 
     if (createStreamAccountInstruction !== undefined) {
         createStreamTx.add(createStreamAccountInstruction);
+        signers.push(streamAccount);
     }
 
     createStreamTx.add(createStreamInstruction);
-    signers.push(streamAccount, treasurerAccount);
+    // signers.push(streamAccount, treasurerAccount);
     let { blockhash } = await connection.getRecentBlockhash();
     createStreamTx.recentBlockhash = blockhash
-    createStreamTx.sign(...signers);
-
+    console.log(createStreamTx);
+    createStreamTx.partialSign(...signers);
+    console.log('biennnnn !!!');
     console.log('');
 
     const result = await connection.sendTransaction(
