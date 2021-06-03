@@ -11,6 +11,7 @@ import {
     Transaction,
     TransactionInstruction,
 } from '@solana/web3.js';
+
 import { Constants } from './constants';
 import EventEmitter from 'eventemitter3';
 
@@ -164,6 +165,7 @@ export class Streaming {
 
         const transaction = new Transaction();
 
+        let payerKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ID);
         let treasuryKey = treasury;
         let treasuryAccount = Keypair.generate();
 
@@ -174,7 +176,7 @@ export class Streaming {
 
             transaction.add(
                 SystemProgram.createAccount({
-                    fromPubkey: treasurer,
+                    fromPubkey: payerKey,
                     newAccountPubkey: treasuryKey,
                     lamports: minBalanceForTreasury,
                     space: 0,
@@ -191,7 +193,7 @@ export class Streaming {
 
         transaction.add(
             SystemProgram.createAccount({
-                fromPubkey: treasurer,
+                fromPubkey: payerKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: minBalanceForStream,
                 space: Layout.StreamLayout.span,

@@ -295,7 +295,7 @@ async function list_streams() {
     console.log('Program streams');
     console.log('');
 
-    const streaming = new Streaming(connection, programId);
+    const streaming = new Streaming(Constants.DEVNET_CLUSTER);
     const streams = await streaming.listStreams();
 
     console.log(JSON.stringify(streams));
@@ -309,7 +309,7 @@ async function get_stream() {
     console.log('');
 
     const programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
-    const streaming = new Streaming(connection, programId);
+    const streaming = new Streaming(Constants.DEVNET_CLUSTER);
     const stream = await streaming.getStream(streamId);
 
     console.log(JSON.stringify(stream));

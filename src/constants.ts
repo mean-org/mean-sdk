@@ -7,4 +7,5 @@ export class Constants {
     static TOKEN_PROGRAM_ID = '';
     static ASSOCIATED_TOKEN_PROGRAM_ID = '';
     static ASSOCIATED_TOKEN_ACCOUNT = 'So11111111111111111111111111111111111111112';
+    static DEVNET_CLUSTER = 'https://devnet.solana.com'
 }
