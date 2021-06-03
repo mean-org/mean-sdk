@@ -147,7 +147,7 @@ async function create_stream() {
                 treasuryAccount = Keypair.generate();
                 treasuryAddressKey = treasuryAccount.publicKey;
                 createTreasuryInstruction = SystemProgram.createAccount({
-                    fromPubkey: treasurerAccount.publicKey,
+                    fromPubkey: payerAccount.publicKey,
                     newAccountPubkey: treasuryAddressKey,
                     lamports: amount,
                     space: 0,
@@ -171,16 +171,16 @@ async function create_stream() {
     let streamAccount = Keypair.generate(); //Keypair;
     let createStreamAccountInstruction = undefined;
 
-    console.log(`Layout size: ${Layout.StreamLayout.span}`);
+    console.log(`Layout size: ${Layout.streamLayout.span}`);
 
-    await connection.getMinimumBalanceForRentExemption(Layout.StreamLayout.span)
+    await connection.getMinimumBalanceForRentExemption(Layout.streamLayout.span)
         .then((amount) => {
             streamAccount = Keypair.generate();
             createStreamAccountInstruction = SystemProgram.createAccount({
-                fromPubkey: treasurerAccount.publicKey,
+                fromPubkey: payerAccount.publicKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: amount,
-                space: Layout.StreamLayout.span,
+                space: Layout.streamLayout.span,
                 programId: programAccount.publicKey
             });
         })
@@ -192,6 +192,7 @@ async function create_stream() {
     let data = Buffer.alloc(Layout.createStreamLayout.span)
     {
         let nameBuffer = Buffer.alloc(32, streamFriendlyName);
+        let rateIntervalInSeconds = rateInterval.length == 0 ? 60 : parseInt(rateInterval);
 
         // console.log(nameBuffer);
 
@@ -202,9 +203,9 @@ async function create_stream() {
             beneficiary_withdrawal_address: Buffer.from(beneficiaryAddressKey.toBuffer()),
             escrow_token_address: Buffer.from(new PublicKey(Constants.ASSOCIATED_TOKEN_ACCOUNT).toBuffer()),
             treasury_address: Buffer.from(treasuryAddressKey.toBuffer()),
-            funding_amount: new u64Number(parseInt(initialAmount)).toBuffer(),
+            funding_amount: new u64Number(initialAmount).toBuffer(),
             rate_amount: new u64Number(rateAmount).toBuffer(),
-            rate_interval_in_seconds: new u64Number(parseInt(rateInterval)).toBuffer(), // default = MIN
+            rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
             start_utc: new u64Number(Date.now()).toBuffer(),
             rate_cliff_in_seconds: new u64Number(0).toBuffer(),
             cliff_vest_amount: new u64Number(0).toBuffer(),
@@ -219,18 +220,19 @@ async function create_stream() {
 
     let createStreamInstruction = new TransactionInstruction({
         keys: [
-            { pubkey: treasurerAccount.publicKey, isSigner: true, isWritable: false },
+            { pubkey: treasurerAccount.publicKey, isSigner: true, isWritable: true },
             { pubkey: beneficiaryAddressKey, isSigner: false, isWritable: false },
             { pubkey: treasuryAddressKey, isSigner: false, isWritable: false },
             { pubkey: streamAccount.publicKey, isSigner: false, isWritable: true },
+            { pubkey: treasurerAccountInfo !== null ? treasurerAccountInfo.owner : SystemProgram.programId, isSigner: false, isWritable: false },
         ],
         programId: programAccount.publicKey,
         data
     });
 
     const createStreamTx = new Transaction();
-    createStreamTx.feePayer = treasurerAccount.publicKey;
-    let signers: Array<Signer> = [treasurerAccount];
+    createStreamTx.feePayer = payerAccount.publicKey;
+    let signers: Array<Signer> = [payerAccount];
 
     if (createTreasuryInstruction !== undefined) {
         createStreamTx.add(createTreasuryInstruction);
@@ -240,13 +242,12 @@ async function create_stream() {
         }
     }
 
-    signers.push(streamAccount);
-
     if (createStreamAccountInstruction !== undefined) {
         createStreamTx.add(createStreamAccountInstruction);
     }
 
     createStreamTx.add(createStreamInstruction);
+    signers.push(streamAccount, treasurerAccount);
     let { blockhash } = await connection.getRecentBlockhash();
     createStreamTx.recentBlockhash = blockhash
     createStreamTx.sign(...signers);

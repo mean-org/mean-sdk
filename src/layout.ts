@@ -72,11 +72,10 @@ export module Layout {
     /**
      * Stream layout
      */
-    export const StreamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+    export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('initialized'),
         string('stream_name'),
         publicKey('treasurer_address'),
-        uint64('funding_amount'),
         uint64('rate_amount'),
         uint64('rate_interval_in_seconds'),
         uint64('start_utc'),
@@ -85,13 +84,29 @@ export module Layout {
         uint64('cliff_vest_percent'),
         publicKey('beneficiary_withdrawal_address'),
         publicKey('escrow_token_address'),
-        uint64('escrow_vested_amount'),
-        uint64('escrow_unvested_amount'),
+        // uint64('escrow_vested_amount'),
+        // uint64('escrow_unvested_amount'),
         publicKey('treasury_address'),
         uint64('escrow_estimated_depletion_utc'),
         uint64('total_deposits'),
         uint64('total_withdrawals')
     ]);
+
+    // pub initialized: bool,
+    // pub stream_name: String,
+    // pub treasurer_address: Pubkey,
+    // pub rate_amount: u64,
+    // pub rate_interval_in_seconds: u64,
+    // pub start_utc: u64,
+    // pub rate_cliff_in_seconds: u64,
+    // pub cliff_vest_amount: u64,
+    // pub cliff_vest_percent: u64,
+    // pub beneficiary_withdrawal_address: Pubkey,
+    // pub escrow_token_address: Pubkey,
+    // pub treasury_address: Pubkey,
+    // pub treasury_estimated_depletion_utc: u64,
+    // pub total_deposits: u64,
+    // pub total_withdrawals: u64
 
     /**
      * Create stream instruction layout

@@ -27,7 +27,6 @@ export type StreamInfo = {
     initialized: boolean,
     streamName: String,
     treasurerAddress: PublicKey | undefined,
-    fundingAmount: number,
     rateAmount: number,
     rateIntervalInSeconds: number,
     startUtc: Date | null,
@@ -58,7 +57,6 @@ export class Streaming {
         initialized: false,
         streamName: "",
         treasurerAddress: undefined,
-        fundingAmount: 0,
         rateAmount: 0,
         rateIntervalInSeconds: 0,
         startUtc: null,
@@ -97,7 +95,7 @@ export class Streaming {
         let stream: StreamInfo = this.defaultStream;
         let accountInfo = await this.connection.getAccountInfo(id);
 
-        if (accountInfo?.data !== undefined && accountInfo?.data.length === Layout.StreamLayout.span) {
+        if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
             stream = Streaming.parseStreamData(id, accountInfo?.data);
         }
 
@@ -119,7 +117,7 @@ export class Streaming {
 
         for (var item of accounts) {
 
-            if (item.account.data !== undefined && item.account.data.length === Layout.StreamLayout.span) {
+            if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
                 var info = Streaming.parseStreamData(
                     item.pubkey,
                     item.account.data
@@ -186,7 +184,7 @@ export class Streaming {
         }
 
         const minBalanceForStream = await this.connection.getMinimumBalanceForRentExemption(
-            Layout.StreamLayout.span
+            Layout.streamLayout.span
         );
 
         const streamAccount = Keypair.generate();
@@ -196,7 +194,7 @@ export class Streaming {
                 fromPubkey: payerKey,
                 newAccountPubkey: streamAccount.publicKey,
                 lamports: minBalanceForStream,
-                space: Layout.StreamLayout.span,
+                space: Layout.streamLayout.span,
                 programId: this.programId,
             }),
         );
@@ -313,13 +311,16 @@ export class Streaming {
             { pubkey: beneficiary, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
+            { pubkey: programId, isSigner: true, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
         {
+            let nameBuffer = Buffer.alloc(32, streamName as string);
+
             const decodedData = {
                 tag: 0,
-                stream_name: streamName,
+                stream_name: nameBuffer,
                 treasurer_address: Buffer.from(treasurer.toBuffer()),
                 treasury_address: Buffer.from(treasury.toBuffer()),
                 beneficiary_withdrawal_address: Buffer.from(beneficiary.toBuffer()),
@@ -386,17 +387,23 @@ export class Streaming {
     ): StreamInfo {
 
         let stream: StreamInfo = Object.assign({}, this.prototype.defaultStream);
-        let decodedData = Layout.StreamLayout.decode(streamData);
+        console.log(streamData.length);
+        console.log(streamData);
+        console.log('');
+        let decodedData = Layout.streamLayout.decode(streamData);
+        console.log(Layout.streamLayout.span);
+        console.log(decodedData);
+        console.log('');
         let totalDeposits = parseFloat(u64Number.fromBuffer(decodedData.total_deposits).toString());
         let totalWithdrawals = parseFloat(u64Number.fromBuffer(decodedData.total_withdrawals).toString());
         let startUtc = parseInt(u64Number.fromBuffer(decodedData.start_utc).toString());
         let startDateUtc = new Date();
 
-        startDateUtc.setDate(startUtc);
+        startDateUtc.setTime(startUtc);
 
-        let rateAmount = parseFloat(u64Number.fromBuffer(decodedData.funding_amount).toString());
-        let rateCliffInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString());
-        let escrowVestedAmount = (rateAmount / rateCliffInSeconds) * (Date.now() - startUtc).valueOf();
+        let rateAmount = parseFloat(u64Number.fromBuffer(decodedData.rate_amount).toString());
+        let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
+        let escrowVestedAmount = (rateAmount / rateIntervalInSeconds) * (Date.now() - startUtc).valueOf();
         let escrowEstimatedDepletionUtc = u64Number.fromBuffer(decodedData.escrow_estimated_depletion_utc).toNumber();
         let escrowEstimatedDepletionDateUtc = new Date();
 
@@ -405,19 +412,18 @@ export class Streaming {
         Object.assign(stream, { id: streamId }, {
             initialized: decodedData.initialized,
             streamName: decodedData.stream_name,
-            treasurerAddress: Struct.decode(decodedData.treasurer_address),
-            fundingAmount: parseFloat(u64Number.fromBuffer(decodedData.funding_amount).toString()),
+            treasurerAddress: PublicKey.decode(decodedData.treasurer_address),
             rateAmount: rateAmount,
-            rateIntervalInSeconds: rateCliffInSeconds,
+            rateIntervalInSeconds: rateIntervalInSeconds,
             startUtc: startDateUtc,
             rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
             cliffVestAmount: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_amount).toString()),
             cliffVestPercent: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_percent).toString()),
-            beneficiaryWithdrawalAddress: Struct.decode(decodedData.beneficiary_withdrawal_address),
-            escrowTokenAddress: Struct.decode(decodedData.escrow_token_address),
+            beneficiaryWithdrawalAddress: PublicKey.decode(decodedData.beneficiary_withdrawal_address),
+            escrowTokenAddress: PublicKey.decode(decodedData.escrow_token_address),
             escrowVestedAmount: escrowVestedAmount,
             escrowUnvestedAmount: totalDeposits - totalWithdrawals - escrowVestedAmount,
-            treasuryAddress: Struct.decode(decodedData.treasurer_address),
+            treasuryAddress: PublicKey.decode(decodedData.treasurer_address),
             escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc,
             totalDeposits: totalDeposits,
             totalWithdrawals: totalWithdrawals
