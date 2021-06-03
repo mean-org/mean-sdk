@@ -1,35 +1,31 @@
 import { Buffer } from 'buffer';
-// import * as assert from 'assert';
-// import * as BN from 'bn.js';
 import { Layout } from './layout';
 import { u64Number } from './u64Number';
 
 import {
+    Connection,
     Keypair,
     PublicKey,
+    Struct,
     SystemProgram,
     Transaction,
     TransactionInstruction,
-    SYSVAR_RENT_PUBKEY,
-    Struct,
-    ParsedAccountData
-
 } from '@solana/web3.js';
+import { Constants } from './constants';
+import EventEmitter from 'eventemitter3';
 
-import type {
-    Connection,
-    Commitment,
-    Signer,
-    TransactionSignature
-
-} from '@solana/web3.js';
-import { sign } from 'crypto';
+export interface WalletAdapter extends EventEmitter {
+    publicKey: PublicKey | null;
+    signTransaction: (transaction: Transaction) => Promise<Transaction>;
+    connect: () => any;
+    disconnect: () => any;
+}
 
 export type StreamInfo = {
-    id: PublicKey,
+    id: PublicKey | undefined,
     initialized: boolean,
     streamName: String,
-    treasurerAddress: PublicKey,
+    treasurerAddress: PublicKey | undefined,
     fundingAmount: number,
     rateAmount: number,
     rateIntervalInSeconds: number,
@@ -37,11 +33,11 @@ export type StreamInfo = {
     rateCliffInSeconds: number,
     cliffVestAmount: number,
     cliffVestPercent: number,
-    beneficiaryWithdrawalAddress: PublicKey,
-    escrowTokenAddress: PublicKey,
+    beneficiaryWithdrawalAddress: PublicKey | undefined,
+    escrowTokenAddress: PublicKey | undefined,
     escrowVestedAmount: number,
     escrowUnvestedAmount: number,
-    treasuryAddress: PublicKey,
+    treasuryAddress: PublicKey | undefined,
     escrowEstimatedDepletionUtc: Date | null,
     totalDeposits: number,
     totalWithdrawals: number
@@ -52,18 +48,15 @@ export type StreamInfo = {
  */
 export class Streaming {
 
-    /**
-     * @private
-     */
-    connection!: Connection;
+    private connection: Connection;
 
-    programId!: PublicKey;
+    private programId: PublicKey;
 
-    defaultStream: StreamInfo = {
-        id: PublicKey.default,
+    private defaultStream: StreamInfo = {
+        id: undefined,
         initialized: false,
         streamName: "",
-        treasurerAddress: PublicKey.default,
+        treasurerAddress: undefined,
         fundingAmount: 0,
         rateAmount: 0,
         rateIntervalInSeconds: 0,
@@ -71,11 +64,11 @@ export class Streaming {
         rateCliffInSeconds: 0,
         cliffVestAmount: 0,
         cliffVestPercent: 0,
-        beneficiaryWithdrawalAddress: PublicKey.default,
-        escrowTokenAddress: PublicKey.default,
+        beneficiaryWithdrawalAddress: undefined,
+        escrowTokenAddress: undefined,
         escrowVestedAmount: 0,
         escrowUnvestedAmount: 0,
-        treasuryAddress: PublicKey.default,
+        treasuryAddress: undefined,
         escrowEstimatedDepletionUtc: null,
         totalDeposits: 0,
         totalWithdrawals: 0
@@ -84,20 +77,18 @@ export class Streaming {
     /**
      * Create a Streaming API object
      *
-     * @param connection The connection to use
-     * @param programId The Money Streaming Program ID
+     * @param cluster The solana cluster endpoint used for the connecton
      */
-    constructor(
-        connection: Connection,
-        programId: PublicKey,
-    ) {
-        Object.assign(this, {
-            connection,
-            programId
-        });
+    constructor(cluster: string) {
+        // Object.assign(this, {
+        //     connection,
+        //     programId
+        // });
+        this.connection = new Connection(cluster);
+        this.programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
     }
 
-    async getStream(
+    public async getStream(
         id: PublicKey
 
     ): Promise<StreamInfo> {
@@ -112,14 +103,14 @@ export class Streaming {
         return stream;
     }
 
-    async listStreams(
+    public async listStreams(
         treasurer?: undefined | PublicKey,
         beneficiary?: undefined | PublicKey
 
     ): Promise<StreamInfo[]> {
 
         let streams: StreamInfo[] = [];
-        const accounts = await this.connection.getProgramAccounts(this.programId, 'confirmed');
+        const accounts = await this.connection.getProgramAccounts(this.programId, 'singleGossip');
 
         if (accounts === null || !accounts.length) {
             return streams;
@@ -156,10 +147,10 @@ export class Streaming {
         return streams;
     }
 
-    async getCreateStreamTransaction(
+    public async getCreateStreamTransaction(
         treasurer: PublicKey,
         beneficiary: PublicKey,
-        treasury: PublicKey,
+        treasury: PublicKey | null,
         associatedToken: PublicKey,
         rateAmount: number,
         rateIntervalInSeconds: number,
@@ -169,7 +160,6 @@ export class Streaming {
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
         cliffVestPercent?: number
-
     ): Promise<Transaction> {
 
         const transaction = new Transaction();
@@ -231,7 +221,7 @@ export class Streaming {
         return transaction;
     }
 
-    async getAddFundsTransaction(
+    public async getAddFundsTransaction(
         treasury: PublicKey,
         stream: PublicKey,
         contributor: PublicKey,
@@ -258,12 +248,45 @@ export class Streaming {
         return transaction;
     }
 
-    static async withdraw(
+    public static async withdraw(
         from: PublicKey,
         amount: number
 
     ): Promise<boolean> {
         return false;
+    }
+
+    public async signTransaction(
+        wallet: WalletAdapter,
+        transaction: Transaction
+    ): Promise<Transaction> {
+        try {
+            let signedTrans = await wallet.signTransaction(transaction);
+            console.log("sign transaction");
+            return signedTrans;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async sendSignedTransaction(signedTrans: Transaction): Promise<string> {
+        try {
+            let signature = await this.connection.sendRawTransaction(signedTrans.serialize());
+            console.log("send raw transaction");
+            return signature;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async confirmTransaction(signature: any): Promise<any> {
+        try {
+            const result = await this.connection.confirmTransaction(signature, "singleGossip");
+            console.log("send raw transaction");
+            return result;
+        } catch (error) {
+            throw error;
+        }
     }
 
     static createStreamInstruction(
@@ -380,7 +403,7 @@ export class Streaming {
         Object.assign(stream, { id: streamId }, {
             initialized: decodedData.initialized,
             streamName: decodedData.stream_name,
-            treasurerAddress: PublicKey.decode(decodedData.treasurer_address),
+            treasurerAddress: Struct.decode(decodedData.treasurer_address),
             fundingAmount: parseFloat(u64Number.fromBuffer(decodedData.funding_amount).toString()),
             rateAmount: rateAmount,
             rateIntervalInSeconds: rateCliffInSeconds,
@@ -388,11 +411,11 @@ export class Streaming {
             rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
             cliffVestAmount: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_amount).toString()),
             cliffVestPercent: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_percent).toString()),
-            beneficiaryWithdrawalAddress: PublicKey.decode(decodedData.beneficiary_withdrawal_address),
-            escrowTokenAddress: PublicKey.decode(decodedData.escrow_token_address),
+            beneficiaryWithdrawalAddress: Struct.decode(decodedData.beneficiary_withdrawal_address),
+            escrowTokenAddress: Struct.decode(decodedData.escrow_token_address),
             escrowVestedAmount: escrowVestedAmount,
             escrowUnvestedAmount: totalDeposits - totalWithdrawals - escrowVestedAmount,
-            treasuryAddress: PublicKey.decode(decodedData.treasurer_address),
+            treasuryAddress: Struct.decode(decodedData.treasurer_address),
             escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc,
             totalDeposits: totalDeposits,
             totalWithdrawals: totalWithdrawals
