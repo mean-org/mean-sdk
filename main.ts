@@ -171,8 +171,6 @@ async function create_stream() {
     let streamAccount = Keypair.generate(); //Keypair;
     let createStreamAccountInstruction = undefined;
 
-    console.log(`Layout size: ${Layout.streamLayout.span}`);
-
     await connection.getMinimumBalanceForRentExemption(Layout.streamLayout.span)
         .then((amount) => {
             streamAccount = Keypair.generate();
@@ -188,10 +186,15 @@ async function create_stream() {
         .finally(() => { });
 
     console.log(`Stream account: ${streamAccount.publicKey}`);
+    console.log('');
+    console.log(`Name length: ${streamFriendlyName.length}`);
+    console.log('');
+    console.log(`Create layout length: ${Layout.createStreamLayout.span}`);
+    console.log('');
 
     let data = Buffer.alloc(Layout.createStreamLayout.span)
     {
-        let nameBuffer = Buffer.alloc(32, streamFriendlyName);
+        let nameBuffer = Buffer.alloc(32).fill(streamFriendlyName, 0, streamFriendlyName.length);            
         let rateIntervalInSeconds = rateInterval.length == 0 ? 60 : parseInt(rateInterval);
 
         // console.log(nameBuffer);
@@ -213,10 +216,12 @@ async function create_stream() {
         };
 
         const encodeLength = Layout.createStreamLayout.encode(decodedData, data);
+        console.log(`Encoded data length: ${encodeLength}`);
+        console.log('');
         data = data.slice(0, encodeLength);
     };
 
-    // console.log(data);
+    console.log(`Data length: ${data.length}`);
 
     let createStreamInstruction = new TransactionInstruction({
         keys: [
@@ -232,7 +237,7 @@ async function create_stream() {
 
     const createStreamTx = new Transaction();
     createStreamTx.feePayer = treasurerAccount.publicKey;
-    let signers: Array<Signer> = [];
+    let signers: Array<Signer> = [treasurerAccount];
 
     if (createTreasuryInstruction !== undefined) {
         createStreamTx.add(createTreasuryInstruction);
@@ -256,6 +261,7 @@ async function create_stream() {
     console.log('biennnnn !!!');
     console.log('');
 
+    // const result = '';
     const result = await connection.sendTransaction(
         createStreamTx,
         signers,

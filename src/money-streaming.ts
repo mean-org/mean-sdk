@@ -330,7 +330,8 @@ export class MoneyStreaming {
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
         {
-            let nameBuffer = Buffer.alloc(32, streamName as string);
+            let nameBuffer = Buffer.alloc(32);
+            nameBuffer.fill((streamName as string), 0, (streamName as string).length);
 
             const decodedData = {
                 tag: 0,
@@ -417,9 +418,15 @@ export class MoneyStreaming {
 
         escrowEstimatedDepletionDateUtc.setDate(escrowEstimatedDepletionUtc);
 
+        let nameBuffer = Buffer
+            .alloc(32, decodedData.stream_name)
+            .filter(function (elem, index) {
+                return elem !== 0;
+            });
+
         Object.assign(stream, { id: streamId }, {
             initialized: decodedData.initialized,
-            streamName: decodedData.stream_name,
+            streamName: nameBuffer.toString(),
             treasurerAddress: PublicKey.decode(decodedData.treasurer_address),
             rateAmount: rateAmount,
             rateIntervalInSeconds: rateIntervalInSeconds,
