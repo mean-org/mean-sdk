@@ -1,118 +1,148 @@
+import { Commitment, Connection, GetProgramAccountsConfig, PublicKey } from "@solana/web3.js";
+import { Layout } from "./layout";
+import { StreamInfo } from "./money-streaming";
+import { u64Number } from "./u64Number";
 
-import {
-    Keypair,
-    PublicKey,
-    Connection,
-    SystemProgram,
-    Account
-
-} from '@solana/web3.js';
-
-import { readFile } from 'mz/fs';
-import { Buffer } from 'buffer';
-import BN from 'bn.js';
-// import BufferLayout from 'buffer-layout';
-var pathUtil = require('path');
-export const PROGRAM_PATH = pathUtil.resolve(__dirname);
-export const STREAM_SIZE = 232;
-export const PROGRAM_ID = '2HEkjrj21DX2ecNQjAEUPKwr2pEnwSBjgi9GUHWtKnhH';
-
-export const enum PROGRAM_ACTIONS {
-    createStream = 1,
-    addFunds = 2,
-    withdraw = 3,
-    proposeUpdate = 4,
-    answerUpdate = 5,
-    closeStream = 6,
-    closeTreasury = 7,
-    listStreams = 8,
-    getStream = 9
+let defaultStreamInfo: StreamInfo = {
+    id: undefined,
+    initialized: false,
+    streamName: "",
+    treasurerAddress: undefined,
+    rateAmount: 0,
+    rateIntervalInSeconds: 0,
+    startUtc: null,
+    rateCliffInSeconds: 0,
+    cliffVestAmount: 0,
+    cliffVestPercent: 0,
+    beneficiaryWithdrawalAddress: undefined,
+    escrowTokenAddress: undefined,
+    escrowVestedAmount: 0,
+    escrowUnvestedAmount: 0,
+    treasuryAddress: undefined,
+    escrowEstimatedDepletionUtc: null,
+    totalDeposits: 0,
+    totalWithdrawals: 0
 }
 
-export const AVAILABLE_PROGRAM_ACTIONS = [
-    { id: PROGRAM_ACTIONS.createStream, name: "Create Stream" },
-    { id: PROGRAM_ACTIONS.closeStream, name: "Close Stream" },
-]
+function parseStreamData(
+    streamId: PublicKey,
+    streamData: Buffer
 
-export type StreamTerms = {
+): StreamInfo {
 
-}
+    let stream: StreamInfo = defaultStreamInfo;
+    let decodedData = Layout.streamLayout.decode(streamData);
+    let totalDeposits = parseFloat(u64Number.fromBuffer(decodedData.total_deposits).toString());
+    let totalWithdrawals = parseFloat(u64Number.fromBuffer(decodedData.total_withdrawals).toString());
+    let startUtc = parseInt(u64Number.fromBuffer(decodedData.start_utc).toString());
+    let startDateUtc = new Date();
 
-export async function createConnection(url = "https://devnet.solana.com") {
-    return new Connection(url);
-}
+    startDateUtc.setTime(startUtc);
 
-export async function createAccountInstruction(
-    publicKey: PublicKey,
-    lamports: number,
-    space: number) {
+    let rateAmount = parseFloat(u64Number.fromBuffer(decodedData.rate_amount).toString());
+    let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
+    let escrowVestedAmount = (rateAmount / rateIntervalInSeconds) * (Date.now() - startUtc).valueOf();
+    let escrowEstimatedDepletionUtc = u64Number.fromBuffer(decodedData.escrow_estimated_depletion_utc).toNumber();
+    let escrowEstimatedDepletionDateUtc = new Date();
 
-    const program = await getProgramAccount();
-    const payer = await getPayerAccount();
-    // const newAccount = Keypair.generate();
+    escrowEstimatedDepletionDateUtc.setDate(escrowEstimatedDepletionUtc);
 
-    return SystemProgram.createAccount({
-        fromPubkey: payer.publicKey,
-        newAccountPubkey: publicKey,
-        lamports,
-        space,
-        programId: program.publicKey
+    let nameBuffer = Buffer
+        .alloc(32, decodedData.stream_name)
+        .filter(function (elem, index) {
+            return elem !== 0;
+        });
+
+    Object.assign(stream, { id: streamId }, {
+        initialized: decodedData.initialized,
+        streamName: nameBuffer.toString(),
+        treasurerAddress: PublicKey.decode(decodedData.treasurer_address),
+        rateAmount: rateAmount,
+        rateIntervalInSeconds: rateIntervalInSeconds,
+        startUtc: startDateUtc,
+        rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
+        cliffVestAmount: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_amount).toString()),
+        cliffVestPercent: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_percent).toString()),
+        beneficiaryWithdrawalAddress: PublicKey.decode(decodedData.beneficiary_withdrawal_address),
+        escrowTokenAddress: PublicKey.decode(decodedData.escrow_token_address),
+        escrowVestedAmount: escrowVestedAmount,
+        escrowUnvestedAmount: totalDeposits - totalWithdrawals - escrowVestedAmount,
+        treasuryAddress: PublicKey.decode(decodedData.treasurer_address),
+        escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc,
+        totalDeposits: totalDeposits,
+        totalWithdrawals: totalWithdrawals
     });
+
+    return stream;
 }
 
-async function getAccount(path: string) {
-    const programFilePath = pathUtil.join(PROGRAM_PATH, path);
-    const programKeyPair = await readFile(programFilePath, { encoding: 'utf8' });
-    const programKeyPairBuffer = Buffer.from(JSON.parse(programKeyPair));
-    const program = new Account(programKeyPairBuffer);
+export async function getStream(
+    connection: Connection,
+    id: PublicKey,
+    commitment?: Commitment | undefined
 
-    return program;
+): Promise<StreamInfo> {
+
+    let stream;
+    let accountInfo = await connection.getAccountInfo(id, commitment);
+
+    if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
+        stream = parseStreamData(id, accountInfo?.data);
+    }
+
+    return stream as StreamInfo;
 }
 
-export async function getProgramAccount() {
-    return await getAccount('../../program/dist/money_streaming-keypair.json');
-}
+export async function listStreams(
+    connection: Connection,
+    programId: PublicKey,
+    treasurer?: PublicKey | undefined,
+    beneficiary?: PublicKey | undefined,
+    treasury?: PublicKey | undefined,
+    commitment?: GetProgramAccountsConfig | Commitment | undefined
 
-export async function getPayerAccount() {
-    return await getAccount('../../program/keys/payer-keypair.json');
-}
+): Promise<StreamInfo[]> {
 
-// export const publicKey = (property: string = 'publicKey'): Object => {
-//     return BufferLayout.blob(32, property);
-// };
+    let streams: StreamInfo[] = [];
+    const accounts = await connection.getProgramAccounts(programId, commitment);
 
-// export const cstring = (property: string = 'string'): Object => {
-//     const layout = BufferLayout.blob(16, property);
+    if (accounts === null || !accounts.length) {
+        return streams;
+    }
 
-//     layout.decode = (buffer: Buffer) => {
-//         return String.fromCharCode.apply(null, new Uint16Array(buffer));
-//     };
+    for (var item of accounts) {
 
-//     layout.encode = (str: String) => {
-//         var buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
-//         var bufView = new Uint16Array(buf);
-//         for (var i = 0, strLen = str.length; i < strLen; i++) {
-//             bufView[i] = str.charCodeAt(i);
-//         }
-//         return buf;
-//     };
+        if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
+            var info = parseStreamData(
+                item.pubkey,
+                item.account.data
+            );
 
-//     return layout;
-//     // return BufferLayout.blob(32, property);
-// };
+            if (info !== null) {
+                streams.push(info);
+            }
+        }
+    }
 
-// export const uint64 = (property = "uint64"): Object => {
-//     return BufferLayout.blob(8, property);
-// };
+    if (!streams.length) return streams;
 
+    if (treasurer !== undefined) {
+        streams = streams.filter(function (s, index) {
+            return s.treasurerAddress === treasurer;
+        });
+    }
 
+    if (beneficiary !== undefined) {
+        streams = streams.filter(function (s, index) {
+            return s.beneficiaryWithdrawalAddress === beneficiary;
+        });
+    }
 
-export function toBuffer(value: number): Buffer {
-    let bn = new BN(value);
-    const a = bn.toArray().reverse();
-    const b = Buffer.from(a);
-    const zeroPad = Buffer.alloc(8);
-    b.copy(zeroPad);
+    if (treasury !== undefined) {
+        streams = streams.filter(function (s, index) {
+            return s.treasuryAddress === treasury;
+        });
+    }
 
-    return zeroPad;
+    return streams;
 }

@@ -1,16 +1,21 @@
 import { Buffer } from 'buffer';
 import { Layout } from './layout';
 import { u64Number } from './u64Number';
+import * as Utils from './utils';
 
 import {
+    Commitment,
     Connection,
+    GetProgramAccountsConfig,
     Keypair,
     PublicKey,
     Signer,
     SystemProgram,
     Transaction,
-    TransactionInstruction,
+    TransactionInstruction
+
 } from '@solana/web3.js';
+
 import { Constants } from './constants';
 import EventEmitter from 'eventemitter3';
 
@@ -89,62 +94,34 @@ export class MoneyStreaming {
     }
 
     public async getStream(
-        id: PublicKey
+        id: PublicKey,
+        commitment?: Commitment | undefined
 
     ): Promise<StreamInfo> {
 
-        let stream: StreamInfo = this.defaultStream;
-        let accountInfo = await this.connection.getAccountInfo(id);
-
-        if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
-            stream = MoneyStreaming.parseStreamData(id, accountInfo?.data);
-        }
-
-        return stream;
+        return Utils.getStream(
+            this.connection,
+            id,
+            commitment
+        )
     }
 
     public async listStreams(
-        treasurer?: undefined | PublicKey,
-        beneficiary?: undefined | PublicKey
+        treasurer?: PublicKey | undefined,
+        beneficiary?: PublicKey | undefined,
+        treasury?: PublicKey | undefined,
+        commitment?: GetProgramAccountsConfig | Commitment | undefined
 
     ): Promise<StreamInfo[]> {
 
-        let streams: StreamInfo[] = [];
-        const accounts = await this.connection.getProgramAccounts(this.programId, 'singleGossip');
-
-        if (accounts === null || !accounts.length) {
-            return streams;
-        }
-
-        for (var item of accounts) {
-
-            if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
-                var info = MoneyStreaming.parseStreamData(
-                    item.pubkey,
-                    item.account.data
-                );
-
-                if (info !== null) {
-                    streams.push(info);
-                }
-            }
-        }
-
-        if (!streams.length) return streams;
-
-        if (treasurer !== undefined) {
-            streams = streams.filter(function (s, index) {
-                return s.treasurerAddress === treasurer;
-            });
-        }
-
-        if (beneficiary !== undefined) {
-            streams = streams.filter(function (s, index) {
-                return s.beneficiaryWithdrawalAddress === beneficiary;
-            });
-        }
-
-        return streams;
+        return Utils.listStreams(
+            this.connection,
+            this.programId,
+            treasurer,
+            beneficiary,
+            treasury,
+            commitment
+        );
     }
 
     public async getCreateStreamTransaction(

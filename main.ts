@@ -17,7 +17,7 @@ import {
     AVAILABLE_PROGRAM_ACTIONS,
     PROGRAM_ACTIONS,
 
-} from './src/utils';
+} from './src/main_utils';
 
 import { Constants } from './src/constants';
 import { Layout } from './src/layout';
@@ -194,7 +194,7 @@ async function create_stream() {
 
     let data = Buffer.alloc(Layout.createStreamLayout.span)
     {
-        let nameBuffer = Buffer.alloc(32).fill(streamFriendlyName, 0, streamFriendlyName.length);            
+        let nameBuffer = Buffer.alloc(32).fill(streamFriendlyName, 0, streamFriendlyName.length);
         let rateIntervalInSeconds = rateInterval.length == 0 ? 60 : parseInt(rateInterval);
 
         // console.log(nameBuffer);
