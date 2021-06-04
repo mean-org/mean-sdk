@@ -89,8 +89,8 @@ export class MoneyStreaming {
         //     programId
         // });
         this.connection = new Connection(cluster, 'confirmed');
-        this.programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
-        this.feePayer = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ID);
+        this.programId = new PublicKey(Constants.STREAM_PROGRAM_ACCOUNT);
+        this.feePayer = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ACCOUNT);
     }
 
     public async getStream(
@@ -299,10 +299,10 @@ export class MoneyStreaming {
     ): TransactionInstruction {
         const keys = [
             { pubkey: treasurer, isSigner: true, isWritable: false },
-            { pubkey: beneficiary, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            { pubkey: new PublicKey(Constants.MEAN_FI_ACCOUNT), isSigner: false, isWritable: true }
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)

@@ -104,7 +104,7 @@ async function create_stream() {
     console.log('');
     const programAccount = await getProgramAccount();
     console.log('Program account: ' + programAccount.publicKey.toBase58());
-    const payerAccountKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ID);
+    const payerAccountKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ACCOUNT);
     const payerAccount = await getPayerAccount();
     console.log('Payer account: ' + payerAccount.publicKey.toBase58());
     console.log('');
@@ -226,10 +226,11 @@ async function create_stream() {
     let createStreamInstruction = new TransactionInstruction({
         keys: [
             { pubkey: treasurerAccount.publicKey, isSigner: true, isWritable: true },
-            { pubkey: beneficiaryAddressKey, isSigner: false, isWritable: false },
+            // { pubkey: beneficiaryAddressKey, isSigner: false, isWritable: false },
             { pubkey: treasuryAddressKey, isSigner: false, isWritable: false },
             { pubkey: streamAccount.publicKey, isSigner: false, isWritable: true },
             { pubkey: treasurerAccountInfo !== null ? treasurerAccountInfo.owner : SystemProgram.programId, isSigner: false, isWritable: false },
+            { pubkey: new PublicKey(Constants.MEAN_FI_ACCOUNT), isSigner: false, isWritable: true }
         ],
         programId: programAccount.publicKey,
         data
@@ -317,7 +318,7 @@ async function get_stream() {
     console.log('Stream info');
     console.log('');
 
-    const programId = new PublicKey(Constants.STREAM_PROGRAM_ID);
+    const programId = new PublicKey(Constants.STREAM_PROGRAM_ACCOUNT);
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     const stream = await streaming.getStream(streamId);
 
