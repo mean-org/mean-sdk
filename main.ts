@@ -202,7 +202,7 @@ async function create_stream() {
         const decodedData = {
             tag: 0,
             stream_name: nameBuffer,
-            treasurer_address: Buffer.from(treasurerAccount.publicKey.toBuffer()),
+            treasurer_address: treasurerAccount.publicKey.toBuffer(),
             beneficiary_withdrawal_address: Buffer.from(beneficiaryAddressKey.toBuffer()),
             escrow_token_address: Buffer.from(new PublicKey(Constants.ASSOCIATED_TOKEN_ACCOUNT).toBuffer()),
             treasury_address: Buffer.from(treasuryAddressKey.toBuffer()),
@@ -306,7 +306,7 @@ async function list_streams() {
     console.log('');
 
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
-    const streams = await streaming.listStreams();
+    const streams = await streaming.listStreams(new PublicKey('FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'));
 
     console.log(JSON.stringify(streams));
     console.log('');

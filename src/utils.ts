@@ -6,7 +6,7 @@ import { u64Number } from "./u64Number";
 let defaultStreamInfo: StreamInfo = {
     id: undefined,
     initialized: false,
-    streamName: "",
+    memo: "",
     treasurerAddress: undefined,
     rateAmount: 0,
     rateIntervalInSeconds: 0,
@@ -21,12 +21,15 @@ let defaultStreamInfo: StreamInfo = {
     treasuryAddress: undefined,
     escrowEstimatedDepletionUtc: null,
     totalDeposits: 0,
-    totalWithdrawals: 0
+    totalWithdrawals: 0,
+    isStreaming: false,
+    isUpdatePending: false
 }
 
 function parseStreamData(
     streamId: PublicKey,
-    streamData: Buffer
+    streamData: Buffer,
+    friendly?: Boolean | undefined
 
 ): StreamInfo {
 
@@ -53,24 +56,32 @@ function parseStreamData(
             return elem !== 0;
         });
 
-    Object.assign(stream, { id: streamId }, {
+    const id = friendly !== undefined ? streamId.toBase58() : streamId;
+    const treasurerAddress = new PublicKey(decodedData.treasurer_address);
+    const beneficiaryAddress = new PublicKey(decodedData.beneficiary_withdrawal_address);
+    const treasuryAddress = new PublicKey(decodedData.treasury_address);
+    const escrowTokenAddress = new PublicKey(decodedData.escrow_token_address);
+
+    Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized,
-        streamName: nameBuffer.toString(),
-        treasurerAddress: PublicKey.decode(decodedData.treasurer_address),
+        memo: nameBuffer.toString(),
+        treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: rateAmount,
         rateIntervalInSeconds: rateIntervalInSeconds,
         startUtc: startDateUtc,
         rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
         cliffVestAmount: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_amount).toString()),
         cliffVestPercent: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_percent).toString()),
-        beneficiaryWithdrawalAddress: PublicKey.decode(decodedData.beneficiary_withdrawal_address),
-        escrowTokenAddress: PublicKey.decode(decodedData.escrow_token_address),
+        beneficiaryWithdrawalAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
+        escrowTokenAddress: friendly !== undefined ? escrowTokenAddress.toBase58() : escrowTokenAddress,
         escrowVestedAmount: escrowVestedAmount,
         escrowUnvestedAmount: totalDeposits - totalWithdrawals - escrowVestedAmount,
-        treasuryAddress: PublicKey.decode(decodedData.treasurer_address),
+        treasuryAddress: friendly !== undefined ? treasuryAddress.toBase58() : treasuryAddress,
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc,
         totalDeposits: totalDeposits,
-        totalWithdrawals: totalWithdrawals
+        totalWithdrawals: totalWithdrawals,
+        isStreaming: totalDeposits === totalWithdrawals || rateAmount === 0,
+        isUpdatePending: false
     });
 
     return stream;
@@ -79,7 +90,8 @@ function parseStreamData(
 export async function getStream(
     connection: Connection,
     id: PublicKey,
-    commitment?: Commitment | undefined
+    commitment?: Commitment | undefined,
+    friendly?: Boolean | undefined
 
 ): Promise<StreamInfo> {
 
@@ -87,7 +99,11 @@ export async function getStream(
     let accountInfo = await connection.getAccountInfo(id, commitment);
 
     if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
-        stream = parseStreamData(id, accountInfo?.data);
+        stream = parseStreamData(
+            id,
+            accountInfo?.data,
+            friendly as Boolean
+        );
     }
 
     return stream as StreamInfo;
@@ -98,8 +114,8 @@ export async function listStreams(
     programId: PublicKey,
     treasurer?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
-    treasury?: PublicKey | undefined,
-    commitment?: GetProgramAccountsConfig | Commitment | undefined
+    commitment?: GetProgramAccountsConfig | Commitment | undefined,
+    friendly?: boolean | undefined
 
 ): Promise<StreamInfo[]> {
 
@@ -110,38 +126,36 @@ export async function listStreams(
         return streams;
     }
 
-    for (var item of accounts) {
-
+    for (let item of accounts) {
         if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
-            var info = parseStreamData(
+            let info = Object.assign({}, parseStreamData(
                 item.pubkey,
-                item.account.data
-            );
+                item.account.data,
+                friendly as boolean
+            ));
 
-            if (info !== null) {
-                streams.push(info);
-            }
+            streams.push(info);
         }
     }
 
     if (!streams.length) return streams;
 
+    let filtered_list: StreamInfo[] = [];
+
     if (treasurer !== undefined) {
-        streams = streams.filter(function (s, index) {
-            return s.treasurerAddress === treasurer;
-        });
+        filtered_list.push(...streams.filter(function (s, index) {
+            return s.treasurerAddress == treasurer;
+        }));
     }
 
-    if (beneficiary !== undefined) {
-        streams = streams.filter(function (s, index) {
-            return s.beneficiaryWithdrawalAddress === beneficiary;
-        });
+    if (treasurer !== undefined) {
+        filtered_list.push(...streams.filter(function (s, index) {
+            return s.beneficiaryWithdrawalAddress == beneficiary;
+        }));
     }
 
-    if (treasury !== undefined) {
-        streams = streams.filter(function (s, index) {
-            return s.treasuryAddress === treasury;
-        });
+    if (filtered_list.length > 0) {
+        streams = filtered_list;
     }
 
     return streams;
