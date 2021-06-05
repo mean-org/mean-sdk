@@ -38,7 +38,7 @@ export type StreamInfo = {
     cliffVestAmount: number,
     cliffVestPercent: number,
     beneficiaryWithdrawalAddress: PublicKey | undefined,
-    escrowTokenAddress: PublicKey | undefined,
+    escrowTokenAddress: PublicKey | undefined | string,
     escrowVestedAmount: number,
     escrowUnvestedAmount: number,
     treasuryAddress: PublicKey | undefined,
@@ -184,6 +184,7 @@ export class MoneyStreaming {
 
         transaction.add(
             await MoneyStreaming.createStreamInstruction(
+                this.connection,
                 this.programId,
                 treasurer,
                 beneficiary,
@@ -287,6 +288,7 @@ export class MoneyStreaming {
     }
 
     static async createStreamInstruction(
+        connection: Connection,
         programId: PublicKey,
         treasurer: PublicKey,
         beneficiary: PublicKey,
@@ -304,7 +306,7 @@ export class MoneyStreaming {
 
     ): Promise<TransactionInstruction> {
 
-        const treasurerInfo = await this.prototype.connection.getAccountInfo(treasurer);
+        const treasurerInfo = await connection.getAccountInfo(treasurer);
         const keys = [
             { pubkey: treasurer, isSigner: true, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
@@ -316,7 +318,7 @@ export class MoneyStreaming {
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
         {
-            let nameBuffer = Buffer.alloc(32, streamName as string, 'utf-8');
+            let nameBuffer = Buffer.alloc(32).fill((streamName as string), 0, (streamName as string).length);
 
             const decodedData = {
                 tag: 0,
