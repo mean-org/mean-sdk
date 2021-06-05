@@ -108,11 +108,11 @@ export async function getStream(
     let accountInfo = await connection.getAccountInfo(id, commitment);
 
     if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
-        stream = parseStreamData(
+        stream = Object.assign({}, parseStreamData(
             id,
             accountInfo?.data,
             friendly as Boolean
-        );
+        ));
     }
 
     return stream as StreamInfo;
