@@ -30,18 +30,18 @@ export module Layout {
         BufferLayout.u8('initialized'),
         string('stream_name'),
         publicKey('treasurer_address'),
-        uint64('rate_amount'),
+        BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
         uint64('start_utc'),
         uint64('rate_cliff_in_seconds'),
-        uint64('cliff_vest_amount'),
-        uint64('cliff_vest_percent'),
+        BufferLayout.f64('cliff_vest_amount'),
+        BufferLayout.f64('cliff_vest_percent'),
         publicKey('beneficiary_withdrawal_address'),
         publicKey('escrow_token_address'),
         publicKey('treasury_address'),
         uint64('escrow_estimated_depletion_utc'),
-        uint64('total_deposits'),
-        uint64('total_withdrawals')
+        BufferLayout.f64('total_deposits'),
+        BufferLayout.f64('total_withdrawals')
     ]);
 
     /**
@@ -52,13 +52,13 @@ export module Layout {
         string('stream_name'),
         publicKey('beneficiary_withdrawal_address'),
         publicKey('escrow_token_address'),
-        uint64('funding_amount'),
-        uint64('rate_amount'),
+        BufferLayout.f64('funding_amount'),
+        BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
         uint64('start_utc'),
         uint64('rate_cliff_in_seconds'),
-        uint64('cliff_vest_amount'),
-        uint64('cliff_vest_percent')
+        BufferLayout.f64('cliff_vest_amount'),
+        BufferLayout.f64('cliff_vest_percent')
     ]);
 
     /**
@@ -67,7 +67,7 @@ export module Layout {
     export const addFundsLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
         publicKey('contribution_token_address'),
-        uint64('contribution_amount')
+        BufferLayout.f64('contribution_amount')
     ]);
 
 }

@@ -1,4 +1,4 @@
-import { Commitment, Connection, GetProgramAccountsConfig, PublicKey } from "@solana/web3.js";
+import { Commitment, Connection, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { Layout } from "./layout";
 import { StreamInfo } from "./money-streaming";
 import { u64Number } from "./u64Number";
@@ -35,16 +35,25 @@ function parseStreamData(
 
     let stream: StreamInfo = defaultStreamInfo;
     let decodedData = Layout.streamLayout.decode(streamData);
-    let totalDeposits = parseFloat(u64Number.fromBuffer(decodedData.total_deposits).toString());
-    let totalWithdrawals = parseFloat(u64Number.fromBuffer(decodedData.total_withdrawals).toString());
+    let totalDeposits = decodedData.total_deposits;
+    let totalWithdrawals = decodedData.total_withdrawals;
     let startUtc = parseInt(u64Number.fromBuffer(decodedData.start_utc).toString());
     let startDateUtc = new Date();
 
     startDateUtc.setTime(startUtc);
 
-    let rateAmount = parseFloat(u64Number.fromBuffer(decodedData.rate_amount).toString());
+    let rateAmount = decodedData.rate_amount;
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
-    let escrowVestedAmount = (rateAmount / rateIntervalInSeconds) * (Date.now() - startUtc).valueOf();
+    let escrowVestedAmount = 0
+
+    if (Date.now() >= startDateUtc.getTime()) {
+        escrowVestedAmount = ((rateAmount * LAMPORTS_PER_SOL) / rateIntervalInSeconds) * (Date.now() - startUtc).valueOf();
+
+        if (escrowVestedAmount >= totalDeposits) {
+            escrowVestedAmount = totalDeposits;
+        }
+    }
+
     let escrowEstimatedDepletionUtc = u64Number.fromBuffer(decodedData.escrow_estimated_depletion_utc).toNumber();
     let escrowEstimatedDepletionDateUtc = new Date();
 
@@ -56,15 +65,6 @@ function parseStreamData(
             return elem !== 0;
         });
 
-    // Build a string by converting a byte array to number array
-    // And later use String.fromCharCode.apply method
-    // nameBuffer as Uint8Array is returning the wrong string format
-    // with the implemented .toString() method
-    const bufferToNumArray: number[] = [];
-
-    nameBuffer.forEach(item => bufferToNumArray.push(item));
-
-    const builtString = String.fromCharCode.apply(null, bufferToNumArray);
     const id = friendly !== undefined ? streamId.toBase58() : streamId;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_withdrawal_address);
@@ -73,15 +73,14 @@ function parseStreamData(
 
     Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized,
-        memo: builtString,
-        // memo: nameBuffer.toString(),
+        memo: new TextDecoder().decode(nameBuffer),
         treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: rateAmount,
         rateIntervalInSeconds: rateIntervalInSeconds,
         startUtc: startDateUtc,
         rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
-        cliffVestAmount: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_amount).toString()),
-        cliffVestPercent: parseFloat(u64Number.fromBuffer(decodedData.cliff_vest_percent).toString()),
+        cliffVestAmount: decodedData.cliff_vest_amount,
+        cliffVestPercent: decodedData.cliff_vest_percent,
         beneficiaryWithdrawalAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
         escrowTokenAddress: friendly !== undefined ? escrowTokenAddress.toBase58() : escrowTokenAddress,
         escrowVestedAmount: escrowVestedAmount,

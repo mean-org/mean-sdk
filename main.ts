@@ -197,8 +197,6 @@ async function create_stream() {
         let nameBuffer = Buffer.alloc(32).fill(streamFriendlyName, 0, streamFriendlyName.length);
         let rateIntervalInSeconds = rateInterval.length == 0 ? 60 : parseInt(rateInterval);
 
-        // console.log(nameBuffer);
-
         const decodedData = {
             tag: 0,
             stream_name: nameBuffer,
@@ -206,18 +204,16 @@ async function create_stream() {
             beneficiary_withdrawal_address: Buffer.from(beneficiaryAddressKey.toBuffer()),
             escrow_token_address: Buffer.from(new PublicKey(Constants.ASSOCIATED_TOKEN_ACCOUNT).toBuffer()),
             treasury_address: Buffer.from(treasuryAddressKey.toBuffer()),
-            funding_amount: new u64Number(initialAmount).toBuffer(),
-            rate_amount: new u64Number(rateAmount).toBuffer(),
+            funding_amount: initialAmount,
+            rate_amount: rateAmount,
             rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
             start_utc: new u64Number(Date.now()).toBuffer(),
             rate_cliff_in_seconds: new u64Number(0).toBuffer(),
-            cliff_vest_amount: new u64Number(0).toBuffer(),
-            cliff_vest_percent: new u64Number(100).toBuffer(),
+            cliff_vest_amount: 0,
+            cliff_vest_percent: 100,
         };
 
         const encodeLength = Layout.createStreamLayout.encode(decodedData, data);
-        console.log(`Encoded data length: ${encodeLength}`);
-        console.log('');
         data = data.slice(0, encodeLength);
     };
 
