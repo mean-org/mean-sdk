@@ -60,7 +60,7 @@ function parseStreamData(
     escrowEstimatedDepletionDateUtc.setDate(escrowEstimatedDepletionUtc);
 
     let nameBuffer = Buffer
-        .alloc(32, decodedData.stream_name)
+        .alloc(decodedData.stream_name.length, decodedData.stream_name)
         .filter(function (elem, index) {
             return elem !== 0;
         });

@@ -184,6 +184,7 @@ export class MoneyStreaming {
 
         transaction.add(
             await MoneyStreaming.createStreamInstruction(
+                this.connection,
                 this.programId,
                 treasurer,
                 beneficiary,
@@ -287,6 +288,7 @@ export class MoneyStreaming {
     }
 
     static async createStreamInstruction(
+        connection: Connection,
         programId: PublicKey,
         treasurer: PublicKey,
         beneficiary: PublicKey,
@@ -304,7 +306,7 @@ export class MoneyStreaming {
 
     ): Promise<TransactionInstruction> {
 
-        const treasurerInfo = await this.prototype.connection.getAccountInfo(treasurer);
+        const treasurerInfo = await connection.getAccountInfo(treasurer);
         const keys = [
             { pubkey: treasurer, isSigner: true, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
