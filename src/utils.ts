@@ -56,6 +56,14 @@ function parseStreamData(
             return elem !== 0;
         });
 
+    // Build a string by converting a byte array to number array
+    // And later use String.fromCharCode.apply method
+    // nameBuffer as Uint8Array is returning the wrong string format
+    // with the implemented .toString() method
+    const bufferToNumArray: number[] = [];
+    nameBuffer.forEach(item => bufferToNumArray.push(item));
+    const builtString = String.fromCharCode.apply(null, bufferToNumArray);
+
     const id = friendly !== undefined ? streamId.toBase58() : streamId;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_withdrawal_address);
@@ -64,7 +72,8 @@ function parseStreamData(
 
     Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized,
-        memo: nameBuffer.toString(),
+        memo: builtString,
+        // memo: nameBuffer.toString(),
         treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: rateAmount,
         rateIntervalInSeconds: rateIntervalInSeconds,
