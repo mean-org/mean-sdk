@@ -61,9 +61,10 @@ function parseStreamData(
     // nameBuffer as Uint8Array is returning the wrong string format
     // with the implemented .toString() method
     const bufferToNumArray: number[] = [];
-    nameBuffer.forEach(item => bufferToNumArray.push(item));
-    const builtString = String.fromCharCode.apply(null, bufferToNumArray);
 
+    nameBuffer.forEach(item => bufferToNumArray.push(item));
+
+    const builtString = String.fromCharCode.apply(null, bufferToNumArray);
     const id = friendly !== undefined ? streamId.toBase58() : streamId;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_withdrawal_address);
@@ -89,7 +90,7 @@ function parseStreamData(
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc,
         totalDeposits: totalDeposits,
         totalWithdrawals: totalWithdrawals,
-        isStreaming: totalDeposits === totalWithdrawals || rateAmount === 0,
+        isStreaming: totalDeposits !== totalWithdrawals && rateAmount > 0,
         isUpdatePending: false
     });
 

@@ -229,8 +229,9 @@ async function create_stream() {
             // { pubkey: beneficiaryAddressKey, isSigner: false, isWritable: false },
             { pubkey: treasuryAddressKey, isSigner: false, isWritable: false },
             { pubkey: streamAccount.publicKey, isSigner: false, isWritable: true },
-            { pubkey: treasurerAccountInfo !== null ? treasurerAccountInfo.owner : SystemProgram.programId, isSigner: false, isWritable: false },
-            { pubkey: new PublicKey(Constants.MEAN_FI_ACCOUNT), isSigner: false, isWritable: true }
+            { pubkey: treasurerAccountInfo?.owner as PublicKey, isSigner: false, isWritable: false },
+            { pubkey: new PublicKey(Constants.MEAN_FI_ACCOUNT), isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ],
         programId: programAccount.publicKey,
         data

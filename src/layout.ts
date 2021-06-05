@@ -50,10 +50,8 @@ export module Layout {
     export const createStreamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
         string('stream_name'),
-        publicKey('treasurer_address'),
         publicKey('beneficiary_withdrawal_address'),
         publicKey('escrow_token_address'),
-        publicKey('treasury_address'),
         uint64('funding_amount'),
         uint64('rate_amount'),
         uint64('rate_interval_in_seconds'),
