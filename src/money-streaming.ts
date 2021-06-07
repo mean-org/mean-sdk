@@ -243,6 +243,7 @@ export class MoneyStreaming {
         if (treasuryAccount !== undefined) {
             signers.push(treasuryAccount);
         }
+        transaction.partialSign(...signers);
 
         return transaction;
     }

@@ -1,7 +1,7 @@
 import { BN, Provider, Wallet } from "@project-serum/anchor";
 import { Swap } from "@project-serum/swap";
 import { Commitment, Connection, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
-import { TokenListProvider } from '@solana/spl-token-registry'
+// import { TokenListProvider } from '@solana/spl-token-registry'
 import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { StreamInfo } from "./money-streaming";
@@ -92,7 +92,7 @@ function parseStreamData(
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_withdrawal_address);
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
-    const escrowTokenAddress = new PublicKey(decodedData.escrow_token_address);
+    const escrowTokenAddress = new PublicKey(decodedData.beneficiary_associated_token_address);
 
     Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized,
@@ -244,21 +244,21 @@ export async function findATokenAddress(
     )[0];
 }
 
-export async function swapClient(
-    cluster: string,
-    wallet: Wallet,
+// export async function swapClient(
+//     cluster: string,
+//     wallet: Wallet,
 
-) {
-    const provider = new Provider(
-        new Connection(cluster, 'recent'),
-        Wallet.local(),
-        Provider.defaultOptions(),
-    );
+// ) {
+//     const provider = new Provider(
+//         new Connection(cluster, 'recent'),
+//         Wallet.local(),
+//         Provider.defaultOptions(),
+//     );
 
-    const tokenList = await new TokenListProvider().resolve();
+//     const tokenList = await new TokenListProvider().resolve();
 
-    return new Swap(provider, tokenList);
-}
+//     return new Swap(provider, tokenList);
+// }
 
 export function toNative(amount: number) {
     return new BN(amount * 10 ** Constants.DECIMALS);
