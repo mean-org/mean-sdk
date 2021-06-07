@@ -66,11 +66,15 @@ function parseStreamData(
     let startDateUtc = new Date();
 
     startDateUtc.setTime(startUtc);
+    startDateUtc = convertLocalDateToUTCIgnoringTimezone(startDateUtc);
+    console.log('startDateUtc', startDateUtc.toUTCString());
 
     let rateAmount = Math.fround(decodedData.rate_amount);
     let rateIntervalInSeconds = Math.fround(decodedData.rate_interval_in_seconds);
     let escrowVestedAmount = 0;
-    let utcNow = new Date();
+    let today = new Date();
+    let utcNow = convertLocalDateToUTCIgnoringTimezone(today);
+    console.log('utcNow', utcNow.toUTCString());
 
     if (utcNow.getTime() >= startDateUtc.getTime()) {
         escrowVestedAmount = Math.fround(rateAmount * Constants.DECIMALS / rateIntervalInSeconds * (utcNow.getTime() - startDateUtc.getTime()));
@@ -338,3 +342,17 @@ export const deserializeMint = (data: Buffer): MintInfo => {
 
     return mintInfo as MintInfo;
 };
+
+export function convertLocalDateToUTCIgnoringTimezone(date: Date) {
+    const timestamp = Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds(),
+        date.getMilliseconds(),
+    );
+
+    return new Date(timestamp);
+}
