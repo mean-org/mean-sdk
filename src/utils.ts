@@ -1,6 +1,6 @@
 import { BN, Provider, Wallet } from "@project-serum/anchor";
 import { Swap } from "@project-serum/swap";
-import { Commitment, Connection, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Commitment, Connection, Finality, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 // import { TokenListProvider } from '@solana/spl-token-registry'
 import { Constants } from "./constants";
 import { Layout } from "./layout";
@@ -130,7 +130,7 @@ function parseStreamData(
 export async function getStream(
     connection: Connection,
     id: PublicKey,
-    commitment?: Commitment | undefined,
+    commitment?: any,
     friendly: boolean = true
 
 ): Promise<StreamInfo> {
@@ -145,7 +145,7 @@ export async function getStream(
             friendly
         ));
 
-        let signatures = await connection.getConfirmedSignaturesForAddress2(id);
+        let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, commitment);
 
         if (signatures.length > 0) {
             stream.blockTime = signatures[0].blockTime as number;
@@ -161,7 +161,7 @@ export async function listStreams(
     programId: PublicKey,
     treasurer?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
-    commitment?: GetProgramAccountsConfig | Commitment | undefined,
+    commitment?: any,
     friendly: boolean = true
 
 ): Promise<StreamInfo[]> {
@@ -182,7 +182,8 @@ export async function listStreams(
             ));
 
             let signatures = await connection.getConfirmedSignaturesForAddress2(
-                (friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey))
+                (friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey)),
+                {}, commitment
             );
 
             if (signatures.length > 0) {
@@ -209,9 +210,9 @@ export async function listStreams(
             result = false;
         }
 
-        if (s.startUtc != null && (s.startUtc as Date).getTime() > (new Date().getTime() - (24 * 60 * 60))) {
-            result = false;
-        }
+        // if (s.startUtc && (s.startUtc as Date).getTime() > (new Date().getTime() - (24 * 60 * 60))) {
+        //     result = false;
+        // }
 
         return result;
     }));

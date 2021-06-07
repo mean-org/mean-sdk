@@ -17,8 +17,8 @@ import {
 } from '@solana/web3.js';
 
 import { Constants } from './constants';
-import EventEmitter from 'eventemitter3';
 import { Instructions } from './instructions';
+import EventEmitter from 'eventemitter3';
 
 export interface WalletAdapter extends EventEmitter {
     publicKey: PublicKey | null;
