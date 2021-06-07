@@ -160,7 +160,7 @@ export class MoneyStreaming {
             const mintInfo = await this.connection.getAccountInfo(associatedToken);
 
             if (mintInfo == null) {
-                throw 'Invalid mint account';
+                throw Error('Invalid mint account');
             }
 
             const minBalanceForATokenAcount = await this.connection.getMinimumBalanceForRentExemption(mintInfo.data.length);
@@ -228,7 +228,7 @@ export class MoneyStreaming {
                 rateIntervalInSeconds || 60,
                 startUtc.valueOf() || Date.now(),
                 streamName || "",
-                (fundingAmount as number * 10 ** Constants.DECIMALS) || 0,
+                fundingAmount || 0,
                 rateCliffInSeconds || 0,
                 cliffVestAmount || 0,
                 cliffVestPercent || 100
@@ -284,8 +284,8 @@ export class MoneyStreaming {
             stream_id
         );
 
-        if (streamInfo.beneficiaryWithdrawalAddress != beneficiary) {
-            throw 'Unauthorized';
+        if (streamInfo.beneficiaryWithdrawalAddress !== beneficiary) {
+            throw Error('Unauthorized');
         }
 
         const transaction = new Transaction();
