@@ -103,7 +103,7 @@ export module Instructions {
                 stream_name: nameBuffer,
                 stream_address: stream.toBuffer(),
                 treasury_address: treasury.toBuffer(),
-                beneficiary_withdrawal_address: beneficiary.toBuffer(),
+                beneficiary_address: beneficiary.toBuffer(),
                 funding_amount: fundingAmount,
                 rate_amount: rateAmount,
                 rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN

@@ -29,25 +29,25 @@ export interface WalletAdapter extends EventEmitter {
 
 export type StreamInfo = {
     id: PublicKey | string | undefined,
-    initialized: false,
-    memo: "",
+    initialized: boolean,
+    memo: String,
     treasurerAddress: PublicKey | string | undefined,
-    rateAmount: 0,
-    rateIntervalInSeconds: 0,
-    startUtc: null,
-    rateCliffInSeconds: 0,
-    cliffVestAmount: 0,
-    cliffVestPercent: 0,
-    beneficiaryWithdrawalAddress: PublicKey | string | undefined,
-    beneficiaryAssociatedTokenAddress: PublicKey | string | undefined,
-    escrowVestedAmount: 0,
-    escrowUnvestedAmount: 0,
+    rateAmount: number,
+    rateIntervalInSeconds: number,
+    startUtc: Date | null,
+    rateCliffInSeconds: number,
+    cliffVestAmount: number,
+    cliffVestPercent: number,
+    beneficiaryAddress: PublicKey | string | undefined,
+    beneficiaryTokenAddress: PublicKey | string | undefined,
+    escrowVestedAmount: number,
+    escrowUnvestedAmount: number,
     treasuryAddress: PublicKey | string | undefined,
-    escrowEstimatedDepletionUtc: null,
-    totalDeposits: 0,
-    totalWithdrawals: 0,
-    isStreaming: false,
-    isUpdatePending: false,
+    escrowEstimatedDepletionUtc: Date | null,
+    totalDeposits: number,
+    totalWithdrawals: number,
+    isStreaming: boolean,
+    isUpdatePending: boolean
     transactionSignature: string | undefined,
     blockTime: number,
 }
@@ -80,7 +80,7 @@ export class MoneyStreaming {
     public async getStream(
         id: PublicKey,
         commitment?: Commitment | undefined,
-        friendly?: boolean
+        friendly: boolean = true
 
     ): Promise<StreamInfo> {
 
@@ -88,7 +88,7 @@ export class MoneyStreaming {
             this.connection,
             id,
             commitment,
-            friendly as boolean
+            friendly
         );
     }
 
@@ -106,7 +106,7 @@ export class MoneyStreaming {
             treasurer,
             beneficiary,
             commitment,
-            friendly as boolean
+            friendly
         );
     }
 
@@ -256,20 +256,41 @@ export class MoneyStreaming {
     public async getWithdrawTransaction(
         stream_id: PublicKey,
         beneficiary: PublicKey,
+        associatedToken: PublicKey,
         amount: number
 
-    ): Promise<Transaction | undefined> {
+    ): Promise<Transaction> {
 
         let streamInfo = await Utils.getStream(
             this.connection,
             stream_id
         );
 
-        if (streamInfo.beneficiaryWithdrawalAddress !== beneficiary) {
+        if (streamInfo.beneficiaryAddress !== beneficiary) {
             throw Error('Unauthorized');
         }
 
         const transaction = new Transaction();
+
+        // Check for the beneficiary associated token account
+        const beneficiaryATokenAddress = await Utils.findATokenAddress(
+            beneficiary,
+            associatedToken
+        );
+
+        let beneficiaryATokenAccountInfo = await this.connection.getAccountInfo(beneficiaryATokenAddress);
+
+        if (beneficiaryATokenAccountInfo == null) { // Create beneficiary associated token address
+            transaction.add(
+                await Instructions.createATokenAccountInstruction(
+                    beneficiaryATokenAddress,
+                    beneficiary,
+                    beneficiary,
+                    associatedToken
+                )
+            );
+        }
+
         const keys = [
             { pubkey: beneficiary, isSigner: false, isWritable: false },
             { pubkey: stream_id, isSigner: false, isWritable: true },

@@ -37,8 +37,8 @@ let defaultStreamInfo: StreamInfo = {
     rateCliffInSeconds: 0,
     cliffVestAmount: 0,
     cliffVestPercent: 0,
-    beneficiaryWithdrawalAddress: undefined,
-    beneficiaryAssociatedTokenAddress: undefined,
+    beneficiaryAddress: undefined,
+    beneficiaryTokenAddress: undefined,
     escrowVestedAmount: 0,
     escrowUnvestedAmount: 0,
     treasuryAddress: undefined,
@@ -69,10 +69,14 @@ function parseStreamData(
 
     let rateAmount = decodedData.rate_amount;
     let rateIntervalInSeconds = decodedData.rate_interval_in_seconds;
-    let escrowVestedAmount = 0
+    let escrowVestedAmount = 0;
+    let utcNow = new Date();
 
-    if (Date.now() >= startDateUtc.getTime()) {
-        escrowVestedAmount = ((rateAmount * Constants.DECIMALS) / rateIntervalInSeconds) * (Date.now() - startUtc).valueOf();
+    // console.log(utcNow.toUTCString());
+    // console.log(startDateUtc.toUTCString());
+
+    if (utcNow.getTime() >= startDateUtc.getTime()) {
+        escrowVestedAmount = rateAmount * Constants.DECIMALS / rateIntervalInSeconds * (utcNow.getTime() - startDateUtc.getTime());
 
         if (escrowVestedAmount >= totalDeposits) {
             escrowVestedAmount = totalDeposits;
@@ -92,7 +96,8 @@ function parseStreamData(
 
     const id = friendly !== undefined ? streamId.toBase58() : streamId;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
-    const beneficiaryAddress = new PublicKey(decodedData.beneficiary_withdrawal_address);
+    const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
+    const beneficiaryTokenAddress = new PublicKey(decodedData.beneficiary_token_address);
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
 
     Object.assign(stream, { id: id }, {
@@ -101,15 +106,16 @@ function parseStreamData(
         treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: rateAmount,
         rateIntervalInSeconds: rateIntervalInSeconds,
-        startUtc: startDateUtc,
-        rateCliffInSeconds: parseInt(new u64Number(decodedData.rate_cliff_in_seconds).toString()),
+        startUtc: startDateUtc.toUTCString(),
+        rateCliffInSeconds: decodedData.rate_cliff_in_seconds,
         cliffVestAmount: decodedData.cliff_vest_amount,
         cliffVestPercent: decodedData.cliff_vest_percent,
-        beneficiaryWithdrawalAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
+        beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
+        beneficiaryTokenAddress: friendly !== undefined ? beneficiaryTokenAddress.toBase58() : beneficiaryTokenAddress,
         escrowVestedAmount: escrowVestedAmount,
         escrowUnvestedAmount: totalDeposits - totalWithdrawals - escrowVestedAmount,
         treasuryAddress: friendly !== undefined ? treasuryAddress.toBase58() : treasuryAddress,
-        escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc,
+        escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
         totalDeposits: totalDeposits,
         totalWithdrawals: totalWithdrawals,
         isStreaming: totalDeposits !== totalWithdrawals && rateAmount > 0,
@@ -172,7 +178,7 @@ export async function listStreams(
             let info = Object.assign({}, parseStreamData(
                 item.pubkey,
                 item.account.data,
-                friendly as boolean
+                friendly
             ));
 
             let signatures = await connection.getConfirmedSignaturesForAddress2(
@@ -199,7 +205,11 @@ export async function listStreams(
             result = false;
         }
 
-        if (beneficiary !== undefined && s.beneficiaryWithdrawalAddress !== beneficiary) {
+        if (beneficiary !== undefined && s.beneficiaryAddress !== beneficiary) {
+            result = false;
+        }
+
+        if (s.startUtc != null && (s.startUtc as Date).getTime() > (new Date().getTime() - (24 * 60 * 60))) {
             result = false;
         }
 
