@@ -37,7 +37,7 @@ export module Layout {
         BufferLayout.f64('cliff_vest_amount'),
         BufferLayout.f64('cliff_vest_percent'),
         publicKey('beneficiary_withdrawal_address'),
-        publicKey('escrow_token_address'),
+        publicKey('beneficiary_associated_token_address'),
         publicKey('treasury_address'),
         uint64('escrow_estimated_depletion_utc'),
         BufferLayout.f64('total_deposits'),
@@ -50,8 +50,9 @@ export module Layout {
     export const createStreamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
         string('stream_name'),
+        publicKey('stream_address'),
+        publicKey('treasury_address'),
         publicKey('beneficiary_withdrawal_address'),
-        publicKey('escrow_token_address'),
         BufferLayout.f64('funding_amount'),
         BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
@@ -68,6 +69,14 @@ export module Layout {
         BufferLayout.u8('tag'),
         publicKey('contribution_token_address'),
         BufferLayout.f64('contribution_amount')
+    ]);
+
+    /**
+     * Withdraw instruction layout
+     */
+    export const withdrawLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+        BufferLayout.u8('tag'),
+        BufferLayout.f64('withdrawal_amount')
     ]);
 
 }

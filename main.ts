@@ -19,10 +19,12 @@ import {
 
 } from './src/main_utils';
 
+import * as Utils from './src/utils';
 import { Constants } from './src/constants';
 import { Layout } from './src/layout';
 import { u64Number } from './src/u64Number';
 import { MoneyStreaming } from './src/money-streaming';
+import { Instructions } from './src/instructions';
 
 const prompt = require('prompt-sync')();
 const connection = new Connection('https://devnet.solana.com', 'confirmed');
@@ -104,7 +106,7 @@ async function create_stream() {
     console.log('');
     const programAccount = await getProgramAccount();
     console.log('Program account: ' + programAccount.publicKey.toBase58());
-    const payerAccountKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ACCOUNT);
+    const payerAccountKey = new PublicKey(Constants.STREAM_PROGRAM_PAYER_ADRESS);
     const payerAccount = await getPayerAccount();
     console.log('Payer account: ' + payerAccount.publicKey.toBase58());
     console.log('');
@@ -142,7 +144,13 @@ async function create_stream() {
         console.log('Creating a new treasury account');
         console.log('');
 
-        await connection.getMinimumBalanceForRentExemption(0)
+        const mintInfo = await connection.getAccountInfo(Constants.TOKEN_MINT_ADDRESS.toPublicKey());
+
+        if (mintInfo == null) {
+            throw 'Invalid mint account';
+        }
+
+        await connection.getMinimumBalanceForRentExemption(mintInfo.data.length)
             .then((amount) => {
                 treasuryAccount = Keypair.generate();
                 treasuryAddressKey = treasuryAccount.publicKey;
@@ -192,46 +200,52 @@ async function create_stream() {
     console.log(`Create layout length: ${Layout.createStreamLayout.span}`);
     console.log('');
 
-    let data = Buffer.alloc(Layout.createStreamLayout.span)
-    {
-        let nameBuffer = Buffer.alloc(32).fill(streamFriendlyName, 0, streamFriendlyName.length);
-        let rateIntervalInSeconds = rateInterval.length == 0 ? 60 : parseInt(rateInterval);
+    let treasuryATokenAddress = await Utils.findATokenAddress(
+        treasuryAddressKey,
+        Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey(),
+    );
 
-        const decodedData = {
-            tag: 0,
-            stream_name: nameBuffer,
-            treasurer_address: treasurerAccount.publicKey.toBuffer(),
-            beneficiary_withdrawal_address: Buffer.from(beneficiaryAddressKey.toBuffer()),
-            escrow_token_address: Buffer.from(new PublicKey(Constants.ASSOCIATED_TOKEN_ACCOUNT).toBuffer()),
-            treasury_address: Buffer.from(treasuryAddressKey.toBuffer()),
-            funding_amount: initialAmount,
-            rate_amount: rateAmount,
-            rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
-            start_utc: new u64Number(Date.now()).toBuffer(),
-            rate_cliff_in_seconds: new u64Number(0).toBuffer(),
-            cliff_vest_amount: 0,
-            cliff_vest_percent: 100,
-        };
+    let treasuryATokenAccountInfo = await connection.getAccountInfo(treasuryATokenAddress);
+    let createTreasuryATokenAccountInstruction = undefined;
 
-        const encodeLength = Layout.createStreamLayout.encode(decodedData, data);
-        data = data.slice(0, encodeLength);
-    };
+    if (treasuryATokenAccountInfo == null) {
+        createTreasuryATokenAccountInstruction = await Instructions.createATokenAccountInstruction(
+            treasuryATokenAddress,
+            treasurerAccount.publicKey,
+            treasuryAddressKey,
+            Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey()
+        );
+    }
 
-    console.log(`Data length: ${data.length}`);
+    let treasurerATokenAddress = await Utils.findATokenAddress(
+        treasurerAccount.publicKey,
+        Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey()
+    );
 
-    let createStreamInstruction = new TransactionInstruction({
-        keys: [
-            { pubkey: treasurerAccount.publicKey, isSigner: true, isWritable: true },
-            // { pubkey: beneficiaryAddressKey, isSigner: false, isWritable: false },
-            { pubkey: treasuryAddressKey, isSigner: false, isWritable: false },
-            { pubkey: streamAccount.publicKey, isSigner: false, isWritable: true },
-            { pubkey: treasurerAccountInfo?.owner as PublicKey, isSigner: false, isWritable: false },
-            { pubkey: new PublicKey(Constants.MEAN_FI_ACCOUNT), isSigner: false, isWritable: true },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
-        programId: programAccount.publicKey,
-        data
-    });
+    let treasurerATokenAccountInfo = await connection.getAccountInfo(treasurerATokenAddress);
+
+    if (treasurerATokenAccountInfo) {
+        console.log(`USDC => Account = ${treasurerATokenAddress}, Balance =  ${treasurerATokenAccountInfo.lamports}`);
+    }
+
+    let createStreamInstruction = await Instructions.createStreamInstruction(
+        connection,
+        programAccount.publicKey,
+        treasurerAccount.publicKey,
+        treasurerATokenAddress,
+        treasuryAddressKey,
+        treasuryATokenAddress,
+        streamAccount.publicKey,
+        beneficiaryAddressKey,
+        rateAmount,
+        rateInterval,
+        Date.now(),
+        streamFriendlyName,
+        initialAmount * 10 ** Constants.DECIMALS,
+        0,
+        0,
+        100
+    );
 
     const createStreamTx = new Transaction();
     createStreamTx.feePayer = treasurerAccount.publicKey;
@@ -250,16 +264,19 @@ async function create_stream() {
         signers.push(streamAccount);
     }
 
+    if (createTreasuryATokenAccountInstruction !== undefined) {
+        createStreamTx.add(createTreasuryATokenAccountInstruction);
+    }
+
     createStreamTx.add(createStreamInstruction);
-    // signers.push(streamAccount, treasurerAccount);
+    signers.push(streamAccount);
     let { blockhash } = await connection.getRecentBlockhash();
     createStreamTx.recentBlockhash = blockhash
-    console.log(createStreamTx);
     createStreamTx.partialSign(...signers);
     console.log('biennnnn !!!');
     console.log('');
 
-    // const result = '';
+    // // const result = '';
     const result = await connection.sendTransaction(
         createStreamTx,
         signers,
@@ -315,7 +332,7 @@ async function get_stream() {
     console.log('Stream info');
     console.log('');
 
-    const programId = new PublicKey(Constants.STREAM_PROGRAM_ACCOUNT);
+    const programId = new PublicKey(Constants.STREAM_PROGRAM_ADDRESS);
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     const stream = await streaming.getStream(streamId);
 

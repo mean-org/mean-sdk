@@ -1,7 +1,30 @@
-import { Commitment, Connection, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { BN, Provider, Wallet } from "@project-serum/anchor";
+import { Swap } from "@project-serum/swap";
+import { Commitment, Connection, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { TokenListProvider } from '@solana/spl-token-registry'
+import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { StreamInfo } from "./money-streaming";
 import { u64Number } from "./u64Number";
+
+import {
+    AccountLayout,
+    MintInfo,
+    MintLayout,
+    Token,
+    u64
+
+} from '@solana/spl-token';
+
+declare global {
+    export interface String {
+        toPublicKey(): PublicKey;
+    }
+}
+
+String.prototype.toPublicKey = function (): PublicKey {
+    return new PublicKey(this.toString());
+}
 
 let defaultStreamInfo: StreamInfo = {
     id: undefined,
@@ -169,3 +192,119 @@ export async function listStreams(
 
     return streams;
 }
+
+export async function findStreamingProgramAddress(
+    fromAddress: PublicKey
+
+): Promise<[PublicKey, number]> {
+
+    return (
+        await PublicKey.findProgramAddress(
+            [
+                fromAddress.toBuffer(),
+                SystemProgram.programId.toBuffer(),
+                Constants.STREAM_PROGRAM_ADDRESS.toPublicKey().toBuffer()
+            ],
+            Constants.STREAM_PROGRAM_ADDRESS.toPublicKey()
+        )
+    );
+}
+
+export async function createStreamingProgramAddress(
+    fromAddress: PublicKey
+
+): Promise<PublicKey> {
+
+    let [possibleKey, bump_seed] = await findStreamingProgramAddress(fromAddress);
+
+    return (
+        await PublicKey.createWithSeed(
+            possibleKey,
+            bump_seed.toString(),
+            Constants.STREAM_PROGRAM_ADDRESS.toPublicKey()
+        )
+    );
+}
+
+export async function findATokenAddress(
+    walletAddress: PublicKey,
+    tokenMintAddress: PublicKey
+
+): Promise<PublicKey> {
+
+    return (
+        await PublicKey.findProgramAddress(
+            [
+                walletAddress.toBuffer(),
+                Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey().toBuffer(),
+                tokenMintAddress.toBuffer(),
+            ],
+            Constants.ATOKEN_PROGRAM_ADDRESS.toPublicKey()
+        )
+    )[0];
+}
+
+export async function swapClient(
+    cluster: string,
+    wallet: Wallet,
+
+) {
+    const provider = new Provider(
+        new Connection(cluster, 'recent'),
+        Wallet.local(),
+        Provider.defaultOptions(),
+    );
+
+    const tokenList = await new TokenListProvider().resolve();
+
+    return new Swap(provider, tokenList);
+}
+
+export function toNative(amount: number) {
+    return new BN(amount * 10 ** Constants.DECIMALS);
+}
+
+export function fromNative(amount: BN) {
+    return amount.toNumber() / 10 ** Constants.DECIMALS;
+}
+
+export const getMintAccount = async (
+    connection: Connection,
+    pubKey: PublicKey | string
+
+): Promise<MintInfo> => {
+
+    const address = typeof pubKey === 'string' ? new PublicKey(pubKey) : pubKey;
+    const info = await connection.getAccountInfo(address);
+
+    if (info === null) {
+        throw new Error('Failed to find mint account');
+    }
+
+    return deserializeMint(info.data);
+};
+
+export const deserializeMint = (data: Buffer): MintInfo => {
+    if (data.length !== MintLayout.span) {
+        throw new Error('Not a valid Mint');
+    }
+
+    const mintInfo = MintLayout.decode(data);
+
+    if (mintInfo.mintAuthorityOption === 0) {
+        mintInfo.mintAuthority = null;
+    } else {
+        mintInfo.mintAuthority = new PublicKey(mintInfo.mintAuthority);
+    }
+
+    mintInfo.supply = u64.fromBuffer(mintInfo.supply);
+    mintInfo.isInitialized = mintInfo.isInitialized !== 0;
+
+    if (mintInfo.freezeAuthorityOption === 0) {
+        mintInfo.freezeAuthority = null;
+    } else {
+        mintInfo.freezeAuthority = new PublicKey(mintInfo.freezeAuthority);
+    }
+
+    return mintInfo as MintInfo;
+};
