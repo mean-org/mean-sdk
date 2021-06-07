@@ -185,9 +185,9 @@ export async function listStreams(
                 friendly
             ));
 
-            if (treasurer !== undefined && info.treasurerAddress !== treasurer) {
+            if (treasurer !== undefined && info.treasurerAddress !== treasurer.toBase58()) {
                 included = false;
-            } else if (beneficiary !== undefined && info.beneficiaryAddress !== beneficiary) {
+            } else if (beneficiary !== undefined && info.beneficiaryAddress !== beneficiary.toBase58()) {
                 included = false;
             } else if ((info.startUtc as Date) !== undefined) {
 
@@ -209,15 +209,13 @@ export async function listStreams(
                     } else {
                         included = false;
                     }
-
-                } else {
-                    included = false;
                 }
             }
 
             if (included) {
                 streams.push(info);
             }
+
             console.log(`id: ${info.id}\nincluded: ${included}`);
         }
     }

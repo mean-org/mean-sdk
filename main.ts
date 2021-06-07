@@ -321,7 +321,7 @@ async function list_streams() {
 
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     let treasurer = 'FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'.toPublicKey()
-    const streams = await streaming.listStreams();
+    const streams = await streaming.listStreams(new PublicKey('FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'), new PublicKey('FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'));
 
     console.log(JSON.stringify(streams));
     console.log('');
