@@ -218,6 +218,7 @@ export async function listStreams(
             if (included) {
                 streams.push(info);
             }
+            console.log(`id: ${info.id}\nincluded: ${included}`);
         }
     }
 
