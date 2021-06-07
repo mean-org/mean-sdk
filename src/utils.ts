@@ -178,24 +178,26 @@ export async function listStreams(
     for (let item of accounts) {
         if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
 
-            let included = true;
+            let included = false;
             let info = Object.assign({}, parseStreamData(
                 item.pubkey,
                 item.account.data,
                 friendly
             ));
 
-            if (treasurer !== undefined && info.treasurerAddress !== treasurer.toBase58()) {
-                included = false;
-            } else if (beneficiary !== undefined && info.beneficiaryAddress !== beneficiary.toBase58()) {
-                included = false;
-            } else if ((info.startUtc as Date) !== undefined) {
+            if ((treasurer && treasurer.toBase58() === info.treasurerAddress) || !treasurer ) {
+                included = true;
+            } else if ((beneficiary && beneficiary.toBase58() === info.beneficiaryAddress) || !beneficiary) {
+                included = true;
+            }
+
+            if (included && (info.startUtc as Date) !== undefined) {
 
                 let startDateUtc = new Date(info.startUtc as string);
-                let utcNow = new Date();
-                utcNow.setDate(utcNow.getDate() - 3);
+                let threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-                if (startDateUtc.getTime() > utcNow.getTime()) {
+                if (startDateUtc.getTime() > threeDaysAgo.getTime()) {
 
                     let signatures = await connection.getConfirmedSignaturesForAddress2(
                         (friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey)),
@@ -205,9 +207,6 @@ export async function listStreams(
                     if (signatures.length > 0) {
                         info.blockTime = signatures[0].blockTime as number;
                         info.transactionSignature = signatures[0].signature
-
-                    } else {
-                        included = false;
                     }
                 }
             }
@@ -216,7 +215,6 @@ export async function listStreams(
                 streams.push(info);
             }
 
-            console.log(`id: ${info.id}\nincluded: ${included}`);
         }
     }
 
