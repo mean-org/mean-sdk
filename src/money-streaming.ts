@@ -34,7 +34,7 @@ export type StreamInfo = {
     treasurerAddress: PublicKey | string | undefined,
     rateAmount: number,
     rateIntervalInSeconds: number,
-    startUtc: Date | null,
+    startUtc: Date | string | undefined,
     rateCliffInSeconds: number,
     cliffVestAmount: number,
     cliffVestPercent: number,

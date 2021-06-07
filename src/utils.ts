@@ -33,7 +33,7 @@ let defaultStreamInfo: StreamInfo = {
     treasurerAddress: undefined,
     rateAmount: 0,
     rateIntervalInSeconds: 0,
-    startUtc: null,
+    startUtc: undefined,
     rateCliffInSeconds: 0,
     cliffVestAmount: 0,
     cliffVestPercent: 0,
@@ -60,23 +60,20 @@ function parseStreamData(
 
     let stream: StreamInfo = defaultStreamInfo;
     let decodedData = Layout.streamLayout.decode(streamData);
-    let totalDeposits = decodedData.total_deposits;
-    let totalWithdrawals = decodedData.total_withdrawals;
+    let totalDeposits = Math.round(decodedData.total_deposits);
+    let totalWithdrawals = Math.round(decodedData.total_withdrawals);
     let startUtc = decodedData.start_utc;
     let startDateUtc = new Date();
 
     startDateUtc.setTime(startUtc);
 
-    let rateAmount = decodedData.rate_amount;
-    let rateIntervalInSeconds = decodedData.rate_interval_in_seconds;
+    let rateAmount = Math.fround(decodedData.rate_amount);
+    let rateIntervalInSeconds = Math.fround(decodedData.rate_interval_in_seconds);
     let escrowVestedAmount = 0;
     let utcNow = new Date();
 
-    // console.log(utcNow.toUTCString());
-    // console.log(startDateUtc.toUTCString());
-
     if (utcNow.getTime() >= startDateUtc.getTime()) {
-        escrowVestedAmount = rateAmount * Constants.DECIMALS / rateIntervalInSeconds * (utcNow.getTime() - startDateUtc.getTime());
+        escrowVestedAmount = Math.fround(rateAmount * Constants.DECIMALS / rateIntervalInSeconds * (utcNow.getTime() - startDateUtc.getTime()));
 
         if (escrowVestedAmount >= totalDeposits) {
             escrowVestedAmount = totalDeposits;
@@ -99,6 +96,9 @@ function parseStreamData(
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
     const beneficiaryTokenAddress = new PublicKey(decodedData.beneficiary_token_address);
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
+    const beneficiaryATokenAddressString = beneficiaryTokenAddress.toBase58() != Constants.DEFAULT_PUBLICKEY
+        ? beneficiaryTokenAddress.toBase58()
+        : (friendly ? beneficiaryTokenAddress.toBase58() : beneficiaryAddress);
 
     Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized,
@@ -111,9 +111,9 @@ function parseStreamData(
         cliffVestAmount: decodedData.cliff_vest_amount,
         cliffVestPercent: decodedData.cliff_vest_percent,
         beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
-        beneficiaryTokenAddress: friendly !== undefined ? beneficiaryTokenAddress.toBase58() : beneficiaryTokenAddress,
+        beneficiaryTokenAddress: beneficiaryATokenAddressString,
         escrowVestedAmount: escrowVestedAmount,
-        escrowUnvestedAmount: totalDeposits - totalWithdrawals - escrowVestedAmount,
+        escrowUnvestedAmount: Math.fround(totalDeposits - totalWithdrawals - escrowVestedAmount),
         treasuryAddress: friendly !== undefined ? treasuryAddress.toBase58() : treasuryAddress,
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
         totalDeposits: totalDeposits,
@@ -139,17 +139,19 @@ export async function getStream(
     let accountInfo = await connection.getAccountInfo(id, commitment);
 
     if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
-        stream = Object.assign({}, parseStreamData(
-            id,
-            accountInfo?.data,
-            friendly
-        ));
 
         let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, commitment);
 
         if (signatures.length > 0) {
-            stream.blockTime = signatures[0].blockTime as number;
-            stream.transactionSignature = signatures[0].signature
+            stream = Object.assign({
+                transactionSignature: signatures[0].signature,
+                blockTime: signatures[0].blockTime as number
+
+            }, parseStreamData(
+                id,
+                accountInfo?.data,
+                friendly
+            ));
         }
     }
 
@@ -175,51 +177,53 @@ export async function listStreams(
 
     for (let item of accounts) {
         if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
+
+            let included = true;
             let info = Object.assign({}, parseStreamData(
                 item.pubkey,
                 item.account.data,
                 friendly
             ));
 
-            let signatures = await connection.getConfirmedSignaturesForAddress2(
-                (friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey)),
-                {}, commitment
-            );
+            if (treasurer !== undefined && info.treasurerAddress !== treasurer) {
+                included = false;
+            } else if (beneficiary !== undefined && info.beneficiaryAddress !== beneficiary) {
+                included = false;
+            } else if ((info.startUtc as Date) !== undefined) {
 
-            if (signatures.length > 0) {
-                info.blockTime = signatures[0].blockTime as number;
-                info.transactionSignature = signatures[0].signature
+                let startDateUtc = new Date(info.startUtc as string);
+                let utcNow = new Date();
+                utcNow.setDate(utcNow.getDate() - 3);
+
+                if (startDateUtc.getTime() > utcNow.getTime()) {
+
+                    let signatures = await connection.getConfirmedSignaturesForAddress2(
+                        (friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey)),
+                        {}, commitment
+                    );
+
+                    if (signatures.length > 0) {
+                        info.blockTime = signatures[0].blockTime as number;
+                        info.transactionSignature = signatures[0].signature
+
+                    } else {
+                        included = false;
+                    }
+
+                } else {
+                    included = false;
+                }
             }
 
-            streams.push(info);
+            if (included) {
+                streams.push(info);
+            }
         }
     }
 
-    if (!streams.length) return streams;
+    let orderedStreams = streams.sort((a, b) => (b.blockTime - a.blockTime));
 
-    let filtered_list: StreamInfo[] = [];
-
-    filtered_list.push(...streams.filter(function (s, index) {
-        let result = true;
-
-        if (treasurer !== undefined && s.treasurerAddress !== treasurer) {
-            result = false;
-        }
-
-        if (beneficiary !== undefined && s.beneficiaryAddress !== beneficiary) {
-            result = false;
-        }
-
-        // if (s.startUtc && (s.startUtc as Date).getTime() > (new Date().getTime() - (24 * 60 * 60))) {
-        //     result = false;
-        // }
-
-        return result;
-    }));
-
-    let sortedStream = filtered_list.sort((a, b) => b.blockTime - a.blockTime);
-
-    return sortedStream;
+    return orderedStreams;
 }
 
 export async function findStreamingProgramAddress(
