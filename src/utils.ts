@@ -69,13 +69,13 @@ function parseStreamData(
     startDateUtc = convertLocalDateToUTCIgnoringTimezone(startDateUtc);
 
     let rateAmount = Math.fround(decodedData.rate_amount);
-    let rateIntervalInSeconds = Math.fround(decodedData.rate_interval_in_seconds);
+    let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
     let escrowVestedAmount = 0;
     let today = new Date();
     let utcNow = convertLocalDateToUTCIgnoringTimezone(today);
 
     if (utcNow.getTime() >= startDateUtc.getTime()) {
-        escrowVestedAmount = Math.fround(10 ** Constants.DECIMALS * (rateAmount / rateIntervalInSeconds) * (utcNow.getTime() - startDateUtc.getTime())));
+        escrowVestedAmount = Math.fround((rateAmount / rateIntervalInSeconds) * (utcNow.getTime() - startDateUtc.getTime()));
 
         if (escrowVestedAmount >= totalDeposits) {
             escrowVestedAmount = totalDeposits;
@@ -107,9 +107,9 @@ function parseStreamData(
         memo: new TextDecoder().decode(nameBuffer),
         treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: rateAmount,
-        rateIntervalInSeconds: u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toNumber(),
+        rateIntervalInSeconds: rateIntervalInSeconds,
         startUtc: startDateUtc.toUTCString(),
-        rateCliffInSeconds: u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toNumber(),
+        rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
         cliffVestAmount: decodedData.cliff_vest_amount,
         cliffVestPercent: decodedData.cliff_vest_percent,
         beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
