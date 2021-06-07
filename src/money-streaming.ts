@@ -29,25 +29,27 @@ export interface WalletAdapter extends EventEmitter {
 
 export type StreamInfo = {
     id: PublicKey | string | undefined,
-    initialized: boolean,
-    memo: String,
+    initialized: false,
+    memo: "",
     treasurerAddress: PublicKey | string | undefined,
-    rateAmount: number,
-    rateIntervalInSeconds: number,
-    startUtc: Date | null,
-    rateCliffInSeconds: number,
-    cliffVestAmount: number,
-    cliffVestPercent: number,
+    rateAmount: 0,
+    rateIntervalInSeconds: 0,
+    startUtc: null,
+    rateCliffInSeconds: 0,
+    cliffVestAmount: 0,
+    cliffVestPercent: 0,
     beneficiaryWithdrawalAddress: PublicKey | string | undefined,
-    escrowTokenAddress: PublicKey | string | undefined,
-    escrowVestedAmount: number,
-    escrowUnvestedAmount: number,
+    beneficiaryAssociatedTokenAddress: PublicKey | string | undefined,
+    escrowVestedAmount: 0,
+    escrowUnvestedAmount: 0,
     treasuryAddress: PublicKey | string | undefined,
-    escrowEstimatedDepletionUtc: Date | null,
-    totalDeposits: number,
-    totalWithdrawals: number,
-    isStreaming: boolean,
-    isUpdatePending: boolean
+    escrowEstimatedDepletionUtc: null,
+    totalDeposits: 0,
+    totalWithdrawals: 0,
+    isStreaming: false,
+    isUpdatePending: false,
+    transactionSignature: string | undefined,
+    blockTime: number,
 }
 
 /**
@@ -59,29 +61,6 @@ export class MoneyStreaming {
 
     private programId: PublicKey;
     private feePayer: PublicKey;
-
-    private defaultStream: StreamInfo = {
-        id: undefined,
-        initialized: false,
-        memo: "",
-        treasurerAddress: undefined,
-        rateAmount: 0,
-        rateIntervalInSeconds: 0,
-        startUtc: null,
-        rateCliffInSeconds: 0,
-        cliffVestAmount: 0,
-        cliffVestPercent: 0,
-        beneficiaryWithdrawalAddress: undefined,
-        escrowTokenAddress: undefined,
-        escrowVestedAmount: 0,
-        escrowUnvestedAmount: 0,
-        treasuryAddress: undefined,
-        escrowEstimatedDepletionUtc: null,
-        totalDeposits: 0,
-        totalWithdrawals: 0,
-        isStreaming: false,
-        isUpdatePending: false
-    };
 
     /**
      * Create a Streaming API object
@@ -110,14 +89,14 @@ export class MoneyStreaming {
             id,
             commitment,
             friendly as boolean
-        )
+        );
     }
 
     public async listStreams(
         treasurer?: PublicKey | undefined,
         beneficiary?: PublicKey | undefined,
         commitment?: GetProgramAccountsConfig | Commitment | undefined,
-        friendly?: boolean
+        friendly: boolean = true
 
     ): Promise<StreamInfo[]> {
 
@@ -136,8 +115,8 @@ export class MoneyStreaming {
         beneficiary: PublicKey,
         treasury: PublicKey | null,
         associatedToken: PublicKey,
-        rateAmount: number,
-        rateIntervalInSeconds: number,
+        rateAmount: number = 1,
+        rateIntervalInSeconds: number = 60,
         startUtc: Date,
         streamName?: String,
         fundingAmount?: number,
@@ -243,6 +222,7 @@ export class MoneyStreaming {
         if (treasuryAccount !== undefined) {
             signers.push(treasuryAccount);
         }
+
         transaction.partialSign(...signers);
 
         return transaction;

@@ -31,15 +31,14 @@ export module Layout {
         string('stream_name'),
         publicKey('treasurer_address'),
         BufferLayout.f64('rate_amount'),
-        uint64('rate_interval_in_seconds'),
-        uint64('start_utc'),
-        uint64('rate_cliff_in_seconds'),
+        BufferLayout.nu64('rate_interval_in_seconds'),
+        BufferLayout.nu64('start_utc'),
+        BufferLayout.nu64('rate_cliff_in_seconds'),
         BufferLayout.f64('cliff_vest_amount'),
         BufferLayout.f64('cliff_vest_percent'),
         publicKey('beneficiary_withdrawal_address'),
-        publicKey('beneficiary_associated_token_address'),
         publicKey('treasury_address'),
-        uint64('escrow_estimated_depletion_utc'),
+        BufferLayout.nu64('escrow_estimated_depletion_utc'),
         BufferLayout.f64('total_deposits'),
         BufferLayout.f64('total_withdrawals')
     ]);
@@ -55,9 +54,9 @@ export module Layout {
         publicKey('beneficiary_withdrawal_address'),
         BufferLayout.f64('funding_amount'),
         BufferLayout.f64('rate_amount'),
-        uint64('rate_interval_in_seconds'),
-        uint64('start_utc'),
-        uint64('rate_cliff_in_seconds'),
+        BufferLayout.nu64('rate_interval_in_seconds'),
+        BufferLayout.nu64('start_utc'),
+        BufferLayout.nu64('rate_cliff_in_seconds'),
         BufferLayout.f64('cliff_vest_amount'),
         BufferLayout.f64('cliff_vest_percent')
     ]);

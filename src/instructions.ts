@@ -107,10 +107,10 @@ export module Instructions {
                 funding_amount: fundingAmount,
                 rate_amount: rateAmount,
                 rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
-                start_utc: new u64Number(startUtcNow).toBuffer(),
-                rate_cliff_in_seconds: new u64Number(rateCliffInSeconds || 0).toBuffer(),
-                cliff_vest_amount: cliffVestAmount,
-                cliff_vest_percent: cliffVestPercent || 100,
+                start_utc: startUtcNow,
+                rate_cliff_in_seconds: rateCliffInSeconds as number,
+                cliff_vest_amount: cliffVestAmount as number,
+                cliff_vest_percent: cliffVestPercent as number,
             };
 
             const encodeLength = Layout.createStreamLayout.encode(decodedData, data);

@@ -320,7 +320,8 @@ async function list_streams() {
     console.log('');
 
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
-    const streams = await streaming.listStreams(new PublicKey('FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'));
+    let treasurer = 'FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'.toPublicKey()
+    const streams = await streaming.listStreams();
 
     console.log(JSON.stringify(streams));
     console.log('');
@@ -332,7 +333,7 @@ async function get_stream() {
     console.log('Stream info');
     console.log('');
 
-    const programId = new PublicKey(Constants.STREAM_PROGRAM_ADDRESS);
+    const programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     const stream = await streaming.getStream(streamId);
 
