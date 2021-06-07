@@ -13,6 +13,6 @@ export class Constants {
     static TOKEN_MINT_ADDRESS = 'So11111111111111111111111111111111111111112';
     static USDC_TOKEN_MINT_ADDRESS = 'AbQBt9V212HpPVk64YWAApFJrRzdAdu66fwF9neYucpU';
     static TOKEN_ACCOUNT_DATA_SIZE = 82;
-    static DEVNET_CLUSTER = 'https://devnet.solana.com';
+    static DEVNET_CLUSTER = 'https://api.devnet.solana.com';
     static DECIMALS = 6
 }

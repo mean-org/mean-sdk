@@ -2,6 +2,7 @@ import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionIn
 import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { u64Number } from "./u64Number";
+import * as Utils from "./utils";
 
 export module Instructions {
 
@@ -67,6 +68,7 @@ export module Instructions {
         treasuryATokenAddress: PublicKey,
         stream: PublicKey,
         beneficiary: PublicKey,
+        associatedToken: PublicKey,
         rateAmount: number,
         rateIntervalInSeconds: number,
         startUtcNow: number,
@@ -97,6 +99,13 @@ export module Instructions {
         let data = Buffer.alloc(Layout.createStreamLayout.span)
         {
             let nameBuffer = Buffer.alloc(32).fill((streamName as string), 0, (streamName as string).length);
+            let startDateValue = new Date();
+            startDateValue.setTime(startUtcNow);
+            let utcNow = Utils.convertLocalDateToUTCIgnoringTimezone(new Date());
+
+            if (startDateValue.getTime() < utcNow.getTime()) {
+                startDateValue = utcNow;
+            }
 
             const decodedData = {
                 tag: 0,
@@ -104,11 +113,12 @@ export module Instructions {
                 stream_address: stream.toBuffer(),
                 treasury_address: treasury.toBuffer(),
                 beneficiary_address: beneficiary.toBuffer(),
+                stream_associated_token: associatedToken.toBuffer(),
                 funding_amount: fundingAmount,
                 rate_amount: rateAmount,
                 rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
-                start_utc: startUtcNow,
-                rate_cliff_in_seconds: rateCliffInSeconds as number,
+                start_utc: startDateValue.getTime(),
+                rate_cliff_in_seconds: new u64Number(rateCliffInSeconds as number).toBuffer(),
                 cliff_vest_amount: cliffVestAmount as number,
                 cliff_vest_percent: cliffVestPercent as number,
             };

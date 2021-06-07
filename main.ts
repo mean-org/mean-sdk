@@ -4,7 +4,6 @@ import {
     PublicKey,
     SystemProgram,
     Transaction,
-    TransactionInstruction,
     LAMPORTS_PER_SOL,
     Account,
     Signer,
@@ -22,12 +21,11 @@ import {
 import * as Utils from './src/utils';
 import { Constants } from './src/constants';
 import { Layout } from './src/layout';
-import { u64Number } from './src/u64Number';
 import { MoneyStreaming } from './src/money-streaming';
 import { Instructions } from './src/instructions';
 
 const prompt = require('prompt-sync')();
-const connection = new Connection('https://devnet.solana.com', 'confirmed');
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 async function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -171,7 +169,7 @@ async function create_stream() {
     let streamFriendlyName = prompt('Enter a friendly name for the money stream (OPTIONAL): ');
     let initialAmount = prompt('Initial deposit amount (OPTIONAL): ');
     let rateAmount = prompt('Rate amount: ');
-    let rateInterval = prompt('Rate interval in seconds (OPTIONAL, default HOUR = 60 seconds): ');
+    let rateInterval = prompt('Rate interval in seconds (OPTIONAL, default MIN = 60 seconds): ');
 
     console.log('');
     console.log('Creating the money stream');
@@ -237,8 +235,9 @@ async function create_stream() {
         treasuryATokenAddress,
         streamAccount.publicKey,
         beneficiaryAddressKey,
-        rateAmount,
-        rateInterval,
+        Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey(),
+        parseInt(rateAmount),
+        parseInt(rateInterval) || 60,
         Date.now(),
         streamFriendlyName,
         initialAmount * 10 ** Constants.DECIMALS,
@@ -246,6 +245,8 @@ async function create_stream() {
         0,
         100
     );
+
+    console.log(parseInt(rateInterval) || 60);
 
     const createStreamTx = new Transaction();
     createStreamTx.feePayer = treasurerAccount.publicKey;
@@ -321,7 +322,7 @@ async function list_streams() {
 
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
     let treasurer = 'FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'.toPublicKey()
-    const streams = await streaming.listStreams(new PublicKey('FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'), new PublicKey('FfdFf3EqcCuytTdeLvoELBh29WrAGVRjrm4595A2bRAR'));
+    const streams = await streaming.listStreams();
 
     console.log(JSON.stringify(streams));
     console.log('');
@@ -335,7 +336,7 @@ async function get_stream() {
 
     const programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
     const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
-    const stream = await streaming.getStream(streamId);
+    const stream = await streaming.getStream(streamId, 'finalized');
 
     console.log(JSON.stringify(stream));
     console.log('');
