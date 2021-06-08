@@ -43,7 +43,7 @@ export type StreamInfo = {
     escrowVestedAmount: number,
     escrowUnvestedAmount: number,
     treasuryAddress: PublicKey | string | undefined,
-    escrowEstimatedDepletionUtc: PublicKey | string | undefined,
+    escrowEstimatedDepletionUtc: Date | string | undefined,
     totalDeposits: number,
     totalWithdrawals: number,
     isStreaming: boolean,

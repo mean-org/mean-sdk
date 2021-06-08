@@ -46,7 +46,33 @@ let defaultStreamInfo: StreamInfo = {
     transactionSignature: undefined,
     blockTime: 0
 }
+/*
+    const updateData = () => {
+      if (streamDetail) {
+        const clonedDetail = _.cloneDeep(streamDetail);
 
+        const tokenDecimals = 10 ** getTokenDecimals(clonedDetail.associatedToken as string);
+        let startDateUtc = new Date(clonedDetail.startUtc as string);
+        let escrowVestedAmount = 0;
+        let today = new Date();
+        let utcNow = convertLocalDateToUTCIgnoringTimezone(today);
+        const rate = clonedDetail.rateAmount / clonedDetail.rateIntervalInSeconds;
+        const elapsedTime = (utcNow.getTime() - startDateUtc.getTime()) / 1000;
+
+        if (utcNow.getTime() >= startDateUtc.getTime()) {
+            escrowVestedAmount = rate * elapsedTime * tokenDecimals;
+
+            if (escrowVestedAmount >= clonedDetail.totalDeposits) {
+                escrowVestedAmount = clonedDetail.totalDeposits;
+            }
+        }
+
+        clonedDetail.escrowVestedAmount = Math.fround(escrowVestedAmount);
+        clonedDetail.escrowUnvestedAmount = Math.fround(clonedDetail.totalDeposits - clonedDetail.totalWithdrawals - escrowVestedAmount);
+        setStreamDetail(clonedDetail);
+      }
+    }
+*/
 function parseStreamData(
     streamId: PublicKey,
     streamData: Buffer,
