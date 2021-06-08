@@ -311,7 +311,31 @@ async function create_stream() {
 };
 
 async function close_stream() {
+    console.log('Close stream');
+    console.log('');
+    const streamId = new PublicKey(prompt('Type the stream address: '));
+    console.log('');
+    const initializer = new PublicKey(prompt('Type your address as part of the stream: '));
+    console.log('');
+    // console.log(initializer);
+    const streaming = new MoneyStreaming(Constants.DEVNET_CLUSTER);
+    const closeStreamTx = await streaming.closeStreamTransaction(
+        streamId,
+        initializer
+    );
 
+    closeStreamTx.feePayer = initializer;
+    let { blockhash } = await connection.getRecentBlockhash();
+    closeStreamTx.recentBlockhash = blockhash;
+
+    const result = await connection.sendTransaction(
+        closeStreamTx,
+        [],
+        {
+            skipPreflight: false, preflightCommitment: 'singleGossip'
+        });
+
+    console.log(result);
 }
 
 async function list_streams() {
@@ -362,7 +386,7 @@ async function main() {
             // await createStream();
             break;
         }
-        case PROGRAM_ACTIONS.createStream: {
+        case PROGRAM_ACTIONS.closeStream: {
             await close_stream();
             break;
         }

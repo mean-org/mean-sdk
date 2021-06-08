@@ -2,6 +2,7 @@ import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionIn
 import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { u64Number } from "./u64Number";
+import { Buffer } from 'buffer';
 import * as Utils from "./utils";
 
 export module Instructions {
@@ -131,6 +132,39 @@ export module Instructions {
             keys,
             programId,
             data,
+        });
+    }
+
+    export const closeStreamInstruction = async (
+        connection: Connection,
+        programId: PublicKey,
+        stream: PublicKey,
+        initializer: PublicKey,
+        counterparty: PublicKey,
+        treasury: PublicKey,
+        treasuryAToken: PublicKey,
+        beneficiaryAToken: PublicKey
+
+    ): Promise<TransactionInstruction> => {
+
+        const meanfiKey = Constants.MEAN_FI_ADDRESS.toPublicKey();
+        const meanfiInfo = await connection.getAccountInfo(meanfiKey);
+        const keys = [
+            { pubkey: initializer, isSigner: false, isWritable: false },
+            { pubkey: stream, isSigner: false, isWritable: true },
+            { pubkey: counterparty, isSigner: false, isWritable: false },
+            { pubkey: treasuryAToken, isSigner: false, isWritable: false },
+            { pubkey: treasury, isSigner: false, isWritable: true },
+            { pubkey: beneficiaryAToken, isSigner: false, isWritable: true },
+            { pubkey: Constants.STREAM_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false },
+            { pubkey: meanfiKey, isSigner: false, isWritable: true },
+            { pubkey: meanfiInfo?.owner as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false }
+        ];
+
+        return new TransactionInstruction({
+            keys,
+            programId
         });
     }
 }

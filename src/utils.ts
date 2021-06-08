@@ -1,17 +1,13 @@
-import { BN, Provider, Wallet } from "@project-serum/anchor";
-import { Swap } from "@project-serum/swap";
-import { Commitment, Connection, Finality, GetProgramAccountsConfig, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
-// import { TokenListProvider } from '@solana/spl-token-registry'
+import { BN } from "@project-serum/anchor";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { StreamInfo } from "./money-streaming";
 import { u64Number } from "./u64Number";
 
 import {
-    AccountLayout,
     MintInfo,
     MintLayout,
-    Token,
     u64
 
 } from '@solana/spl-token';
@@ -42,7 +38,7 @@ let defaultStreamInfo: StreamInfo = {
     escrowVestedAmount: 0,
     escrowUnvestedAmount: 0,
     treasuryAddress: undefined,
-    escrowEstimatedDepletionUtc: null,
+    escrowEstimatedDepletionUtc: undefined,
     totalDeposits: 0,
     totalWithdrawals: 0,
     isStreaming: false,
@@ -142,7 +138,7 @@ export async function getStream(
 
     if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
 
-        let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, commitment);
+        let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, 'confirmed');
 
         if (signatures.length > 0) {
 
@@ -275,22 +271,6 @@ export async function findATokenAddress(
         )
     )[0];
 }
-
-// export async function swapClient(
-//     cluster: string,
-//     wallet: Wallet,
-
-// ) {
-//     const provider = new Provider(
-//         new Connection(cluster, 'recent'),
-//         Wallet.local(),
-//         Provider.defaultOptions(),
-//     );
-
-//     const tokenList = await new TokenListProvider().resolve();
-
-//     return new Swap(provider, tokenList);
-// }
 
 export function toNative(amount: number) {
     return new BN(amount * 10 ** Constants.DECIMALS);
