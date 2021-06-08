@@ -1,20 +1,10 @@
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
-// const Buffer = require('buffer');
 
 /**
  * 64-bit class
  */
 export class u64Number extends BN {
-
-    // constructor(
-    //     number: number | string | number[] | Uint8Array | Buffer | BN,
-    //     base?: number | 'hex',
-    //     endian?: BN.Endianness
-    // ) {
-    //     super(number, base, endian);
-    // }
-
     /**
      * Convert to Buffer
      */
