@@ -67,8 +67,7 @@ function parseStreamData(
 
     const tokenDecimals = 10 ** getTokenDecimals(associatedToken as string);
     let startDateUtc = new Date(decodedData.start_utc as string);
-    let today = new Date();
-    let utcNow = convertLocalDateToUTCIgnoringTimezone(today);
+    let utcNow = new Date();
 
     let rateAmount = Math.fround(decodedData.rate_amount);
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
