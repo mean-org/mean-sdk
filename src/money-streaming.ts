@@ -6,6 +6,7 @@ import * as Utils from './utils';
 import {
     Commitment,
     Connection,
+    ConnectionConfig,
     GetProgramAccountsConfig,
     Keypair,
     PublicKey,
@@ -58,17 +59,20 @@ export type StreamInfo = {
 export class MoneyStreaming {
 
     private connection: Connection;
-
     private programId: PublicKey;
     private feePayer: PublicKey;
+    private commitment: Commitment | ConnectionConfig | undefined;
 
     /**
      * Create a Streaming API object
      *
      * @param cluster The solana cluster endpoint used for the connecton
      */
-    constructor(cluster: string) {
-        this.connection = new Connection(cluster, 'confirmed');
+    constructor(
+        cluster: string,
+        commitment: Commitment | ConnectionConfig | string = 'finalized'
+    ) {
+        this.connection = new Connection(cluster, commitment as Commitment);
         this.programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
         this.feePayer = Constants.STREAM_PROGRAM_PAYER_ADRESS.toPublicKey();
     }
@@ -212,7 +216,7 @@ export class MoneyStreaming {
         );
 
         transaction.feePayer = treasurer;
-        let hash = await this.connection.getRecentBlockhash('confirmed');
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
         transaction.recentBlockhash = hash.blockhash;
         let signers: Array<Signer> = [streamAccount];
 
@@ -247,11 +251,15 @@ export class MoneyStreaming {
             )
         );
 
+        transaction.feePayer = contributor;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        transaction.recentBlockhash = hash.blockhash;
+
         return transaction;
     }
 
     public async getWithdrawTransaction(
-        stream_id: PublicKey,
+        streamId: PublicKey,
         beneficiary: PublicKey,
         associatedToken: PublicKey,
         amount: number
@@ -260,7 +268,7 @@ export class MoneyStreaming {
 
         let streamInfo = await Utils.getStream(
             this.connection,
-            stream_id
+            streamId
         );
 
         if (streamInfo.beneficiaryAddress !== beneficiary) {
@@ -290,7 +298,7 @@ export class MoneyStreaming {
 
         const keys = [
             { pubkey: beneficiary, isSigner: false, isWritable: false },
-            { pubkey: stream_id, isSigner: false, isWritable: true },
+            { pubkey: streamId, isSigner: false, isWritable: true },
             { pubkey: streamInfo.treasuryAddress as PublicKey, isSigner: false, isWritable: false }
         ];
 
@@ -307,11 +315,17 @@ export class MoneyStreaming {
 
         let programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
 
-        return transaction.add(new TransactionInstruction({
+        transaction.add(new TransactionInstruction({
             keys,
             programId,
             data,
         }));
+
+        transaction.feePayer = beneficiary;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        transaction.recentBlockhash = hash.blockhash;
+
+        return transaction;
     }
 
     public async signTransaction(
@@ -431,11 +445,10 @@ export class MoneyStreaming {
         );
 
         transaction.feePayer = initializer;
-        let hash = await this.connection.getRecentBlockhash('confirmed');
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
         transaction.recentBlockhash = hash.blockhash;
 
         return transaction;
-
     }
 
 }
