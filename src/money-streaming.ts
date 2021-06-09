@@ -296,30 +296,24 @@ export class MoneyStreaming {
             );
         }
 
-        const keys = [
-            { pubkey: beneficiary, isSigner: false, isWritable: false },
-            { pubkey: streamId, isSigner: false, isWritable: true },
-            { pubkey: streamInfo.treasuryAddress as PublicKey, isSigner: false, isWritable: false }
-        ];
+        transaction.add();
 
-        let data = Buffer.alloc(Layout.withdrawLayout.span)
-        {
-            const decodedData = {
-                tag: 2,
-                withdrawal_amount: amount
-            };
+        const treasuryATokenAddress = await Utils.findATokenAddress(
+            streamInfo.treasuryAddress as PublicKey,
+            associatedToken
+        )
 
-            const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
-            data = data.slice(0, encodeLength);
-        };
-
-        let programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
-
-        transaction.add(new TransactionInstruction({
-            keys,
-            programId,
-            data,
-        }));
+        transaction.add(
+            await Instructions.createWithdrawInstruction(
+                this.connection,
+                beneficiary,
+                beneficiaryATokenAddress,
+                streamInfo.treasuryAddress as PublicKey,
+                treasuryATokenAddress,
+                streamId,
+                amount
+            )
+        );
 
         transaction.feePayer = beneficiary;
         let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
