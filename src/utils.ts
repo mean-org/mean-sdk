@@ -118,7 +118,7 @@ function parseStreamData(
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
         totalDeposits: totalDeposits,
         totalWithdrawals: totalWithdrawals,
-        isStreaming: totalDeposits !== totalWithdrawals && rateAmount > 0,
+        isStreaming: totalDeposits !== Math.fround(escrowVestedAmount) && rateAmount > 0,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0
