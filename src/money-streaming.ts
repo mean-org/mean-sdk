@@ -136,22 +136,35 @@ export class MoneyStreaming {
             treasuryAccount = Keypair.generate();
             treasuryAddress = treasuryAccount.publicKey;
 
-            const mintInfo = await this.connection.getAccountInfo(associatedToken);
-
-            if (mintInfo == null) {
-                throw Error('Invalid mint account');
-            }
-
-            const minBalanceForATokenAcount = await this.connection.getMinimumBalanceForRentExemption(mintInfo.data.length);
+            const minBalanceForTreasuryAcount = await this.connection.getMinimumBalanceForRentExemption(0);
 
             transaction.add(
                 SystemProgram.createAccount({
                     fromPubkey: treasurer,
                     newAccountPubkey: treasuryAddress,
-                    lamports: minBalanceForATokenAcount,
+                    lamports: minBalanceForTreasuryAcount,
                     space: 0,
                     programId: this.programId,
                 }),
+            );
+        }
+
+        // Create treasury associated token if not exists
+        const treasuryTokenAddress = await Utils.findATokenAddress(
+            treasuryAddress,
+            associatedToken
+        );
+
+        let treasuryTokenAccountInfo = await this.connection.getAccountInfo(treasuryTokenAddress);
+
+        if (treasuryTokenAccountInfo == null) { // Create treasury associated token address            
+            transaction.add(
+                await Instructions.createATokenAccountInstruction(
+                    treasuryTokenAddress,
+                    treasurer,
+                    this.programId,
+                    associatedToken
+                )
             );
         }
 
@@ -169,25 +182,7 @@ export class MoneyStreaming {
             })
         );
 
-        const treasuryATokenAddress = await Utils.findATokenAddress(
-            treasuryAddress,
-            associatedToken
-        );
-
-        let treasuryATokenAccountInfo = await this.connection.getAccountInfo(treasuryATokenAddress);
-
-        if (treasuryATokenAccountInfo == null) { // Create treasury associated token address            
-            transaction.add(
-                await Instructions.createATokenAccountInstruction(
-                    treasuryATokenAddress,
-                    treasurer,
-                    treasuryAddress,
-                    associatedToken
-                )
-            );
-        }
-
-        let treasurerATokenAddress = await Utils.findATokenAddress(
+        let treasurerTokenAddress = await Utils.findATokenAddress(
             treasurer,
             associatedToken
         );
@@ -195,12 +190,11 @@ export class MoneyStreaming {
         // Create stream contract
         transaction.add(
             await Instructions.createStreamInstruction(
-                this.connection,
                 this.programId,
                 treasurer,
-                treasurerATokenAddress,
+                treasurerTokenAddress,
                 treasuryAddress,
-                treasuryATokenAddress,
+                treasuryTokenAddress,
                 streamAccount.publicKey,
                 beneficiary,
                 associatedToken,
@@ -271,7 +265,7 @@ export class MoneyStreaming {
             streamId
         );
 
-        if (streamInfo.beneficiaryAddress !== beneficiary) {
+        if (beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
             throw Error('Unauthorized');
         }
 
@@ -295,8 +289,6 @@ export class MoneyStreaming {
                 )
             );
         }
-
-        transaction.add();
 
         const treasuryATokenAddress = await Utils.findATokenAddress(
             streamInfo.treasuryAddress as PublicKey,
@@ -401,40 +393,65 @@ export class MoneyStreaming {
 
         let streamInfo = await Utils.getStream(
             this.connection,
-            streamId,
-            true
+            streamId
         );
 
         let counterparty: PublicKey;
 
-        if (initializer === streamInfo.treasurerAddress) {
+        if (initializer.toBase58() === streamInfo.treasurerAddress as string) {
             counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-        } else {
+        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
             counterparty = new PublicKey(streamInfo.treasurerAddress as string);
+        } else {
+            throw Error('Not allowed to close a stream');
         }
 
-        const treasuryAuthorityAddress = new PublicKey(streamInfo.treasuryAddress as string);
+        const transaction = new Transaction();
+        const beneficiaryAddress = new PublicKey(streamInfo.beneficiaryAddress as string);
         const tokenMintAddress = new PublicKey(streamInfo.associatedToken as string);
-        const treasuryATokenAddress = await Utils.findATokenAddress(
-            treasuryAuthorityAddress,
+        const beneficiaryTokenAddress = await Utils.findATokenAddress(
+            beneficiaryAddress,
+            tokenMintAddress,
+        );
+
+        const beneficiaryTokenAddressAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAddress);
+
+        if (beneficiaryTokenAddressAccountInfo === null) {
+            transaction.add(
+                await Instructions.createATokenAccountInstruction(
+                    beneficiaryTokenAddress,
+                    initializer,
+                    beneficiaryAddress,
+                    tokenMintAddress
+                )
+            );
+        }
+
+        const treasuryAddress = new PublicKey(streamInfo.treasuryAddress as string);
+        const treasuryTokenAddress = await Utils.findATokenAddress(
+            treasuryAddress,
             tokenMintAddress
         );
 
-        const beneficiaryATokenAddress = await Utils.findATokenAddress(
-            new PublicKey(streamInfo.beneficiaryAddress as PublicKey),
-            tokenMintAddress
-        );
+        // transaction.add(
+        //     await Instructions.apporveTokenDelegation(
+        //         treasuryAddress,
+        //         initializer,
+        //         treasuryTokenAddress,
+        //         streamInfo.escrowVestedAmount
+        //     )
+        // );
 
-        const transaction = new Transaction().add(
+        transaction.add(
             await Instructions.closeStreamInstruction(
-                this.connection,
                 this.programId,
-                streamId,
                 initializer,
                 counterparty,
-                treasuryATokenAddress,
-                treasuryAuthorityAddress,
-                beneficiaryATokenAddress
+                beneficiaryTokenAddress,
+                tokenMintAddress,
+                treasuryAddress,
+                treasuryTokenAddress,
+                streamInfo
             )
         );
 

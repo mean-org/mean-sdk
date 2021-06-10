@@ -12,6 +12,7 @@
     "@project-serum/sol-wallet-adapter": "^0.2.0",
     "@project-serum/swap": "^0.1.0-alpha.14",
     "@project-serum/tokens": "^0.0.7",
+    "@project-serum/associated-token": "^0.1.1",
     "@project-serum/spl-token-swap": "^0.1.0-alpha.1",
     "@solana/spl-token-registry": "0.2.121",
     "@solana/web3.js": "^1.17.0",

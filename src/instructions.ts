@@ -4,6 +4,9 @@ import { Layout } from "./layout";
 import { u64Number } from "./u64Number";
 import { Buffer } from 'buffer';
 import * as Utils from "./utils";
+import { StreamInfo } from "./money-streaming";
+
+const BufferLayout = require('buffer-layout');
 
 export module Instructions {
 
@@ -15,58 +18,26 @@ export module Instructions {
 
     ): Promise<TransactionInstruction> => {
 
-        const keys = [
-            {
-                pubkey: fundingAddress,
-                isSigner: true,
-                isWritable: true,
-            },
-            {
-                pubkey: tokenAddress,
-                isSigner: false,
-                isWritable: true,
-            },
-            {
-                pubkey: walletAddress,
-                isSigner: false,
-                isWritable: false,
-            },
-            {
-                pubkey: splTokenMintAddress,
-                isSigner: false,
-                isWritable: false,
-            },
-            {
-                pubkey: SystemProgram.programId,
-                isSigner: false,
-                isWritable: false,
-            },
-            {
-                pubkey: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(),
-                isSigner: false,
-                isWritable: false,
-            },
-            {
-                pubkey: SYSVAR_RENT_PUBKEY,
-                isSigner: false,
-                isWritable: false,
-            },
-        ];
-
         return new TransactionInstruction({
-            keys,
+            keys: [
+                { pubkey: fundingAddress, isSigner: true, isWritable: true },
+                { pubkey: tokenAddress, isSigner: false, isWritable: true },
+                { pubkey: walletAddress, isSigner: false, isWritable: false },
+                { pubkey: splTokenMintAddress, isSigner: false, isWritable: false },
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+            ],
             programId: Constants.ATOKEN_PROGRAM_ADDRESS.toPublicKey(),
-            data: Buffer.alloc(0),
         });
     }
 
     export const createStreamInstruction = async (
-        connection: Connection,
         programId: PublicKey,
         treasurer: PublicKey,
-        treasurerATokenAddress: PublicKey,
+        treasurerToken: PublicKey,
         treasury: PublicKey,
-        treasuryATokenAddress: PublicKey,
+        treasuryToken: PublicKey,
         stream: PublicKey,
         beneficiary: PublicKey,
         associatedToken: PublicKey,
@@ -81,19 +52,16 @@ export module Instructions {
 
     ): Promise<TransactionInstruction> => {
 
-        const treasurerInfo = await connection.getAccountInfo(treasurer);
         const meanfiKey = Constants.MEAN_FI_ADDRESS.toPublicKey();
-        const meanfiInfo = await connection.getAccountInfo(meanfiKey);
         const keys = [
             { pubkey: treasurer, isSigner: true, isWritable: false },
-            { pubkey: treasurerATokenAddress, isSigner: false, isWritable: true },
-            { pubkey: treasurerInfo?.owner as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: treasurerToken, isSigner: false, isWritable: true },
             { pubkey: treasury, isSigner: false, isWritable: false },
-            { pubkey: treasuryATokenAddress, isSigner: false, isWritable: true },
+            { pubkey: treasuryToken, isSigner: false, isWritable: true },
+            { pubkey: associatedToken, isSigner: false, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: Constants.STREAM_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false },
             { pubkey: meanfiKey, isSigner: false, isWritable: true },
-            { pubkey: meanfiInfo?.owner as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
             { pubkey: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false }
         ];
 
@@ -110,11 +78,8 @@ export module Instructions {
 
             const decodedData = {
                 tag: 0,
-                stream_name: nameBuffer,
-                stream_address: stream.toBuffer(),
-                treasury_address: treasury.toBuffer(),
                 beneficiary_address: beneficiary.toBuffer(),
-                stream_associated_token: associatedToken.toBuffer(),
+                stream_name: nameBuffer,
                 funding_amount: fundingAmount,
                 rate_amount: rateAmount,
                 rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
@@ -179,36 +144,77 @@ export module Instructions {
         });
     }
 
-    export const closeStreamInstruction = async (
-        connection: Connection,
-        programId: PublicKey,
-        stream: PublicKey,
-        initializer: PublicKey,
-        counterparty: PublicKey,
-        treasury: PublicKey,
-        treasuryAToken: PublicKey,
-        beneficiaryAToken: PublicKey
+    export const apporveTokenDelegation = async (
+        sourceToken: PublicKey,
+        delegate: PublicKey,
+        sourceTokenOwner: PublicKey,
+        delegateAmount: number
 
     ): Promise<TransactionInstruction> => {
 
-        const meanfiKey = Constants.MEAN_FI_ADDRESS.toPublicKey();
-        const meanfiInfo = await connection.getAccountInfo(meanfiKey);
+        const programId = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
         const keys = [
-            { pubkey: initializer, isSigner: false, isWritable: false },
-            { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: counterparty, isSigner: false, isWritable: false },
-            { pubkey: treasuryAToken, isSigner: false, isWritable: false },
-            { pubkey: treasury, isSigner: false, isWritable: true },
-            { pubkey: beneficiaryAToken, isSigner: false, isWritable: true },
-            { pubkey: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false },
-            { pubkey: meanfiKey, isSigner: false, isWritable: true },
-            { pubkey: meanfiInfo?.owner as PublicKey, isSigner: false, isWritable: true }
+            { pubkey: sourceToken, isSigner: false, isWritable: true },
+            { pubkey: delegate, isSigner: false, isWritable: false },
+            { pubkey: sourceTokenOwner, isSigner: true, isWritable: false }
         ];
+
+        let data = Buffer.alloc(Layout.approveDelegationLayout.span)
+        {
+            const decodedData = {
+                instruction: 4,
+                amount: delegateAmount
+            };
+
+            const encodeLength = Layout.approveDelegationLayout.encode(decodedData, data);
+            data = data.slice(0, encodeLength);
+        };
 
         return new TransactionInstruction({
             keys,
             programId,
-            data: Buffer.alloc(0)
+            data
+        });
+    }
+
+    export const closeStreamInstruction = async (
+        programId: PublicKey,
+        initializer: PublicKey,
+        counterparty: PublicKey,
+        beneficiaryToken: PublicKey,
+        tokenMint: PublicKey,
+        treasury: PublicKey,
+        treasuryToken: PublicKey,
+        streamInfo: StreamInfo
+
+    ): Promise<TransactionInstruction> => {
+
+        const meanfiKey = Constants.MEAN_FI_ADDRESS.toPublicKey();
+        const keys = [
+            { pubkey: initializer, isSigner: true, isWritable: false },
+            { pubkey: counterparty, isSigner: false, isWritable: false },
+            { pubkey: streamInfo.id as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
+            { pubkey: tokenMint, isSigner: false, isWritable: false },
+            { pubkey: treasury, isSigner: false, isWritable: true },
+            { pubkey: treasuryToken, isSigner: false, isWritable: true },
+            { pubkey: meanfiKey, isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            { pubkey: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false },
+            { pubkey: Constants.STREAM_PROGRAM_ADDRESS.toPublicKey(), isSigner: false, isWritable: false }
+        ];
+
+        let data = Buffer.alloc(1)
+        {
+            const decodedData = { tag: 5 };
+            const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
+            data = data.slice(0, encodeLength);
+        };
+
+        return new TransactionInstruction({
+            keys,
+            programId,
+            data
         });
     }
 }
