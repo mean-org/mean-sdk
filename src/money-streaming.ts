@@ -17,7 +17,7 @@ import {
 
 } from '@solana/web3.js';
 
-import { Constants } from './constants';
+import { Constants, ErrorConstants } from './constants';
 import { Instructions } from './instructions';
 import EventEmitter from 'eventemitter3';
 
@@ -248,9 +248,15 @@ export class MoneyStreaming {
             mintTokenAccountKey
         );
 
+        let beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
+
+        if (beneficiaryAccountInfo === null) {
+            throw MSPError(ErrorConstants.AccountNotCredited, `Beneficiary wallet account ${beneficiary} not credited`);
+        }
+
         let beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAccountKey);
 
-        if (beneficiaryTokenAccountInfo == null) { // Create beneficiary associated token address
+        if (beneficiaryTokenAccountInfo === null) { // Create beneficiary associated token address
             transaction.add(
                 await Instructions.createATokenAccountInstruction(
                     beneficiaryTokenAccountKey,
