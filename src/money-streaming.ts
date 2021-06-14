@@ -185,12 +185,12 @@ export class MoneyStreaming {
             ),
         );
 
-        console.log('Creating stream contract');
+        // console.log('Creating stream contract');
 
-        // transaction.feePayer = treasurer;
-        // let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        // transaction.recentBlockhash = hash.blockhash;
-        // transaction.partialSign(streamAccount);
+        transaction.feePayer = treasurer;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        transaction.recentBlockhash = hash.blockhash;
+        transaction.partialSign(streamAccount);
 
         return transaction;
     }
