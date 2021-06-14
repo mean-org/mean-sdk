@@ -6,6 +6,7 @@ import * as Utils from './utils';
 import {
     Commitment,
     Connection,
+    ConnectionConfig,
     GetProgramAccountsConfig,
     Keypair,
     PublicKey,
@@ -43,7 +44,7 @@ export type StreamInfo = {
     escrowVestedAmount: number,
     escrowUnvestedAmount: number,
     treasuryAddress: PublicKey | string | undefined,
-    escrowEstimatedDepletionUtc: PublicKey | string | undefined,
+    escrowEstimatedDepletionUtc: Date | string | undefined,
     totalDeposits: number,
     totalWithdrawals: number,
     isStreaming: boolean,
@@ -58,17 +59,20 @@ export type StreamInfo = {
 export class MoneyStreaming {
 
     private connection: Connection;
-
     private programId: PublicKey;
     private feePayer: PublicKey;
+    private commitment: Commitment | ConnectionConfig | undefined;
 
     /**
      * Create a Streaming API object
      *
      * @param cluster The solana cluster endpoint used for the connecton
      */
-    constructor(cluster: string) {
-        this.connection = new Connection(cluster, 'confirmed');
+    constructor(
+        cluster: string,
+        commitment: Commitment | ConnectionConfig | string = 'finalized'
+    ) {
+        this.connection = new Connection(cluster, commitment as Commitment);
         this.programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
         this.feePayer = Constants.STREAM_PROGRAM_PAYER_ADRESS.toPublicKey();
     }
@@ -132,22 +136,35 @@ export class MoneyStreaming {
             treasuryAccount = Keypair.generate();
             treasuryAddress = treasuryAccount.publicKey;
 
-            const mintInfo = await this.connection.getAccountInfo(associatedToken);
-
-            if (mintInfo == null) {
-                throw Error('Invalid mint account');
-            }
-
-            const minBalanceForATokenAcount = await this.connection.getMinimumBalanceForRentExemption(mintInfo.data.length);
+            const minBalanceForTreasuryAcount = await this.connection.getMinimumBalanceForRentExemption(0);
 
             transaction.add(
                 SystemProgram.createAccount({
                     fromPubkey: treasurer,
                     newAccountPubkey: treasuryAddress,
-                    lamports: minBalanceForATokenAcount,
+                    lamports: minBalanceForTreasuryAcount,
                     space: 0,
                     programId: this.programId,
                 }),
+            );
+        }
+
+        // Create treasury associated token if not exists
+        const treasuryTokenAddress = await Utils.findATokenAddress(
+            treasuryAddress,
+            associatedToken
+        );
+
+        let treasuryTokenAccountInfo = await this.connection.getAccountInfo(treasuryTokenAddress);
+
+        if (treasuryTokenAccountInfo == null) { // Create treasury associated token address            
+            transaction.add(
+                await Instructions.createATokenAccountInstruction(
+                    treasuryTokenAddress,
+                    treasurer,
+                    treasuryAddress,
+                    associatedToken
+                )
             );
         }
 
@@ -165,25 +182,7 @@ export class MoneyStreaming {
             })
         );
 
-        const treasuryATokenAddress = await Utils.findATokenAddress(
-            treasuryAddress,
-            associatedToken
-        );
-
-        let treasuryATokenAccountInfo = await this.connection.getAccountInfo(treasuryATokenAddress);
-
-        if (treasuryATokenAccountInfo == null) { // Create treasury associated token address            
-            transaction.add(
-                await Instructions.createATokenAccountInstruction(
-                    treasuryATokenAddress,
-                    treasurer,
-                    treasuryAddress,
-                    associatedToken
-                )
-            );
-        }
-
-        let treasurerATokenAddress = await Utils.findATokenAddress(
+        let treasurerTokenAddress = await Utils.findATokenAddress(
             treasurer,
             associatedToken
         );
@@ -191,12 +190,11 @@ export class MoneyStreaming {
         // Create stream contract
         transaction.add(
             await Instructions.createStreamInstruction(
-                this.connection,
                 this.programId,
                 treasurer,
-                treasurerATokenAddress,
+                treasurerTokenAddress,
                 treasuryAddress,
-                treasuryATokenAddress,
+                treasuryTokenAddress,
                 streamAccount.publicKey,
                 beneficiary,
                 associatedToken,
@@ -212,7 +210,7 @@ export class MoneyStreaming {
         );
 
         transaction.feePayer = treasurer;
-        let hash = await this.connection.getRecentBlockhash('confirmed');
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
         transaction.recentBlockhash = hash.blockhash;
         let signers: Array<Signer> = [streamAccount];
 
@@ -247,11 +245,15 @@ export class MoneyStreaming {
             )
         );
 
+        transaction.feePayer = contributor;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        transaction.recentBlockhash = hash.blockhash;
+
         return transaction;
     }
 
     public async getWithdrawTransaction(
-        stream_id: PublicKey,
+        streamId: PublicKey,
         beneficiary: PublicKey,
         associatedToken: PublicKey,
         amount: number
@@ -260,10 +262,10 @@ export class MoneyStreaming {
 
         let streamInfo = await Utils.getStream(
             this.connection,
-            stream_id
+            streamId
         );
 
-        if (streamInfo.beneficiaryAddress !== beneficiary) {
+        if (beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
             throw Error('Unauthorized');
         }
 
@@ -288,30 +290,28 @@ export class MoneyStreaming {
             );
         }
 
-        const keys = [
-            { pubkey: beneficiary, isSigner: false, isWritable: false },
-            { pubkey: stream_id, isSigner: false, isWritable: true },
-            { pubkey: streamInfo.treasuryAddress as PublicKey, isSigner: false, isWritable: false }
-        ];
+        const treasuryATokenAddress = await Utils.findATokenAddress(
+            streamInfo.treasuryAddress as PublicKey,
+            associatedToken
+        )
 
-        let data = Buffer.alloc(Layout.withdrawLayout.span)
-        {
-            const decodedData = {
-                tag: 2,
-                withdrawal_amount: amount
-            };
+        transaction.add(
+            await Instructions.createWithdrawInstruction(
+                this.connection,
+                beneficiary,
+                beneficiaryATokenAddress,
+                streamInfo.treasuryAddress as PublicKey,
+                treasuryATokenAddress,
+                streamId,
+                amount
+            )
+        );
 
-            const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
-            data = data.slice(0, encodeLength);
-        };
+        transaction.feePayer = beneficiary;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        transaction.recentBlockhash = hash.blockhash;
 
-        let programId = Constants.STREAM_PROGRAM_ADDRESS.toPublicKey();
-
-        return transaction.add(new TransactionInstruction({
-            keys,
-            programId,
-            data,
-        }));
+        return transaction;
     }
 
     public async signTransaction(
@@ -393,49 +393,73 @@ export class MoneyStreaming {
 
         let streamInfo = await Utils.getStream(
             this.connection,
-            streamId,
-            true
+            streamId
         );
 
         let counterparty: PublicKey;
 
-        if (initializer === streamInfo.treasurerAddress) {
+        if (initializer.toBase58() === streamInfo.treasurerAddress as string) {
             counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-        } else {
+        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
             counterparty = new PublicKey(streamInfo.treasurerAddress as string);
+        } else {
+            throw Error('Not allowed to close a stream');
         }
 
-        const treasuryAuthorityAddress = new PublicKey(streamInfo.treasuryAddress as string);
+        const transaction = new Transaction();
+        const beneficiaryAddress = new PublicKey(streamInfo.beneficiaryAddress as string);
         const tokenMintAddress = new PublicKey(streamInfo.associatedToken as string);
-        const treasuryATokenAddress = await Utils.findATokenAddress(
-            treasuryAuthorityAddress,
+        const beneficiaryTokenAddress = await Utils.findATokenAddress(
+            beneficiaryAddress,
+            tokenMintAddress,
+        );
+
+        const beneficiaryTokenAddressAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAddress);
+
+        if (beneficiaryTokenAddressAccountInfo === null) {
+            transaction.add(
+                await Instructions.createATokenAccountInstruction(
+                    beneficiaryTokenAddress,
+                    initializer,
+                    beneficiaryAddress,
+                    tokenMintAddress
+                )
+            );
+        }
+
+        const treasuryAddress = new PublicKey(streamInfo.treasuryAddress as string);
+        const treasuryTokenAddress = await Utils.findATokenAddress(
+            treasuryAddress,
             tokenMintAddress
         );
 
-        const beneficiaryATokenAddress = await Utils.findATokenAddress(
-            new PublicKey(streamInfo.beneficiaryAddress as PublicKey),
-            tokenMintAddress
-        );
+        // transaction.add(
+        //     await Instructions.apporveTokenDelegation(
+        //         treasuryAddress,
+        //         initializer,
+        //         treasuryTokenAddress,
+        //         streamInfo.escrowVestedAmount
+        //     )
+        // );
 
-        const transaction = new Transaction().add(
+        transaction.add(
             await Instructions.closeStreamInstruction(
-                this.connection,
                 this.programId,
-                streamId,
                 initializer,
                 counterparty,
-                treasuryATokenAddress,
-                treasuryAuthorityAddress,
-                beneficiaryATokenAddress
+                beneficiaryTokenAddress,
+                tokenMintAddress,
+                treasuryAddress,
+                treasuryTokenAddress,
+                streamInfo
             )
         );
 
         transaction.feePayer = initializer;
-        let hash = await this.connection.getRecentBlockhash('confirmed');
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
         transaction.recentBlockhash = hash.blockhash;
 
         return transaction;
-
     }
 
 }

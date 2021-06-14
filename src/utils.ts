@@ -11,6 +11,7 @@ import {
     u64
 
 } from '@solana/spl-token';
+import { getTokenDecimals } from "./token-list";
 
 declare global {
     export interface String {
@@ -58,20 +59,24 @@ function parseStreamData(
     let decodedData = Layout.streamLayout.decode(streamData);
     let totalDeposits = Math.round(decodedData.total_deposits);
     let totalWithdrawals = Math.round(decodedData.total_withdrawals);
-    let startUtc = decodedData.start_utc;
-    let startDateUtc = new Date();
 
-    startDateUtc.setTime(startUtc);
-    startDateUtc = convertLocalDateToUTCIgnoringTimezone(startDateUtc);
+    const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
+    const associatedToken = beneficiaryAssociatedToken.toBase58() !== Constants.DEFAULT_PUBLICKEY
+        ? beneficiaryAssociatedToken.toBase58()
+        : (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
+
+    let startDateUtc = new Date(decodedData.start_utc as string);
+    let utcNow = new Date();
 
     let rateAmount = Math.fround(decodedData.rate_amount);
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
+    const rate = rateAmount / rateIntervalInSeconds;
+    const elapsedTime = (utcNow.getTime() - startDateUtc.getTime()) / 1000;
+
     let escrowVestedAmount = 0;
-    let today = new Date();
-    let utcNow = convertLocalDateToUTCIgnoringTimezone(today);
 
     if (utcNow.getTime() >= startDateUtc.getTime()) {
-        escrowVestedAmount = Math.fround((rateAmount / rateIntervalInSeconds) * (utcNow.getTime() - startDateUtc.getTime()));
+        escrowVestedAmount = rate * elapsedTime;
 
         if (escrowVestedAmount >= totalDeposits) {
             escrowVestedAmount = totalDeposits;
@@ -92,11 +97,7 @@ function parseStreamData(
     const id = friendly !== undefined ? streamId.toBase58() : streamId;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
-    const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
-    const associatedToken = beneficiaryAssociatedToken.toBase58() != Constants.DEFAULT_PUBLICKEY
-        ? beneficiaryAssociatedToken.toBase58()
-        : (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
 
     Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized,
@@ -110,13 +111,13 @@ function parseStreamData(
         cliffVestPercent: decodedData.cliff_vest_percent,
         beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
         associatedToken: associatedToken,
-        escrowVestedAmount: escrowVestedAmount,
+        escrowVestedAmount: Math.fround(escrowVestedAmount),
         escrowUnvestedAmount: Math.fround(totalDeposits - totalWithdrawals - escrowVestedAmount),
         treasuryAddress: friendly !== undefined ? treasuryAddress.toBase58() : treasuryAddress,
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
         totalDeposits: totalDeposits,
         totalWithdrawals: totalWithdrawals,
-        isStreaming: totalDeposits !== totalWithdrawals && rateAmount > 0,
+        isStreaming: totalDeposits !== Math.fround(escrowVestedAmount) && rateAmount > 0,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0

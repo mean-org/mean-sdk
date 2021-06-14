@@ -49,11 +49,8 @@ export module Layout {
      */
     export const createStreamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
-        string('stream_name'),
-        publicKey('stream_address'),
-        publicKey('treasury_address'),
         publicKey('beneficiary_address'),
-        publicKey('stream_associated_token'),
+        string('stream_name'),
         BufferLayout.f64('funding_amount'),
         BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
@@ -78,6 +75,11 @@ export module Layout {
     export const withdrawLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
         BufferLayout.f64('withdrawal_amount')
+    ]);
+
+    export const approveDelegationLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+        BufferLayout.u8('instruction'),
+        BufferLayout.f64('amount')
     ]);
 
 }
