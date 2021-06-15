@@ -6,4 +6,6 @@ interface MSPErrorConstructor {
     readonly prototype: MSPError;
 }
 
-declare var MSPError: MSPErrorConstructor;
+export var MSPError: MSPErrorConstructor;
+
+export {}

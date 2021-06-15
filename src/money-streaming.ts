@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 import { Layout } from './layout';
 import { u64Number } from './u64Number';
 import * as Utils from './utils';
-import './errors';
+import * as Errors from './errors';
 
 import {
     Commitment,
@@ -67,13 +67,18 @@ export class MoneyStreaming {
      *
      * @param cluster The solana cluster endpoint used for the connecton
      */
-    constructor(
+     constructor(
         cluster: string,
-        programId: PublicKey,
+        programId: PublicKey | string,
         commitment: Commitment | ConnectionConfig | string = 'finalized'
     ) {
         this.connection = new Connection(cluster, commitment as Commitment);
-        this.programId = programId;
+
+        if (typeof programId === 'string') {
+            this.programId = programId.toPublicKey();
+        } else {
+            this.programId = programId;
+        }
     }
 
     public async getStream(
@@ -209,7 +214,7 @@ export class MoneyStreaming {
         );
 
         if (streamInfo === null) {
-            throw MSPError(ErrorConstants.AccountNotFound, `Stream with id = ${stream} not found`);
+            throw Errors.MSPError(ErrorConstants.AccountNotFound, `Stream with id = ${stream} not found`);
         }
 
         const contributorTokenAccountKey = await Utils.findATokenAddress(
@@ -265,7 +270,7 @@ export class MoneyStreaming {
         );
 
         if (beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
-            throw MSPError(ErrorConstants.AccountNotCredited, 'Not authorized to withdraw from this stream');
+            throw Errors.MSPError(ErrorConstants.AccountNotCredited, 'Not authorized to withdraw from this stream');
         }
 
         const transaction = new Transaction();
@@ -279,7 +284,7 @@ export class MoneyStreaming {
         let beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
 
         if (beneficiaryAccountInfo === null) {
-            throw MSPError(ErrorConstants.AccountNotCredited, `Beneficiary wallet account ${beneficiary} not credited`);
+            throw Errors.MSPError(ErrorConstants.AccountNotCredited, `Beneficiary wallet account ${beneficiary} not credited`);
         }
 
         let beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAccountKey);
