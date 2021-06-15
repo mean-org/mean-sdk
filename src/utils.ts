@@ -1,5 +1,5 @@
 import { BN } from "@project-serum/anchor";
-import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { StreamInfo } from "./money-streaming";
@@ -11,7 +11,6 @@ import {
     u64
 
 } from '@solana/spl-token';
-import { getTokenDecimals } from "./token-list";
 
 declare global {
     export interface String {

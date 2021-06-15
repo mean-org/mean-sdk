@@ -18,5 +18,7 @@ export class Constants {
 }
 
 export class ErrorConstants {
-    static AccountNotCredited = 'AccountNotCredited'
+    static Unauthorized = 'Unauthorized';
+    static AccountNotCredited = 'AccountNotCredited';
+    static AccountNotFound = 'AccountNotFound';
 }

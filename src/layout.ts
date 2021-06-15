@@ -65,7 +65,6 @@ export module Layout {
      */
     export const addFundsLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
-        publicKey('contribution_token_address'),
         BufferLayout.f64('contribution_amount')
     ]);
 
