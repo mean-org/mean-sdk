@@ -1,7 +1,7 @@
 import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
-import { u64Number } from "./u64Number";
+import { u64Number } from "./u64n";
 import { Buffer } from 'buffer';
 import * as Utils from "./utils";
 import { StreamInfo } from "./money-streaming";
@@ -77,6 +77,7 @@ export module Instructions {
         programId: PublicKey,
         treasurer: PublicKey,
         treasurerToken: PublicKey,
+        beneficiaryToken: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
         stream: PublicKey,
@@ -99,6 +100,7 @@ export module Instructions {
         const keys = [
             { pubkey: treasurer, isSigner: true, isWritable: false },
             { pubkey: treasurerToken, isSigner: false, isWritable: true },
+            { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
             { pubkey: treasury, isSigner: false, isWritable: true },
             { pubkey: treasuryToken, isSigner: false, isWritable: true },
             { pubkey: stream, isSigner: false, isWritable: true },
@@ -106,7 +108,6 @@ export module Instructions {
             { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
             { pubkey: programId, isSigner: false, isWritable: false },
             { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
-            { pubkey: aTokenProgramAccount, isSigner: false, isWritable: false },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
             { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
         ];

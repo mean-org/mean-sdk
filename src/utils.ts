@@ -1,25 +1,58 @@
-import { BN } from "@project-serum/anchor";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { BN, Provider, Wallet } from "@project-serum/anchor";
+import { Commitment, Connection, PublicKey, TransactionSignature } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { StreamInfo } from "./money-streaming";
-import { u64Number } from "./u64Number";
+import { u64Number } from "./u64n";
 
-import {
-    MintInfo,
-    MintLayout,
-    u64
-
-} from '@solana/spl-token';
+import { MintInfo, MintLayout, u64 } from '@solana/spl-token';
+import { Market, OpenOrders } from "@project-serum/serum";
+import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
+import { Swap } from "@project-serum/swap";
+import { MEAN_TOKEN_LIST } from "./token-list";
+import * as base64 from "base64-js";
+import SwapMarkets from "@project-serum/swap/lib/swap-markets";
 
 declare global {
     export interface String {
         toPublicKey(): PublicKey;
     }
+
+    export interface Array<T> {
+        getChainTokens(this: TokenInfo[], cluster: string): TokenInfo[];
+    }
 }
 
 String.prototype.toPublicKey = function (): PublicKey {
     return new PublicKey(this.toString());
+}
+
+Array.prototype.getChainTokens = function (cluster: string): TokenInfo[] {
+    let chainId = 0;
+
+    switch (cluster) {
+        case 'MAINNET' || 'Mainnet' || 'mainnet': {
+            chainId = 101;
+            break;
+        }
+        case 'TESTNET' || 'Testnet' || 'testnet': {
+            chainId = 102;
+            break;
+        }
+        case 'DEVNET' || 'Devnet' || 'devnet': {
+            chainId = 103;
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+
+    if (chainId === 0) return [] as TokenInfo[];
+
+    return this.filter(function (t, _) {
+        return t.chainId === chainId;
+    });
 }
 
 let defaultStreamInfo: StreamInfo = {
@@ -295,12 +328,12 @@ export async function findATokenAddress(
     )[0];
 }
 
-export function toNative(amount: number) {
-    return new BN(amount * 10 ** Constants.DECIMALS);
+export function toNative(amount: number, decimals: number) {
+    return new BN(amount * 10 ** decimals);
 }
 
-export function fromNative(amount: BN) {
-    return amount.toNumber() / 10 ** Constants.DECIMALS;
+export function fromNative(amount: BN, decimals: number) {
+    return amount.toNumber() / 10 ** decimals;
 }
 
 export const getMintAccount = async (
@@ -356,4 +389,132 @@ export function convertLocalDateToUTCIgnoringTimezone(date: Date) {
     );
 
     return new Date(timestamp);
+}
+
+export function getTokenList(
+    cluster: string
+
+): TokenInfo[] {
+
+    return MEAN_TOKEN_LIST.getChainTokens(cluster);
+}
+
+export async function swapClient(
+    connection: Connection,
+    // cluster: string,
+    wallet: Wallet,
+    commitment: Commitment | string
+
+): Promise<Swap> {
+
+    let preflightCommitment = typeof commitment === 'string' ? commitment : 'finalized';
+    let provider = new Provider(
+        connection,
+        wallet,
+        {
+            commitment: preflightCommitment as Commitment,
+            preflightCommitment: preflightCommitment as Commitment
+        }
+    );
+
+    // let tokenList = getTokenList(cluster);
+    let tokenListContainer = await new TokenListProvider().resolve();
+    let tokenList = tokenListContainer.filterByChainId(101).getList();
+    let container = new TokenListContainer(tokenList);
+
+    return new Swap(provider, container);
+}
+
+// async function getMarketAddress(
+//     tokenList: TokenListContainer,
+//     usdxMint: PublicKey,
+//     baseMint: PublicKey
+
+// ): Promise<PublicKey> {
+
+//     const market = tokenList.filterByClusterSlug(Constants.DEVNET_CLUSTER)
+//         .getList()
+//         .filter((t) => {
+//             if (t.address !== baseMint?.toString()) {
+//                 return false;
+//             }
+//             if (usdxMint.equals(USDC_PUBKEY)) {
+//                 return t.extensions?.serumV3Usdc !== undefined;
+//             } else if (usdxMint.equals(USDT_PUBKEY)) {
+//                 return t.extensions?.serumV3Usdt !== undefined;
+//             } else {
+//                 return false;
+//             }
+//         })
+//         .map((t) => {
+//             if (usdxMint!.equals(USDC_PUBKEY)) {
+//                 return new PublicKey(t.extensions!.serumV3Usdc as string);
+//             } else {
+//                 return new PublicKey(t.extensions!.serumV3Usdt as string);
+//             }
+//         })[0];
+
+//     if (market === undefined) {
+//         return null;
+//     }
+
+//     return market;
+// }
+
+export async function swapTokens(
+    connection: Connection,
+    client: Swap,
+    fromWallet: PublicKey,
+    fromMint: PublicKey,
+    toWallet: PublicKey,
+    toMint: PublicKey,
+    amount: number
+
+): Promise<Array<TransactionSignature>> {
+
+    // const serumDexKey = Constants.SERUM_DEX_ADDRESS.toPublicKey();
+    // const fromMarket = await Market.load(
+    //     connection,
+    //     fromMint,
+    //     { commitment: connection.commitment },
+    //     Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey()
+    // );
+
+    // const toMarket = await Market.load(
+    //     connection,
+    //     toMint,
+    //     { commitment: connection.commitment },
+    //     Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey()
+    // );
+
+    // const fromMintAccount = await getMintAccount(connection, fromMint);
+    // const toMintAccount = await getMintAccount(connection, toMint);
+    const bn = toNative(amount, 9);
+    const minExpectedExRate = {
+        rate: bn.mul(new BN(99)).div(new BN(100)), // 0.1%
+        fromDecimals: 9,
+        quoteDecimals: 6,
+        strict: false
+    };
+
+    const txs = client.swap({
+        fromMint: fromMint,
+        toMint: toMint,
+        // fromWallet,
+        // toWallet,
+        // fromMarket,
+        // toMarket,
+        amount: bn,
+        minExchangeRate: minExpectedExRate
+    });
+
+    return txs;
+}
+
+export function encode(data: Buffer): string {
+    return base64.fromByteArray(data);
+}
+
+export function decode(data: string): Buffer {
+    return Buffer.from(base64.toByteArray(data));
 }
