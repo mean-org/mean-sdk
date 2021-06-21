@@ -1,7 +1,8 @@
 import { BN, Wallet } from '@project-serum/anchor';
-import { Token, MintInfo, MintLayout, AccountLayout, u64 } from '@solana/spl-token';
+import { Token, AccountLayout } from '@solana/spl-token';
 import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
-import { Account, AccountInfo, Finality, LAMPORTS_PER_SOL, ParsedInstruction, PartiallyDecodedInstruction, SystemInstruction, TransactionInstruction } from '@solana/web3.js';
+import { TokenInfo } from '@solana/spl-token-registry';
+import { Account, Finality, LAMPORTS_PER_SOL, PartiallyDecodedInstruction, TransactionInstruction } from '@solana/web3.js';
 import {
     Commitment,
     Connection,
@@ -22,6 +23,7 @@ import * as Utils from './utils';
 import * as Errors from './errors';
 import EventEmitter from 'eventemitter3';
 import base58 from 'bs58';
+import { MEAN_TOKEN_LIST } from './token-list';
 
 const BufferLayout = require('buffer-layout');
 
@@ -138,60 +140,13 @@ export class MoneyStreaming {
 
     ): Promise<any[]> {
 
-        let activity = [];
-        let commitmentValue = commitment !== undefined ? commitment as Finality : 'confirmed';
-        let signatures = await this.connection.getConfirmedSignaturesForAddress2(id, {}, commitmentValue);
-
-        for (let sign of signatures) {
-            let tx = await this.connection.getParsedConfirmedTransaction(sign.signature, commitmentValue);
-
-            if (tx !== null) {
-                let lastIxIndex = tx.transaction.message.instructions.length - 1;
-                let lastIx = tx.transaction.message.instructions[lastIxIndex] as PartiallyDecodedInstruction;
-                let buffer = base58.decode(lastIx.data);
-                let actionIndex = buffer.readUInt8(0);
-
-                if (actionIndex <= 2) {
-                    let blockTime = (tx.blockTime || sign.blockTime) as number * 1000; // mult by 1000 to add milliseconds
-                    let action = actionIndex === 2 ? 'withdraw' : 'deposit';
-                    let layoutBuffer = Buffer.alloc(buffer.length, buffer);
-                    let data: any,
-                        amount = 0;
-
-                    if (actionIndex === 0) {
-                        data = Layout.createStreamLayout.decode(layoutBuffer);
-                        amount = data.funding_amount;
-                    } else if (actionIndex === 1) {
-                        data = Layout.addFundsLayout.decode(layoutBuffer);
-                        amount = data.contribution_amount;
-                    } else {
-                        data = Layout.withdrawLayout.decode(layoutBuffer);
-                        amount = data.withdrawal_amount;
-                    }
-
-                    let mint: string;
-
-                    if (tx.meta?.preTokenBalances?.length) {
-                        mint = tx.meta.preTokenBalances[0].mint;
-                    } else if (tx.meta?.postTokenBalances?.length) {
-                        mint = tx.meta.postTokenBalances[0].mint;
-                    } else {
-                        mint = 'Unknown';
-                    }
-
-                    activity.push({
-                        blockTime: blockTime,
-                        utcDate: new Date(blockTime).toUTCString(),
-                        action: action,
-                        amount: amount,
-                        mint: mint,
-                        type: action === 'withdraw' ? 'in' : 'out',
-                    });
-                }
-            }
-        }
-
-        return activity.sort((a, b) => (b.blockTime - a.blockTime));
+        return await Utils.listStreamActivity(
+            this.connection,
+            this.cluster,
+            id,
+            commitment,
+            friendly
+        );
     }
 
     public async oneTimePaymentTransaction(
