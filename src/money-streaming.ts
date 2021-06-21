@@ -1,7 +1,7 @@
 import { BN, Wallet } from '@project-serum/anchor';
-import { Token, AccountLayout, u64 } from '@solana/spl-token';
+import { Token, MintInfo, MintLayout, AccountLayout, u64 } from '@solana/spl-token';
 import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
-import { Account, LAMPORTS_PER_SOL, SystemInstruction, TransactionInstruction } from '@solana/web3.js';
+import { Account, AccountInfo, Finality, LAMPORTS_PER_SOL, ParsedInstruction, PartiallyDecodedInstruction, SystemInstruction, TransactionInstruction } from '@solana/web3.js';
 import {
     Commitment,
     Connection,
@@ -21,6 +21,7 @@ import { TokenSwap } from './token-swap';
 import * as Utils from './utils';
 import * as Errors from './errors';
 import EventEmitter from 'eventemitter3';
+import base58 from 'bs58';
 
 const BufferLayout = require('buffer-layout');
 
@@ -128,6 +129,69 @@ export class MoneyStreaming {
             commitment,
             friendly
         );
+    }
+
+    public async listStreamActivity(
+        id: PublicKey,
+        commitment?: Commitment | undefined,
+        friendly: boolean = true
+
+    ): Promise<any[]> {
+
+        let activity = [];
+        let commitmentValue = commitment !== undefined ? commitment as Finality : 'confirmed';
+        let signatures = await this.connection.getConfirmedSignaturesForAddress2(id, {}, commitmentValue);
+
+        for (let sign of signatures) {
+            let tx = await this.connection.getParsedConfirmedTransaction(sign.signature, commitmentValue);
+
+            if (tx !== null) {
+                let lastIxIndex = tx.transaction.message.instructions.length - 1;
+                let lastIx = tx.transaction.message.instructions[lastIxIndex] as PartiallyDecodedInstruction;
+                let buffer = base58.decode(lastIx.data);
+                let actionIndex = buffer.readUInt8(0);
+
+                if (actionIndex <= 2) {
+                    let blockTime = (tx.blockTime || sign.blockTime) as number * 1000; // mult by 1000 to add milliseconds
+                    let action = actionIndex === 2 ? 'withdraw' : 'deposit';
+                    let layoutBuffer = Buffer.alloc(buffer.length, buffer);
+                    let data: any,
+                        amount = 0;
+
+                    if (actionIndex === 0) {
+                        data = Layout.createStreamLayout.decode(layoutBuffer);
+                        amount = data.funding_amount;
+                    } else if (actionIndex === 1) {
+                        data = Layout.addFundsLayout.decode(layoutBuffer);
+                        amount = data.contribution_amount;
+                    } else {
+                        data = Layout.withdrawLayout.decode(layoutBuffer);
+                        amount = data.withdrawal_amount;
+                    }
+
+                    let mint: string;
+
+                    if (tx.meta?.preTokenBalances?.length) {
+                        mint = tx.meta.preTokenBalances[0].mint;
+                    } else if (tx.meta?.postTokenBalances?.length) {
+                        mint = tx.meta.postTokenBalances[0].mint;
+                    } else {
+                        mint = 'Unknown';
+                    }
+
+                    activity.push({
+                        blockTime: blockTime,
+                        utcDate: new Date(blockTime).toUTCString(),
+                        action: action,
+                        amount: amount,
+                        mint: mint,
+                        type: action === 'withdraw' ? 'in' : 'out',
+                    });
+                }
+            }
+        }
+
+        return activity.sort((a, b) => (b.blockTime - a.blockTime));
     }
 
     public async oneTimePaymentTransaction(
@@ -559,13 +623,44 @@ export class MoneyStreaming {
         return txs;
     }
 
-    public async getAddFundsTransaction(
+    public async addFundsTransaction(
         stream: PublicKey,
         contributor: PublicKey,
         contributorToken: PublicKey,
+        treasury: PublicKey,
+        treasuryToken: PublicKey,
+        treasuryAssociatedToken: PublicKey,
         amount: number
 
     ): Promise<Transaction> {
+
+        let tx = new Transaction().add(
+            await Instructions.addFundsInstruction(
+                this.programId,
+                stream,
+                contributor,
+                contributorToken,
+                treasury,
+                treasuryToken,
+                treasuryAssociatedToken,
+                amount
+            )
+        );
+
+        tx.feePayer = contributor;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async getAddFundsTransactions(
+        stream: PublicKey,
+        contributor: PublicKey,
+        contributorAssociatedToken: PublicKey,
+        amount: number
+
+    ): Promise<Transaction[]> {
 
         let streamInfo = await Utils.getStream(
             this.connection,
@@ -577,72 +672,60 @@ export class MoneyStreaming {
             throw Errors.MSPError(ErrorConstants.AccountNotFound, `Stream with id = ${stream} not found`);
         }
 
-        const transaction = new Transaction();
-        const contributorTokenAccountKey = await Utils.findATokenAddress(contributor, contributorToken);
-        const contributorTokenAccountInfo = await this.connection.getAccountInfo(contributorTokenAccountKey);
-        const treasury = new PublicKey(streamInfo.treasurerAddress as PublicKey);
+        let txs: Transaction[] = [];
+
+        const treasuryAccountKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
         const treasuryAssociatedToken = new PublicKey(streamInfo.associatedToken as PublicKey);
-        const treasuryTokenAccountKey = await Utils.findATokenAddress(
-            treasury,
-            treasuryAssociatedToken
-        );
+        const contributorTokenAccountKey = await Utils.findATokenAddress(contributor, contributorAssociatedToken);
+        const treasuryTokenAccountKey = await Utils.findATokenAddress(treasuryAccountKey, contributorAssociatedToken);
 
-        let contributionAmount = amount;
+        if (amount) { // Wrap or Swap only if the is an initial funding amount for the stream
 
-        if (contributorTokenAccountInfo === null) {
-
-            if (contributorToken.toBase58() !== Constants.WSOL_TOKEN_MINT_ADDRESS) {
-                throw Errors.MSPError(ErrorConstants.AccountNotFound, 'Invalid associated token account');
+            if (contributorTokenAccountKey.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
+                // Wrap
+                txs.push(
+                    await this.wrapTransaction(
+                        contributor,
+                        contributorTokenAccountKey,
+                        contributorAssociatedToken,
+                        amount
+                    )
+                );
             }
 
-            // Wrap
-            transaction.add(
-                await Instructions.createATokenAccountInstruction(
-                    contributorTokenAccountKey,
-                    contributor,
-                    contributor,
-                    contributorToken
-                ),
-                Token.createTransferInstruction(
-                    TOKEN_PROGRAM_ID,
-                    contributor,
-                    contributorTokenAccountKey,
-                    contributor,
-                    [],
-                    (contributionAmount as number) * 10 ** LAMPORTS_PER_SOL
-                )
-            );
-        }
-
-        if (contributorToken.toBase58() !== Constants.WSOL_TOKEN_MINT_ADDRESS) {
-            if (this.cluster === Constants.DEVNET_CLUSTER) {
-                throw Errors.MSPError(ErrorConstants.AccountNotFound, `Associated token accounts doesn't match`);
-            } else {
+            if (contributorAssociatedToken.toBase58() !== treasuryAssociatedToken.toBase58()) {
+                // Force to use the same associated token on DEVNET
+                if (this.cluster === Constants.DEVNET_CLUSTER) {
+                    throw Errors.MSPError(ErrorConstants.AccountNotFound, `Associated token accounts doesn't match`);
+                }
                 // Swap (amount to contributionAmount in treasuryAssociatedToken)
+                txs.push(
+                    await this.swapTransaction(
+                        contributor,
+                        contributorAssociatedToken,
+                        treasuryAssociatedToken,
+                        amount
+                    )
+                );
             }
         }
 
-        transaction.add(
-            await Instructions.addFundsInstruction(
-                this.programId,
+        txs.push(
+            await this.addFundsTransaction(
                 stream,
                 contributor,
                 contributorTokenAccountKey,
-                treasury,
+                treasuryAccountKey,
                 treasuryTokenAccountKey,
                 treasuryAssociatedToken,
-                contributionAmount
+                amount
             )
         );
 
-        transaction.feePayer = contributor;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        transaction.recentBlockhash = hash.blockhash;
-
-        return transaction;
+        return txs;
     }
 
-    public async getWithdrawTransaction(
+    public async withdrawTransaction(
         stream: PublicKey,
         beneficiary: PublicKey,
         amount: number
