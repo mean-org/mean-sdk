@@ -1,8 +1,7 @@
 import { BN, Wallet } from '@project-serum/anchor';
 import { Token, AccountLayout } from '@solana/spl-token';
 import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
-import { TokenInfo } from '@solana/spl-token-registry';
-import { Account, Finality, LAMPORTS_PER_SOL, PartiallyDecodedInstruction, TransactionInstruction } from '@solana/web3.js';
+import { Account, LAMPORTS_PER_SOL, TransactionInstruction } from '@solana/web3.js';
 import {
     Commitment,
     Connection,
@@ -20,20 +19,6 @@ import { Instructions } from './instructions';
 import { Layout } from './layout';
 import { TokenSwap } from './token-swap';
 import * as Utils from './utils';
-import * as Errors from './errors';
-import EventEmitter from 'eventemitter3';
-import base58 from 'bs58';
-import { MEAN_TOKEN_LIST } from './token-list';
-
-const BufferLayout = require('buffer-layout');
-
-export interface WalletAdapter extends EventEmitter, Wallet {
-    publicKey: PublicKey;
-    signTransaction: (transaction: Transaction) => Promise<Transaction>;
-    signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
-    connect: () => any;
-    disconnect: () => any;
-}
 
 export type StreamInfo = {
     id: PublicKey | string | undefined,
@@ -68,8 +53,6 @@ export class MoneyStreaming {
     private connection: Connection;
     private cluster: string;
     private programId: PublicKey;
-    private wallet: Wallet;
-    private tokenSwap: TokenSwap;
     private commitment: Commitment | ConnectionConfig | undefined;
 
     /**
@@ -80,11 +63,9 @@ export class MoneyStreaming {
     constructor(
         cluster: string,
         programId: PublicKey | string,
-        wallet?: Wallet,
         commitment: Commitment | string = 'finalized'
     ) {
         this.cluster = cluster;
-        this.wallet = wallet as Wallet;
         this.connection = new Connection(cluster, commitment as Commitment);
 
         if (typeof programId === 'string') {
@@ -92,12 +73,6 @@ export class MoneyStreaming {
         } else {
             this.programId = programId;
         }
-
-        this.tokenSwap = new TokenSwap(
-            this.connection,
-            this.wallet,
-            this.commitment as Commitment
-        );
     }
 
     public async getStream(
@@ -219,7 +194,7 @@ export class MoneyStreaming {
         const treasurerTokenAccountInfo = await this.connection.getAccountInfo(treasurerTokenAccountKey);
 
         if (treasurerTokenAccountInfo === null) {
-            throw Errors.MSPError(ErrorConstants.AccountNotFound, `Treasurer token account ${treasurerTokenAccountInfo} not found`);
+            throw Error(ErrorConstants.AccountNotFound);
         }
 
         // Create stream contract
@@ -272,7 +247,7 @@ export class MoneyStreaming {
         const treasurerTokenAccountInfo = await this.connection.getAccountInfo(treasurerTokenAccountKey);
 
         if (treasurerTokenAccountInfo === null) {
-            throw Errors.MSPError(ErrorConstants.AccountNotFound, `Treasurer token account ${treasurerTokenAccountInfo} not found`);
+            throw Error(ErrorConstants.AccountNotFound);
         }
 
         if (fundingAmount) { // Wrap or Swap only if the is an initial funding amount for the stream
@@ -378,7 +353,7 @@ export class MoneyStreaming {
     }
 
     public async swapTransaction(
-        payer: PublicKey,
+        wallet: Wallet,
         fromMint: PublicKey,
         toMint: PublicKey,
         amount: number
@@ -387,13 +362,18 @@ export class MoneyStreaming {
 
         const fromMintAccountInfo = await Utils.getMintAccount(this.connection, fromMint);
         const toMintAccountInfo = await Utils.getMintAccount(this.connection, toMint);
+        const tokenSwap = new TokenSwap(
+            this.connection,
+            wallet,
+            this.commitment as Commitment
+        );
 
         if (fromMintAccountInfo === null) {
-            throw Errors.MSPError(ErrorConstants.AccountNotFound, `From mint account ${fromMint} nor found`);
+            throw Error(ErrorConstants.AccountNotFound);
         } else if (toMintAccountInfo === null) {
-            throw Errors.MSPError(ErrorConstants.AccountNotFound, `To mint account ${toMint} nor found`);
+            throw Error(ErrorConstants.AccountNotFound);
         } else {
-            const estimatedAmount = await this.tokenSwap.estimate({
+            const estimatedAmount = await tokenSwap.estimate({
                 fromMint: fromMint,
                 toMint: toMint,
                 amount: new BN(amount),
@@ -412,14 +392,14 @@ export class MoneyStreaming {
                 strict: false
             };
 
-            let tx = await this.tokenSwap.swapTransaction({
+            let tx = await tokenSwap.swapTransaction({
                 fromMint: fromMint,
                 toMint: toMint,
                 amount: new BN(amount),
                 minExchangeRate: minExchangeRate
             });
 
-            tx.feePayer = payer;
+            tx.feePayer = wallet.publicKey;
             let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
             tx.recentBlockhash = hash.blockhash;
 
@@ -509,7 +489,7 @@ export class MoneyStreaming {
     }
 
     public async getCreateStreamTransactions(
-        treasurer: PublicKey,
+        wallet: Wallet,
         beneficiary: PublicKey,
         treasurerAssociatedToken: PublicKey,
         beneficiaryAssociatedToken: PublicKey,
@@ -525,6 +505,8 @@ export class MoneyStreaming {
     ): Promise<Transaction[]> {
 
         let txs: Transaction[] = [];
+
+        const treasurer = wallet.publicKey;
         const treasurerTokenAccountKey = await Utils.findATokenAddress(treasurer, treasurerAssociatedToken);
 
         if (fundingAmount) { // Wrap or Swap only if the is an initial funding amount for the stream
@@ -544,12 +526,12 @@ export class MoneyStreaming {
             if (treasurerAssociatedToken.toBase58() !== beneficiaryAssociatedToken.toBase58()) {
                 // Force to use the same associated token on DEVNET
                 if (this.cluster === Constants.DEVNET_CLUSTER) {
-                    throw Errors.MSPError(ErrorConstants.AccountNotFound, `Associated token accounts doesn't match`);
+                    throw Error(ErrorConstants.TokensDoNotMatch);
                 }
                 // Swap (amount to contributionAmount in treasuryAssociatedToken)
                 txs.push(
                     await this.swapTransaction(
-                        treasurer,
+                        wallet,
                         treasurerAssociatedToken,
                         beneficiaryAssociatedToken,
                         fundingAmount
@@ -579,8 +561,8 @@ export class MoneyStreaming {
     }
 
     public async addFundsTransaction(
+        wallet: Wallet,
         stream: PublicKey,
-        contributor: PublicKey,
         contributorToken: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
@@ -589,6 +571,7 @@ export class MoneyStreaming {
 
     ): Promise<Transaction> {
 
+        let contributor = wallet.publicKey;
         let tx = new Transaction().add(
             await Instructions.addFundsInstruction(
                 this.programId,
@@ -610,8 +593,8 @@ export class MoneyStreaming {
     }
 
     public async getAddFundsTransactions(
+        wallet: Wallet,
         stream: PublicKey,
-        contributor: PublicKey,
         contributorAssociatedToken: PublicKey,
         amount: number
 
@@ -624,11 +607,12 @@ export class MoneyStreaming {
         );
 
         if (streamInfo === null) {
-            throw Errors.MSPError(ErrorConstants.AccountNotFound, `Stream with id = ${stream} not found`);
+            throw Error(ErrorConstants.AccountNotFound);
         }
 
         let txs: Transaction[] = [];
 
+        const contributor = wallet.publicKey;
         const treasuryAccountKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
         const treasuryAssociatedToken = new PublicKey(streamInfo.associatedToken as PublicKey);
         const contributorTokenAccountKey = await Utils.findATokenAddress(contributor, contributorAssociatedToken);
@@ -651,12 +635,12 @@ export class MoneyStreaming {
             if (contributorAssociatedToken.toBase58() !== treasuryAssociatedToken.toBase58()) {
                 // Force to use the same associated token on DEVNET
                 if (this.cluster === Constants.DEVNET_CLUSTER) {
-                    throw Errors.MSPError(ErrorConstants.AccountNotFound, `Associated token accounts doesn't match`);
+                    throw Error(ErrorConstants.TokensDoNotMatch);
                 }
                 // Swap (amount to contributionAmount in treasuryAssociatedToken)
                 txs.push(
                     await this.swapTransaction(
-                        contributor,
+                        wallet,
                         contributorAssociatedToken,
                         treasuryAssociatedToken,
                         amount
@@ -667,8 +651,8 @@ export class MoneyStreaming {
 
         txs.push(
             await this.addFundsTransaction(
+                wallet,
                 stream,
-                contributor,
                 contributorTokenAccountKey,
                 treasuryAccountKey,
                 treasuryTokenAccountKey,
@@ -693,7 +677,7 @@ export class MoneyStreaming {
         );
 
         if (beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
-            throw Errors.MSPError(ErrorConstants.AccountNotCredited, 'Not authorized to withdraw from this stream');
+            throw Error(ErrorConstants.AccountNotFound);
         }
 
         const transaction = new Transaction();
@@ -707,7 +691,7 @@ export class MoneyStreaming {
         let beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
 
         if (beneficiaryAccountInfo === null) {
-            throw Errors.MSPError(ErrorConstants.AccountNotCredited, `Beneficiary wallet account ${beneficiary} not credited`);
+            throw Error(ErrorConstants.AccountNotFound);
         }
 
         let beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAccountKey);
@@ -750,7 +734,7 @@ export class MoneyStreaming {
     }
 
     public async signTransaction(
-        wallet: WalletAdapter,
+        wallet: Wallet,
         transaction: Transaction
 
     ): Promise<Transaction> {
@@ -768,15 +752,22 @@ export class MoneyStreaming {
     }
 
     public async signAllTransactions(
-        wallet: WalletAdapter,
-        transactions: Transaction[]
+        wallet: Wallet,
+        ...transactions: Transaction[]
 
     ): Promise<Transaction[]> {
 
         try {
+
             console.log("Sending transactions for wallet for approval...");
-            let signedTrans = await wallet.signAllTransactions(transactions);
-            return signedTrans;
+            let txs: Transaction[] = [];
+
+            for (let tx of transactions) {
+                let signedTx = await wallet.signTransaction(tx);
+                txs.push(signedTx);
+            }
+
+            return txs;
 
         } catch (error) {
             console.log("signTransaction failed!");
@@ -790,6 +781,24 @@ export class MoneyStreaming {
             let signature = await this.connection.sendRawTransaction(signedTrans.serialize());
             console.log("send raw transaction");
             return signature;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async sendSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
+        try {
+
+            let signatures: string[] = [];
+
+            for (let tx of signedTrans) {
+                let res = await this.connection.sendRawTransaction(tx.serialize());
+                console.log("Send Transaction");
+                signatures.push(res);
+            }
+
+            return signatures;
+
         } catch (error) {
             throw error;
         }
@@ -823,7 +832,7 @@ export class MoneyStreaming {
         } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
             counterparty = new PublicKey(streamInfo.treasurerAddress as string);
         } else {
-            throw Error('Not allowed to close a stream');
+            throw Error(ErrorConstants.Unauthorized);
         }
 
         const transaction = new Transaction();

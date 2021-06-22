@@ -26,4 +26,5 @@ export class ErrorConstants {
     static Unauthorized = 'Unauthorized';
     static AccountNotCredited = 'AccountNotCredited';
     static AccountNotFound = 'AccountNotFound';
+    static TokensDoNotMatch = 'TokensDoNotMatch';
 }
