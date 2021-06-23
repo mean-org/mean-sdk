@@ -45,7 +45,7 @@ export module Layout {
         BufferLayout.f64('escrow_vested_amount_snap'),
         uint64('escrow_vested_amount_snap_block_height'),
         uint64('auto_off_clock_in_seconds'),
-        BufferLayout.u8('on_clock')
+        BufferLayout.u8('is_streaming')
     ]);
 
     /**

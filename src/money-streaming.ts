@@ -42,7 +42,6 @@ export type StreamInfo = {
     escrowVestedAmountSnap: number,
     escrowVestedAmountSnapBlockHeight: number,
     autoOffClockInSeconds: number,
-    onClock: boolean,
     isStreaming: boolean,
     isUpdatePending: boolean
     transactionSignature: string | undefined,
@@ -128,7 +127,7 @@ export class MoneyStreaming {
         );
     }
 
-    async oneTimePaymentTransaction(
+    private async oneTimePaymentTransaction(
         treasurer: PublicKey,
         beneficiary: PublicKey,
         associatedToken: PublicKey,
@@ -282,7 +281,7 @@ export class MoneyStreaming {
         return txs;
     }
 
-    async wrapTransaction(
+    private async wrapTransaction(
         from: PublicKey,
         account: PublicKey,
         mint: PublicKey,
@@ -356,7 +355,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    async swapTransaction(
+    private async swapTransaction(
         wallet: Wallet,
         fromMint: PublicKey,
         toMint: PublicKey,
@@ -568,7 +567,7 @@ export class MoneyStreaming {
         return txs;
     }
 
-    async addFundsTransaction(
+    private async addFundsTransaction(
         wallet: Wallet,
         stream: PublicKey,
         contributorToken: PublicKey,
@@ -846,7 +845,14 @@ export class MoneyStreaming {
             let signatures: string[] = [];
 
             for (let tx of signedTrans) {
-                let res = await this.connection.sendRawTransaction(tx.serialize());
+                console.log('tx: ', tx);
+                console.log('tx.serialize(): ', tx.serialize());
+
+                let res = await this.connection.sendRawTransaction(tx.serialize(), {
+                    preflightCommitment: this.commitment as Commitment
+                });
+
+                console.log('res: ', res);
                 console.log("Send Transaction");
                 signatures.push(res);
             }

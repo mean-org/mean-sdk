@@ -258,7 +258,7 @@ export module Instructions {
 
         let data = Buffer.alloc(1)
         {
-            const decodedData = { tag: 4 };
+            const decodedData = { tag: 3 };
             const encodeLength = Layout.assertClockLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };
@@ -287,7 +287,7 @@ export module Instructions {
 
         let data = Buffer.alloc(1)
         {
-            const decodedData = { tag: 5 };
+            const decodedData = { tag: 4 };
             const encodeLength = Layout.assertClockLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };

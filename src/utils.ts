@@ -11,8 +11,6 @@ import { MEAN_TOKEN_LIST } from "./token-list";
 import base64 from "base64-js";
 import base58 from "bs58";
 
-var pathUtil = require('path');
-
 declare global {
     export interface String {
         toPublicKey(): PublicKey;
@@ -77,7 +75,6 @@ let defaultStreamInfo: StreamInfo = {
     escrowVestedAmountSnap: 0,
     escrowVestedAmountSnapBlockHeight: 0,
     autoOffClockInSeconds: 0,
-    onClock: true,
     isStreaming: false,
     isUpdatePending: false,
     transactionSignature: undefined,
@@ -93,20 +90,19 @@ function parseStreamData(
 
     let stream: StreamInfo = defaultStreamInfo;
     let decodedData = Layout.streamLayout.decode(streamData);
+    let startDateUtc = new Date(decodedData.start_utc as string);
+    let currentBlockTime = new Date().getTime() / 1000;
+    let escrowVestedAmountSnapBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_height).toString());
+    let escrowVestedAmountSnapBlockTime = new Date(escrowVestedAmountSnapBlockHeight).getTime();
+    let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
+    let escrowVestedAmount = 0.0;
+
+    const rate = decodedData.rate_amount / rateIntervalInSeconds * decodedData.is_streaming;
+    const elapsedTime = currentBlockTime - escrowVestedAmountSnapBlockTime;
     const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
     const associatedToken = beneficiaryAssociatedToken.toBase58() !== Constants.DEFAULT_PUBLICKEY
         ? beneficiaryAssociatedToken.toBase58()
         : (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
-
-    let startDateUtc = new Date(decodedData.start_utc as string);
-    let currentBlockTime = new Date().getTime();
-    let escrowVestedAmountSnapBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_height).toString());
-    let escrowVestedAmountSnapBlockTime = new Date(escrowVestedAmountSnapBlockHeight * 1000).getTime();
-    let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
-    const rate = decodedData.rate_amount / rateIntervalInSeconds * decodedData.on_clock;
-    const elapsedTime = currentBlockTime - escrowVestedAmountSnapBlockTime;
-
-    let escrowVestedAmount = 0;
 
     if (currentBlockTime >= escrowVestedAmountSnapBlockTime) {
         escrowVestedAmount = decodedData.escrow_vested_amount_snap + rate * elapsedTime;
@@ -133,7 +129,7 @@ function parseStreamData(
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
 
     Object.assign(stream, { id: id }, {
-        initialized: decodedData.initialized,
+        initialized: decodedData.initialized ? true : false,
         memo: new TextDecoder().decode(nameBuffer),
         treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: decodedData.rate_amount,
@@ -153,8 +149,7 @@ function parseStreamData(
         escrowVestedAmountSnap: decodedData.escrow_vested_amount_snap,
         escrowVestedAmountSnapBlockHeight: escrowVestedAmountSnapBlockHeight,
         autoOffClockInSeconds: parseFloat(u64Number.fromBuffer(decodedData.auto_off_clock_in_seconds).toString()),
-        onClock: decodedData.on_clock === 1 ? true : false,
-        isStreaming: escrowVestedAmount < decodedData.total_deposits && decodedData.on_clock === 1,
+        isStreaming: escrowVestedAmount < decodedData.total_deposits && decodedData.is_streaming ? true : false,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0
