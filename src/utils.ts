@@ -74,6 +74,10 @@ let defaultStreamInfo: StreamInfo = {
     escrowEstimatedDepletionUtc: undefined,
     totalDeposits: 0,
     totalWithdrawals: 0,
+    escrowVestedAmountSnap: 0,
+    escrowVestedAmountSnapBlockHeight: 0,
+    autoOffClockInSeconds: 0,
+    onClock: true,
     isStreaming: false,
     isUpdatePending: false,
     transactionSignature: undefined,
@@ -95,15 +99,17 @@ function parseStreamData(
         : (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
 
     let startDateUtc = new Date(decodedData.start_utc as string);
-    let utcNow = new Date();
+    let currentBlockTime = new Date().getTime();
+    let escrowVestedAmountSnapBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_height).toString());
+    let escrowVestedAmountSnapBlockTime = new Date(escrowVestedAmountSnapBlockHeight * 1000).getTime();
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
-    const rate = decodedData.rate_amount / rateIntervalInSeconds;
-    const elapsedTime = (utcNow.getTime() - startDateUtc.getTime()) / 1000;
+    const rate = decodedData.rate_amount / rateIntervalInSeconds * decodedData.on_clock;
+    const elapsedTime = currentBlockTime - escrowVestedAmountSnapBlockTime;
 
     let escrowVestedAmount = 0;
 
-    if (utcNow.getTime() >= startDateUtc.getTime()) {
-        escrowVestedAmount = rate * elapsedTime;
+    if (currentBlockTime >= escrowVestedAmountSnapBlockTime) {
+        escrowVestedAmount = decodedData.escrow_vested_amount_snap + rate * elapsedTime;
 
         if (escrowVestedAmount >= decodedData.total_deposits - decodedData.total_withdrawals) {
             escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
@@ -144,7 +150,11 @@ function parseStreamData(
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
         totalDeposits: decodedData.total_deposits,
         totalWithdrawals: decodedData.total_withdrawals,
-        isStreaming: escrowVestedAmount < decodedData.total_deposits && decodedData.rate_amount > 0,
+        escrowVestedAmountSnap: decodedData.escrow_vested_amount_snap,
+        escrowVestedAmountSnapBlockHeight: escrowVestedAmountSnapBlockHeight,
+        autoOffClockInSeconds: parseFloat(u64Number.fromBuffer(decodedData.auto_off_clock_in_seconds).toString()),
+        onClock: decodedData.on_clock === 1 ? true : false,
+        isStreaming: escrowVestedAmount < decodedData.total_deposits && decodedData.on_clock === 1,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0

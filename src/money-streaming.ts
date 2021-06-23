@@ -39,6 +39,10 @@ export type StreamInfo = {
     escrowEstimatedDepletionUtc: Date | string | undefined,
     totalDeposits: number,
     totalWithdrawals: number,
+    escrowVestedAmountSnap: number,
+    escrowVestedAmountSnapBlockHeight: number,
+    autoOffClockInSeconds: number,
+    onClock: boolean,
     isStreaming: boolean,
     isUpdatePending: boolean
     transactionSignature: string | undefined,
@@ -124,7 +128,7 @@ export class MoneyStreaming {
         );
     }
 
-    public async oneTimePaymentTransaction(
+    async oneTimePaymentTransaction(
         treasurer: PublicKey,
         beneficiary: PublicKey,
         associatedToken: PublicKey,
@@ -232,7 +236,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async getOneTimePaymentTransactions(
+    public async oneTimePaymentTransactions(
         treasurer: PublicKey,
         beneficiary: PublicKey,
         associatedToken: PublicKey,
@@ -278,7 +282,7 @@ export class MoneyStreaming {
         return txs;
     }
 
-    public async wrapTransaction(
+    async wrapTransaction(
         from: PublicKey,
         account: PublicKey,
         mint: PublicKey,
@@ -352,7 +356,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async swapTransaction(
+    async swapTransaction(
         wallet: Wallet,
         fromMint: PublicKey,
         toMint: PublicKey,
@@ -407,7 +411,7 @@ export class MoneyStreaming {
         }
     }
 
-    public async createStreamTransaction(
+    async createStreamTransaction(
         treasurer: PublicKey,
         beneficiary: PublicKey,
         treasurerAssociatedToken: PublicKey,
@@ -419,7 +423,8 @@ export class MoneyStreaming {
         fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
-        cliffVestPercent?: number
+        cliffVestPercent?: number,
+        autoOffClockInSeconds?: number
 
     ): Promise<Transaction> {
 
@@ -475,7 +480,8 @@ export class MoneyStreaming {
                 fundingAmount || 0,
                 rateCliffInSeconds || 0,
                 cliffVestAmount || 0,
-                cliffVestPercent || 100
+                cliffVestPercent || 100,
+                autoOffClockInSeconds || 0
             ),
         );
 
@@ -488,7 +494,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async getCreateStreamTransactions(
+    public async createStreamTransactions(
         wallet: Wallet,
         beneficiary: PublicKey,
         treasurerAssociatedToken: PublicKey,
@@ -500,7 +506,8 @@ export class MoneyStreaming {
         fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
-        cliffVestPercent?: number
+        cliffVestPercent?: number,
+        autoOffClockInSeconds?: number
 
     ): Promise<Transaction[]> {
 
@@ -553,14 +560,15 @@ export class MoneyStreaming {
                 fundingAmount,
                 rateCliffInSeconds,
                 cliffVestAmount,
-                cliffVestPercent
+                cliffVestPercent,
+                autoOffClockInSeconds
             )
         );
 
         return txs;
     }
 
-    public async addFundsTransaction(
+    async addFundsTransaction(
         wallet: Wallet,
         stream: PublicKey,
         contributorToken: PublicKey,
@@ -592,7 +600,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async getAddFundsTransactions(
+    public async addFundsTransactions(
         wallet: Wallet,
         stream: PublicKey,
         contributorAssociatedToken: PublicKey,
@@ -714,7 +722,7 @@ export class MoneyStreaming {
         )
 
         transaction.add(
-            await Instructions.createWithdrawInstruction(
+            await Instructions.withdrawInstruction(
                 this.programId,
                 beneficiary,
                 beneficiaryTokenAccountKey,
@@ -731,6 +739,29 @@ export class MoneyStreaming {
         transaction.recentBlockhash = hash.blockhash;
 
         return transaction;
+    }
+
+    public async assertClockTransaction(
+        initializer: PublicKey,
+        stream: PublicKey,
+        onClock: boolean
+
+    ): Promise<Transaction> {
+
+        let tx = new Transaction().add(
+            await Instructions.assertClockInstruction(
+                this.programId,
+                initializer,
+                stream,
+                onClock
+            )
+        );
+
+        tx.feePayer = initializer;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
     }
 
     public async signTransaction(
@@ -786,7 +817,7 @@ export class MoneyStreaming {
         }
     }
 
-    public async sendSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
+    public async sendAllSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
         try {
 
             let signatures: string[] = [];
