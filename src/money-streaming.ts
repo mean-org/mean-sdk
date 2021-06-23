@@ -575,7 +575,8 @@ export class MoneyStreaming {
         treasury: PublicKey,
         treasuryToken: PublicKey,
         treasuryAssociatedToken: PublicKey,
-        amount: number
+        amount: number,
+        resume?: boolean
 
     ): Promise<Transaction> {
 
@@ -589,7 +590,8 @@ export class MoneyStreaming {
                 treasury,
                 treasuryToken,
                 treasuryAssociatedToken,
-                amount
+                amount,
+                resume
             )
         );
 
@@ -604,7 +606,8 @@ export class MoneyStreaming {
         wallet: Wallet,
         stream: PublicKey,
         contributorAssociatedToken: PublicKey,
-        amount: number
+        amount: number,
+        resume?: boolean
 
     ): Promise<Transaction[]> {
 
@@ -665,7 +668,8 @@ export class MoneyStreaming {
                 treasuryAccountKey,
                 treasuryTokenAccountKey,
                 treasuryAssociatedToken,
-                amount
+                amount,
+                resume
             )
         );
 
@@ -741,19 +745,38 @@ export class MoneyStreaming {
         return transaction;
     }
 
-    public async assertClockTransaction(
+    public async pauseStreamTransaction(
         initializer: PublicKey,
-        stream: PublicKey,
-        onClock: boolean
+        stream: PublicKey
 
     ): Promise<Transaction> {
 
         let tx = new Transaction().add(
-            await Instructions.assertClockInstruction(
+            await Instructions.pauseStreamInstruction(
                 this.programId,
                 initializer,
-                stream,
-                onClock
+                stream
+            )
+        );
+
+        tx.feePayer = initializer;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async resumeStreamTransaction(
+        initializer: PublicKey,
+        stream: PublicKey
+
+    ): Promise<Transaction> {
+
+        let tx = new Transaction().add(
+            await Instructions.resumeStreamInstruction(
+                this.programId,
+                initializer,
+                stream
             )
         );
 

@@ -157,7 +157,8 @@ export module Instructions {
         treasury: PublicKey,
         treasuryToken: PublicKey,
         mintToken: PublicKey,
-        amount: number
+        amount: number,
+        resume?: boolean
 
     ): Promise<TransactionInstruction> => {
 
@@ -180,7 +181,8 @@ export module Instructions {
         {
             const decodedData = {
                 tag: 1,
-                contribution_amount: amount
+                contribution_amount: amount,
+                resume: resume ? resume as boolean : false
             };
 
             const encodeLength = Layout.addFundsLayout.encode(decodedData, data);
@@ -239,11 +241,10 @@ export module Instructions {
         });
     }
 
-    export const assertClockInstruction = async (
+    export const pauseStreamInstruction = async (
         programId: PublicKey,
         initializer: PublicKey,
-        stream: PublicKey,
-        onClock: boolean
+        stream: PublicKey
 
     ): Promise<TransactionInstruction> => {
 
@@ -257,7 +258,36 @@ export module Instructions {
 
         let data = Buffer.alloc(1)
         {
-            const decodedData = { tag: onClock ? 5 : 4 };
+            const decodedData = { tag: 4 };
+            const encodeLength = Layout.assertClockLayout.encode(decodedData, data);
+            data = data.slice(0, encodeLength);
+        };
+
+        return new TransactionInstruction({
+            keys,
+            programId,
+            data
+        });
+    }
+
+    export const resumeStreamInstruction = async (
+        programId: PublicKey,
+        initializer: PublicKey,
+        stream: PublicKey
+
+    ): Promise<TransactionInstruction> => {
+
+        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const keys = [
+            { pubkey: initializer, isSigner: true, isWritable: false },
+            { pubkey: stream, isSigner: false, isWritable: true },
+            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ];
+
+        let data = Buffer.alloc(1)
+        {
+            const decodedData = { tag: 5 };
             const encodeLength = Layout.assertClockLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };

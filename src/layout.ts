@@ -70,7 +70,8 @@ export module Layout {
      */
     export const addFundsLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
-        BufferLayout.f64('contribution_amount')
+        BufferLayout.f64('contribution_amount'),
+        BufferLayout.u8('resume')
     ]);
 
     /**
