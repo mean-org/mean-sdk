@@ -874,6 +874,19 @@ export class MoneyStreaming {
         }
     }
 
+    public async confirmAllTransactions(signatures: string[]): Promise<any> {
+        try {
+            let results: any[] = [];
+            for (const signature of signatures) {
+                const result = await this.connection.confirmTransaction(signature, 'confirmed');
+                results.push(result);
+            }
+            return results;
+        } catch (error) {
+            throw error;
+        }
+    }
+
     public async closeStreamTransaction(
         stream: PublicKey,
         initializer: PublicKey
