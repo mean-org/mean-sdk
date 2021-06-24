@@ -41,7 +41,10 @@ export type StreamInfo = {
     totalWithdrawals: number,
     escrowVestedAmountSnap: number,
     escrowVestedAmountSnapBlockHeight: number,
-    autoOffClockInSeconds: number,
+    escrowVestedAmountSnapBlockTime: number,
+    streamResumedBlockHeight: number,
+    streamResumedBlockTime: number,
+    autoPauseInSeconds: number,
     isStreaming: boolean,
     isUpdatePending: boolean
     transactionSignature: string | undefined,
@@ -422,8 +425,7 @@ export class MoneyStreaming {
         fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
-        cliffVestPercent?: number,
-        autoOffClockInSeconds?: number
+        cliffVestPercent?: number
 
     ): Promise<Transaction> {
 
@@ -459,6 +461,7 @@ export class MoneyStreaming {
         }
 
         const beneficiaryTokenAccountKey = await Utils.findATokenAddress(beneficiary, beneficiaryAssociatedToken);
+        const autoPauseInSeconds = (rateAmount || 0) * (rateIntervalInSeconds || 0);
 
         // Create stream contract
         ixs.push(
@@ -480,7 +483,7 @@ export class MoneyStreaming {
                 rateCliffInSeconds || 0,
                 cliffVestAmount || 0,
                 cliffVestPercent || 100,
-                autoOffClockInSeconds || 0
+                autoPauseInSeconds
             ),
         );
 
@@ -505,8 +508,7 @@ export class MoneyStreaming {
         fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
-        cliffVestPercent?: number,
-        autoOffClockInSeconds?: number
+        cliffVestPercent?: number
 
     ): Promise<Transaction[]> {
 
@@ -559,8 +561,7 @@ export class MoneyStreaming {
                 fundingAmount,
                 rateCliffInSeconds,
                 cliffVestAmount,
-                cliffVestPercent,
-                autoOffClockInSeconds
+                cliffVestPercent
             )
         );
 

@@ -91,7 +91,7 @@ export module Instructions {
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
         cliffVestPercent?: number,
-        autoOffClockInSeconds?: number
+        autoPauseInSeconds?: number
 
     ): Promise<TransactionInstruction> => {
 
@@ -135,7 +135,7 @@ export module Instructions {
                 rate_cliff_in_seconds: new u64Number(rateCliffInSeconds as number).toBuffer(),
                 cliff_vest_amount: cliffVestAmount as number,
                 cliff_vest_percent: cliffVestPercent as number,
-                auto_off_clock_in_seconds: new u64Number(autoOffClockInSeconds as number).toBuffer()
+                auto_pause_in_seconds: new u64Number(autoPauseInSeconds as number).toBuffer()
             };
 
             const encodeLength = Layout.createStreamLayout.encode(decodedData, data);

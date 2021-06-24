@@ -44,8 +44,10 @@ export module Layout {
         BufferLayout.f64('total_withdrawals'),
         BufferLayout.f64('escrow_vested_amount_snap'),
         uint64('escrow_vested_amount_snap_block_height'),
-        uint64('auto_off_clock_in_seconds'),
-        BufferLayout.u8('is_streaming')
+        uint64('escrow_vested_amount_snap_block_time'),
+        uint64('stream_resumed_block_height'),
+        uint64('stream_resumed_block_time'),
+        uint64('auto_pause_in_seconds')
     ]);
 
     /**

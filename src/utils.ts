@@ -74,7 +74,10 @@ let defaultStreamInfo: StreamInfo = {
     totalWithdrawals: 0,
     escrowVestedAmountSnap: 0,
     escrowVestedAmountSnapBlockHeight: 0,
-    autoOffClockInSeconds: 0,
+    escrowVestedAmountSnapBlockTime: 0,
+    streamResumedBlockHeight: 0,
+    streamResumedBlockTime: 0,
+    autoPauseInSeconds: 0,
     isStreaming: false,
     isUpdatePending: false,
     transactionSignature: undefined,
@@ -84,6 +87,7 @@ let defaultStreamInfo: StreamInfo = {
 function parseStreamData(
     streamId: PublicKey,
     streamData: Buffer,
+    currentBlockTime: number,
     friendly: boolean = true
 
 ): StreamInfo {
@@ -91,20 +95,24 @@ function parseStreamData(
     let stream: StreamInfo = defaultStreamInfo;
     let decodedData = Layout.streamLayout.decode(streamData);
     let startDateUtc = new Date(decodedData.start_utc as string);
-    let currentBlockTime = new Date().getTime() / 1000;
     let escrowVestedAmountSnapBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_height).toString());
-    let escrowVestedAmountSnapBlockTime = new Date(escrowVestedAmountSnapBlockHeight).getTime();
+    let escrowVestedAmountSnapBlockTime = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_time).toString());
+    let streamResumedBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.stream_resumed_block_height).toString());
+    let streamResumedBlockTime = parseFloat(u64Number.fromBuffer(decodedData.stream_resumed_block_time).toString());
+    let autoPauseInSeconds = parseFloat(u64Number.fromBuffer(decodedData.auto_pause_in_seconds).toString());
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
+    let lastTimeSnap = (streamResumedBlockTime > escrowVestedAmountSnapBlockTime) ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
+    let isStreaming = streamResumedBlockTime > escrowVestedAmountSnapBlockTime ? 1 : 0;
     let escrowVestedAmount = 0.0;
 
-    const rate = decodedData.rate_amount / rateIntervalInSeconds * decodedData.is_streaming;
-    const elapsedTime = currentBlockTime - escrowVestedAmountSnapBlockTime;
+    const rate = decodedData.rate_amount / rateIntervalInSeconds * isStreaming;
+    const elapsedTime = currentBlockTime - lastTimeSnap;
     const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
     const associatedToken = beneficiaryAssociatedToken.toBase58() !== Constants.DEFAULT_PUBLICKEY
         ? beneficiaryAssociatedToken.toBase58()
         : (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
 
-    if (currentBlockTime >= escrowVestedAmountSnapBlockTime) {
+    if (currentBlockTime >= lastTimeSnap) {
         escrowVestedAmount = decodedData.escrow_vested_amount_snap + rate * elapsedTime;
 
         if (escrowVestedAmount >= decodedData.total_deposits - decodedData.total_withdrawals) {
@@ -148,8 +156,11 @@ function parseStreamData(
         totalWithdrawals: decodedData.total_withdrawals,
         escrowVestedAmountSnap: decodedData.escrow_vested_amount_snap,
         escrowVestedAmountSnapBlockHeight: escrowVestedAmountSnapBlockHeight,
-        autoOffClockInSeconds: parseFloat(u64Number.fromBuffer(decodedData.auto_off_clock_in_seconds).toString()),
-        isStreaming: escrowVestedAmount < decodedData.total_deposits && decodedData.is_streaming ? true : false,
+        escrowVestedAmountSnapBlockTime: escrowVestedAmountSnapBlockTime,
+        streamResumedBlockHeight: streamResumedBlockHeight,
+        streamResumedBlockTime: streamResumedBlockTime,
+        autoPauseInSeconds: autoPauseInSeconds,
+        isStreaming: isStreaming === 1 ? true : false,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0
@@ -175,9 +186,13 @@ export async function getStream(
 
         if (signatures.length > 0) {
 
+            let slot = await connection.getSlot(commitment);
+            let currentBlockTime = await connection.getBlockTime(slot);
+
             stream = Object.assign({}, parseStreamData(
                 id,
                 accountInfo?.data,
+                currentBlockTime as number,
                 friendly
             ));
 
@@ -206,6 +221,9 @@ export async function listStreams(
         return streams;
     }
 
+    let slot = await connection.getSlot(commitment);
+    let currentBlockTime = await connection.getBlockTime(slot);
+
     for (let item of accounts) {
         if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
 
@@ -213,6 +231,7 @@ export async function listStreams(
             let info = Object.assign({}, parseStreamData(
                 item.pubkey,
                 item.account.data,
+                currentBlockTime as number,
                 friendly
             ));
 
