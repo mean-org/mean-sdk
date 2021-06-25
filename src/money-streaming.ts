@@ -20,6 +20,22 @@ import { Layout } from './layout';
 import { TokenSwap } from './token-swap';
 import * as Utils from './utils';
 
+export type StreamTermsInfo = {
+    id: PublicKey | string | undefined,
+    initialized: boolean,
+    streamId: PublicKey | string | undefined,
+    streamMemo: String,
+    treasurerAddress: PublicKey | string | undefined,
+    beneficiaryAddress: PublicKey | string | undefined,
+    associatedToken: PublicKey | string | undefined,
+    rateAmount: number,
+    rateIntervalInSeconds: number,
+    rateCliffInSeconds: number,
+    cliffVestAmount: number,
+    cliffVestPercent: number,
+    autoPauseInSeconds: number
+}
+
 export type StreamInfo = {
     id: PublicKey | string | undefined,
     initialized: boolean,
@@ -425,7 +441,8 @@ export class MoneyStreaming {
         fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
-        cliffVestPercent?: number
+        cliffVestPercent?: number,
+        autoPauseInSeconds?: number
 
     ): Promise<Transaction> {
 
@@ -461,7 +478,6 @@ export class MoneyStreaming {
         }
 
         const beneficiaryTokenAccountKey = await Utils.findATokenAddress(beneficiary, beneficiaryAssociatedToken);
-        const autoPauseInSeconds = (rateAmount || 0) * (rateIntervalInSeconds || 0);
 
         // Create stream contract
         ixs.push(
@@ -483,7 +499,7 @@ export class MoneyStreaming {
                 rateCliffInSeconds || 0,
                 cliffVestAmount || 0,
                 cliffVestPercent || 100,
-                autoPauseInSeconds
+                autoPauseInSeconds || ((rateAmount || 0) * (rateIntervalInSeconds || 0))
             ),
         );
 
@@ -508,7 +524,8 @@ export class MoneyStreaming {
         fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
-        cliffVestPercent?: number
+        cliffVestPercent?: number,
+        autoPauseInSeconds?: number
 
     ): Promise<Transaction[]> {
 
@@ -561,7 +578,8 @@ export class MoneyStreaming {
                 fundingAmount,
                 rateCliffInSeconds,
                 cliffVestAmount,
-                cliffVestPercent
+                cliffVestPercent,
+                autoPauseInSeconds
             )
         );
 
@@ -909,7 +927,7 @@ export class MoneyStreaming {
             throw Error(ErrorConstants.Unauthorized);
         }
 
-        const transaction = new Transaction();
+        const tx = new Transaction();
         const beneficiaryAccountKey = new PublicKey(streamInfo.beneficiaryAddress as string);
         const mintAccountKey = new PublicKey(streamInfo.associatedToken as string);
         const beneficiaryTokenAccountKey = await Utils.findATokenAddress(
@@ -920,7 +938,7 @@ export class MoneyStreaming {
         const beneficiaryTokenAddressAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAccountKey);
 
         if (beneficiaryTokenAddressAccountInfo === null) {
-            transaction.add(
+            tx.add(
                 await Instructions.createATokenAccountInstruction(
                     beneficiaryTokenAccountKey,
                     initializer,
@@ -936,7 +954,7 @@ export class MoneyStreaming {
             mintAccountKey
         );
 
-        transaction.add(
+        tx.add(
             await Instructions.closeStreamInstruction(
                 this.programId,
                 initializer,
@@ -949,11 +967,132 @@ export class MoneyStreaming {
             )
         );
 
-        transaction.feePayer = initializer;
+        tx.feePayer = initializer;
         let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        transaction.recentBlockhash = hash.blockhash;
+        tx.recentBlockhash = hash.blockhash;
 
-        return transaction;
+        return tx;
     }
 
+    public async proposeUpdateTransaction(
+        stream: PublicKey,
+        proposedBy: PublicKey,
+        streamName?: string,
+        associatedToken?: PublicKey,
+        rateAmount?: number,
+        rateIntervalInSeconds?: number,
+        rateCliffInSeconds?: number,
+        cliffVestAmount?: number,
+        cliffVestPercent?: number,
+        autoPauseInSeconds?: number
+
+    ): Promise<Transaction> {
+
+        let ixs: TransactionInstruction[] = [];
+        // Create stream terms account
+        const streamTermsAccount = Keypair.generate();
+        const streamTermsMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(Layout.streamTermsLayout.span);
+
+        ixs.push(
+            SystemProgram.createAccount({
+                fromPubkey: proposedBy,
+                newAccountPubkey: streamTermsAccount.publicKey,
+                lamports: streamTermsMinimumBalance,
+                space: Layout.streamTermsLayout.span,
+                programId: this.programId
+            })
+        );
+
+        let streamInfo = await Utils.getStream(
+            this.connection,
+            stream
+        );
+
+        let initializer: PublicKey = proposedBy,
+            counterparty: string | PublicKey | undefined;
+
+        if (initializer === streamInfo.treasurerAddress) {
+            initializer = streamInfo.treasurerAddress;
+            counterparty = streamInfo.beneficiaryAddress;
+        } else if (initializer === streamInfo.beneficiaryAddress) {
+            initializer = streamInfo.beneficiaryAddress;
+            counterparty = streamInfo.treasurerAddress;
+        } else {
+            throw Error(ErrorConstants.InvalidInitializer);
+        }
+
+        ixs.push(
+            await Instructions.proposeUpdateInstruction(
+                this.programId,
+                streamInfo,
+                streamTermsAccount.publicKey,
+                initializer,
+                counterparty as PublicKey,
+                streamName,
+                associatedToken,
+                rateAmount,
+                rateIntervalInSeconds,
+                rateCliffInSeconds,
+                cliffVestAmount,
+                cliffVestPercent,
+                autoPauseInSeconds || ((rateAmount || 0) * (rateIntervalInSeconds || 0))
+            )
+        );
+
+        let tx = new Transaction().add(...ixs);
+        tx.feePayer = proposedBy;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+        tx.partialSign(streamTermsAccount);
+
+        return tx;
+    }
+
+    public async answerUpdateTransaction(
+        streamId: PublicKey,
+        answeredBy: PublicKey,
+        approve: true
+
+    ): Promise<Transaction> {
+
+        const stream = await Utils.getStream(
+            this.connection,
+            streamId
+        );
+
+        const streamTerms = await Utils.getStreamTerms(
+            this.programId,
+            this.connection,
+            stream.id as PublicKey
+        );
+
+        let initializer: PublicKey = answeredBy,
+            counterparty: string | PublicKey | undefined;
+
+        if (initializer === stream.treasurerAddress) {
+            initializer = stream.treasurerAddress;
+            counterparty = stream.beneficiaryAddress;
+        } else if (initializer === stream.beneficiaryAddress) {
+            initializer = stream.beneficiaryAddress;
+            counterparty = stream.treasurerAddress;
+        } else {
+            throw Error(ErrorConstants.InvalidInitializer);
+        }
+
+        let tx = new Transaction().add(
+            await Instructions.answerUpdateInstruction(
+                this.programId,
+                streamTerms as StreamTermsInfo,
+                initializer,
+                counterparty as PublicKey,
+                approve
+            )
+        );
+
+        tx.feePayer = answeredBy;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
 }

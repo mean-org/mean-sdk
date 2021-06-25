@@ -85,10 +85,55 @@ export module Layout {
     ]);
 
     /**
-     * Set stream clock instruction layout
+     * Pause or resume stream instruction layout
      */
-    export const assertClockLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+    export const pauseOrResumeLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag')
+    ]);
+
+    /**
+     * Stream Terms layout
+     */
+    export const streamTermsLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+        BufferLayout.u8('initialized'),
+        publicKey('proposed_by'),
+        publicKey('stream_id'),
+        string('stream_name'),
+        publicKey('treasurer_address'),
+        publicKey('beneficiary_address'),
+        publicKey('associated_token_address'),
+        BufferLayout.f64('rate_amount'),
+        uint64('rate_interval_in_seconds'),
+        uint64('rate_cliff_in_seconds'),
+        BufferLayout.f64('cliff_vest_amount'),
+        BufferLayout.f64('cliff_vest_percent'),
+        uint64('auto_pause_in_seconds')
+    ]);
+
+    /**
+     * Create stream instruction layout
+     */
+    export const proposeUpdateLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+        BufferLayout.u8('tag'),
+        publicKey('proposed_by'),
+        string('stream_name'),
+        publicKey('treasurer_address'),
+        publicKey('beneficiary_address'),
+        publicKey('associated_token_address'),
+        BufferLayout.f64('rate_amount'),
+        uint64('rate_interval_in_seconds'),
+        uint64('rate_cliff_in_seconds'),
+        BufferLayout.f64('cliff_vest_amount'),
+        BufferLayout.f64('cliff_vest_percent'),
+        uint64('auto_pause_in_seconds')
+    ]);
+
+    /**
+     * Answer update instruction layout
+     */
+    export const answerUpdateLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+        BufferLayout.u8('tag'),
+        BufferLayout.u8('approve')
     ]);
 
     export const approveDelegationLayout: typeof BufferLayout.Structure = BufferLayout.struct([

@@ -4,7 +4,7 @@ import { Layout } from "./layout";
 import { u64Number } from "./u64n";
 import { Buffer } from 'buffer';
 import * as Utils from "./utils";
-import { StreamInfo } from "./money-streaming";
+import { StreamInfo, StreamTermsInfo } from "./money-streaming";
 
 const BufferLayout = require('buffer-layout');
 
@@ -259,7 +259,7 @@ export module Instructions {
         let data = Buffer.alloc(1)
         {
             const decodedData = { tag: 3 };
-            const encodeLength = Layout.assertClockLayout.encode(decodedData, data);
+            const encodeLength = Layout.pauseOrResumeLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };
 
@@ -288,7 +288,7 @@ export module Instructions {
         let data = Buffer.alloc(1)
         {
             const decodedData = { tag: 4 };
-            const encodeLength = Layout.assertClockLayout.encode(decodedData, data);
+            const encodeLength = Layout.pauseOrResumeLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };
 
@@ -364,6 +364,100 @@ export module Instructions {
         {
             const decodedData = { tag: 7 };
             const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
+            data = data.slice(0, encodeLength);
+        };
+
+        return new TransactionInstruction({
+            keys,
+            programId,
+            data
+        });
+    }
+
+    export const proposeUpdateInstruction = async (
+        programId: PublicKey,
+        streamInfo: StreamInfo,
+        streamTerms: PublicKey,
+        initializer: PublicKey,
+        counterparty: PublicKey,
+        streamName?: string,
+        associatedToken?: PublicKey,
+        rateAmount?: number,
+        rateIntervalInSeconds?: number,
+        rateCliffInSeconds?: number,
+        cliffVestAmount?: number,
+        cliffVestPercent?: number,
+        autoPauseInSeconds?: number
+
+    ): Promise<TransactionInstruction> => {
+
+        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const keys = [
+            { pubkey: initializer, isSigner: true, isWritable: false },
+            { pubkey: streamTerms, isSigner: false, isWritable: true },
+            { pubkey: counterparty, isSigner: false, isWritable: false },
+            { pubkey: streamInfo.id as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+        ];
+
+        let data = Buffer.alloc(Layout.proposeUpdateLayout.span)
+        {
+            let nameBuffer = Buffer.alloc(32).fill((streamName as string), 0, (streamName as string).length);
+
+            const decodedData = {
+                tag: 5,
+                proposed_by: initializer,
+                stream_name: nameBuffer,
+                treasurer_address: streamInfo.treasurerAddress as PublicKey,
+                beneficiary_address: streamInfo.beneficiaryAddress as PublicKey,
+                associated_token_address: associatedToken as PublicKey,
+                rate_amount: rateAmount as number,
+                rate_interval_in_seconds: new u64Number(rateIntervalInSeconds as number).toBuffer(),
+                rate_cliff_in_seconds: new u64Number(rateCliffInSeconds as number).toBuffer(),
+                cliff_vest_amount: cliffVestAmount as number,
+                cliff_vest_percent: cliffVestPercent as number,
+                auto_pause_in_seconds: new u64Number(autoPauseInSeconds as number).toBuffer()
+            };
+
+            const encodeLength = Layout.proposeUpdateLayout.encode(decodedData, data);
+            data = data.slice(0, encodeLength);
+        };
+
+        return new TransactionInstruction({
+            keys,
+            programId,
+            data
+        });
+    }
+
+    export const answerUpdateInstruction = async (
+        programId: PublicKey,
+        streamTerms: StreamTermsInfo,
+        initializer: PublicKey,
+        counterparty: PublicKey,
+        approve: true
+
+    ): Promise<TransactionInstruction> => {
+
+        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const keys = [
+            { pubkey: initializer, isSigner: true, isWritable: false },
+            { pubkey: streamTerms.id as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: counterparty, isSigner: false, isWritable: false },
+            { pubkey: streamTerms.streamId as PublicKey, isSigner: false, isWritable: true },
+            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+        ];
+
+        let data = Buffer.alloc(Layout.answerUpdateLayout.span)
+        {
+            const decodedData = {
+                tag: 6,
+                approve: approve === true ? 1 : 0
+            };
+
+            const encodeLength = Layout.proposeUpdateLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };
 

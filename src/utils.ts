@@ -2,7 +2,7 @@ import { BN, Provider, Wallet } from "@project-serum/anchor";
 import { Commitment, Connection, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, PublicKey, TransactionSignature } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
-import { StreamInfo } from "./money-streaming";
+import { StreamInfo, StreamTermsInfo } from "./money-streaming";
 import { u64Number } from "./u64n";
 import { MintInfo, MintLayout, u64 } from '@solana/spl-token';
 import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
@@ -53,6 +53,22 @@ Array.prototype.getChainTokens = function (cluster: string): TokenInfo[] {
     });
 }
 
+let defaultStreamTermsInfo: StreamTermsInfo = {
+    id: undefined,
+    initialized: false,
+    streamId: undefined,
+    streamMemo: "",
+    treasurerAddress: undefined,
+    beneficiaryAddress: undefined,
+    associatedToken: undefined,
+    rateAmount: 0,
+    rateIntervalInSeconds: 0,
+    rateCliffInSeconds: 0,
+    cliffVestAmount: 0,
+    cliffVestPercent: 0,
+    autoPauseInSeconds: 0
+}
+
 let defaultStreamInfo: StreamInfo = {
     id: undefined,
     initialized: false,
@@ -101,8 +117,8 @@ function parseStreamData(
     let streamResumedBlockTime = parseFloat(u64Number.fromBuffer(decodedData.stream_resumed_block_time).toString());
     let autoPauseInSeconds = parseFloat(u64Number.fromBuffer(decodedData.auto_pause_in_seconds).toString());
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
-    let lastTimeSnap = (streamResumedBlockTime > escrowVestedAmountSnapBlockTime) ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
     let isStreaming = streamResumedBlockTime > escrowVestedAmountSnapBlockTime ? 1 : 0;
+    let lastTimeSnap = isStreaming === 1 ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
     let escrowVestedAmount = 0.0;
 
     const rate = decodedData.rate_amount / rateIntervalInSeconds * isStreaming;
@@ -198,10 +214,97 @@ export async function getStream(
 
             stream.transactionSignature = signatures[0].signature;
             stream.blockTime = signatures[0].blockTime as number;
+
+            let terms = await getStreamTerms(
+                accountInfo.owner,
+                connection,
+                stream.id as PublicKey
+            );
+
+            stream.isUpdatePending = terms != undefined && terms.streamId === stream.id;
         }
     }
 
     return stream as StreamInfo;
+}
+
+export async function getStreamTerms(
+    programId: PublicKey,
+    connection: Connection,
+    streamId: PublicKey,
+    commitment?: any,
+    friendly: boolean = true
+
+): Promise<StreamTermsInfo | undefined> {
+
+    let terms: StreamTermsInfo | undefined;
+    const accounts = await connection.getProgramAccounts(programId, commitment);
+
+    if (accounts === null || !accounts.length) {
+        return terms;
+    }
+
+    for (let item of accounts) {
+        if (item.account.data !== undefined && item.account.data.length === Layout.streamTermsLayout.span) {
+
+            let info = Object.assign({}, parseStreamTermsData(
+                item.pubkey,
+                item.account.data,
+                friendly
+            ));
+
+            if (streamId.toBase58() === info.streamId) {
+                terms = info;
+                break;
+            }
+        }
+    }
+
+    return terms;
+}
+
+function parseStreamTermsData(
+    id: PublicKey,
+    streamTermData: Buffer,
+    friendly: boolean = true
+
+): StreamTermsInfo {
+
+    let streamTerms: StreamTermsInfo = defaultStreamTermsInfo;
+    let decodedData = Layout.streamTermsLayout.decode(streamTermData);
+    let autoPauseInSeconds = parseFloat(u64Number.fromBuffer(decodedData.auto_pause_in_seconds).toString());
+    let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
+
+    const beneficiaryAssociatedToken = new PublicKey(decodedData.associated_token_address);
+    const associatedToken = beneficiaryAssociatedToken.toBase58() !== Constants.DEFAULT_PUBLICKEY
+        ? beneficiaryAssociatedToken.toBase58()
+        : (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
+
+    let nameBuffer = Buffer
+        .alloc(decodedData.stream_name.length, decodedData.stream_name)
+        .filter(function (elem, index) {
+            return elem !== 0;
+        });
+
+    const termsId = friendly !== undefined ? id.toBase58() : id;
+    const treasurerAddress = new PublicKey(decodedData.treasurer_address);
+    const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
+
+    Object.assign(streamTerms, { id: termsId }, {
+        initialized: decodedData.initialized ? true : false,
+        memo: new TextDecoder().decode(nameBuffer),
+        treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
+        beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
+        associatedToken: associatedToken,
+        rateAmount: decodedData.rate_amount,
+        rateIntervalInSeconds: rateIntervalInSeconds,
+        rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
+        cliffVestAmount: decodedData.cliff_vest_amount,
+        cliffVestPercent: decodedData.cliff_vest_percent,
+        autoPauseInSeconds: autoPauseInSeconds
+    });
+
+    return streamTerms;
 }
 
 export async function listStreams(

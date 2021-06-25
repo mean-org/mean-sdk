@@ -27,4 +27,6 @@ export class ErrorConstants {
     static AccountNotCredited = 'AccountNotCredited';
     static AccountNotFound = 'AccountNotFound';
     static TokensDoNotMatch = 'TokensDoNotMatch';
+    static InvalidInitializer = 'InvalidInitializer';
+    static InvalidStreamTerms = 'InvalidStreamTerms';
 }
