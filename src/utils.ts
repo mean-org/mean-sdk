@@ -2,7 +2,7 @@ import { BN, Provider, Wallet } from "@project-serum/anchor";
 import { Commitment, Connection, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, PublicKey, TransactionSignature } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
-import { StreamInfo, StreamTermsInfo } from "./money-streaming";
+import { StreamInfo, StreamTermsInfo, TreasuryInfo } from "./money-streaming";
 import { u64Number } from "./u64n";
 import { MintInfo, MintLayout, u64 } from '@solana/spl-token';
 import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
@@ -98,6 +98,13 @@ let defaultStreamInfo: StreamInfo = {
     isUpdatePending: false,
     transactionSignature: undefined,
     blockTime: 0
+}
+
+let defaultTreasuryInfo: TreasuryInfo = {
+    id: undefined,
+    initialized: false,
+    mintAddress: undefined,
+    nounce: 0,
 }
 
 function parseStreamData(
@@ -458,65 +465,86 @@ export async function listStreamActivity(
     return activity.sort((a: { blockTime: number; }, b: { blockTime: number; }) => (b.blockTime - a.blockTime));
 }
 
-export function getSeedBuffer(
-    from: PublicKey,
-    programId: PublicKey
+function parseTreasuryData(
+    id: PublicKey,
+    treasuryData: Buffer,
+    friendly: boolean = true
 
-): (Buffer | Uint8Array)[] {
+): TreasuryInfo {
 
-    return [
-        from.toBytes(),
-        programId.toBytes(),
-        new TextEncoder().encode('MoneyStreamingProgram')
-    ];
+    let treasuryInfo: TreasuryInfo = defaultTreasuryInfo;
+    let decodedData = Layout.streamTermsLayout.decode(treasuryData);
+
+    const treasuryId = friendly !== undefined ? id.toBase58() : id;
+    const mintToken = new PublicKey(decodedData.mint);
+    const mintTokenAddress = mintToken.toBase58() !== Constants.DEFAULT_PUBLICKEY
+        ? mintToken.toBase58() : (friendly ? mintToken.toBase58() : mintToken);
+
+    Object.assign(treasuryInfo, { id: treasuryId }, {
+        initialized: decodedData.initialized ? true : false,
+        mintAddress: mintTokenAddress,
+        nounce: decodedData.nounce
+    });
+
+    return treasuryInfo;
+}
+
+export async function getTreasury(
+    programId: PublicKey,
+    connection: Connection,
+    id: PublicKey,
+    commitment?: any,
+    friendly: boolean = true
+
+): Promise<TreasuryInfo | undefined> {
+
+    let treasury: TreasuryInfo | undefined;
+    const accounts = await connection.getProgramAccounts(programId, commitment);
+
+    if (accounts === null || !accounts.length) {
+        return treasury;
+    }
+
+    for (let item of accounts) {
+        if (item.account.data !== undefined && item.account.data.length === Layout.treasuryLayout.span) {
+
+            let info = Object.assign({}, parseTreasuryData(
+                item.pubkey,
+                item.account.data,
+                friendly
+            ));
+
+            if (id.toBase58() === info.id) {
+                treasury = info;
+                break;
+            }
+        }
+    }
+
+    return treasury;
 }
 
 export async function findMSPAddress(
+    programId: PublicKey,
     from: PublicKey,
-    programId: PublicKey
+    slot: number
 
-): Promise<[PublicKey, number]> {
+): Promise<[PublicKey, (Buffer | Uint8Array)[], string, number]> {
 
-    const seedBuffer = getSeedBuffer(from, programId);
+    const bytes: number[] = [];
+    const buffers = [
+        from.toBuffer(),
+        Buffer.from([slot])
+    ];
 
-    return (
-        await PublicKey.findProgramAddress(
-            seedBuffer,
-            programId
-        )
+    buffers.forEach(item => item.map(n => bytes.push(n)));
+    const seed = Buffer.from(bytes).toString('utf-8');
+    const [key, nounce] = await PublicKey.findProgramAddress(
+        buffers,
+        programId
     );
-}
 
-export async function findMSPStreamAddress(
-    treasurer: PublicKey,
-    programId: PublicKey
-
-): Promise<[PublicKey, number]> {
-
-    const seedBuffer = getSeedBuffer(treasurer, programId);
-
-    return (
-        await PublicKey.findProgramAddress(
-            seedBuffer,
-            programId
-        )
-    );
-}
-
-export async function findMSPTreasuryAddress(
-    stream: PublicKey,
-    programId: PublicKey
-
-): Promise<[PublicKey, number]> {
-
-    const seedBuffer = getSeedBuffer(stream, programId);
-
-    return (
-        await PublicKey.findProgramAddress(
-            seedBuffer,
-            programId
-        )
-    );
+    return [key, buffers, seed, nounce];
 }
 
 export async function findATokenAddress(
