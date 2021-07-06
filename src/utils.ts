@@ -228,7 +228,7 @@ export async function getStream(
                 stream.id as PublicKey
             );
 
-            stream.isUpdatePending = terms != undefined && terms.streamId === stream.id;
+            stream.isUpdatePending = terms !== undefined && terms.streamId === stream.id;
         }
     }
 
@@ -803,6 +803,7 @@ export async function swapClient(
 //     return market;
 // }
 
+/*
 export async function swapTokens(
     connection: Connection,
     client: Swap,
@@ -852,6 +853,7 @@ export async function swapTokens(
 
     return txs;
 }
+*/
 
 export function encode(data: Buffer): string {
     return base64.fromByteArray(data);

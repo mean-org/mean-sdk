@@ -1,4 +1,4 @@
-import { Wallet } from '@project-serum/anchor';
+import { Wallet } from '@project-serum/anchor/dist/provider';
 import { PublicKey, Transaction } from '@solana/web3.js';
 
 import EventEmitter from 'eventemitter3';

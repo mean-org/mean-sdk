@@ -1,4 +1,5 @@
-import { BN, Wallet } from '@project-serum/anchor';
+import { BN } from '@project-serum/anchor/dist/index';
+import { NodeWallet, Wallet } from '@project-serum/anchor/dist/provider';
 import { Token, AccountLayout, MintLayout } from '@solana/spl-token';
 import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
 import { Account, LAMPORTS_PER_SOL, Signer, TransactionInstruction } from '@solana/web3.js';
@@ -400,7 +401,7 @@ export class MoneyStreaming {
         const toMintAccountInfo = await Utils.getMintAccount(this.connection, toMint);
         const tokenSwap = new TokenSwap(
             this.connection,
-            wallet,
+            wallet as NodeWallet,
             this.commitment as Commitment
         );
 
