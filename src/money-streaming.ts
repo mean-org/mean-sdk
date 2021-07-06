@@ -1093,19 +1093,6 @@ export class MoneyStreaming {
             mintAccountKey,
         );
 
-        const beneficiaryTokenAddressAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAccountKey);
-
-        if (beneficiaryTokenAddressAccountInfo === null) {
-            tx.add(
-                await Instructions.createATokenAccountInstruction(
-                    beneficiaryTokenAccountKey,
-                    initializer,
-                    beneficiaryAccountKey,
-                    mintAccountKey
-                )
-            );
-        }
-
         const treasuryAccountKey = new PublicKey(streamInfo.treasuryAddress as string);
         const treasuryTokenAccountKey = await Utils.findATokenAddress(
             treasuryAccountKey,
@@ -1113,6 +1100,13 @@ export class MoneyStreaming {
         );
 
         tx.add(
+            // Pause stream
+            await Instructions.pauseStreamInstruction(
+                this.programId,
+                initializer,
+                stream
+            ),
+            // Close stream
             await Instructions.closeStreamInstruction(
                 this.programId,
                 initializer,

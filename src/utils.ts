@@ -4,7 +4,7 @@ import { Constants } from "./constants";
 import { Layout } from "./layout";
 import { StreamInfo, StreamTermsInfo, TreasuryInfo } from "./money-streaming";
 import { u64Number } from "./u64n";
-import { MintInfo, MintLayout, u64 } from '@solana/spl-token';
+import { Token, AccountInfo, MintInfo, AccountLayout, MintLayout, u64 } from '@solana/spl-token';
 import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
 import { Swap } from "@project-serum/swap";
 import { MEAN_TOKEN_LIST } from "./token-list";
@@ -383,6 +383,33 @@ export async function listStreams(
     return orderedStreams;
 }
 
+export async function getStreamContributors(
+    connection: Connection,
+    id: PublicKey,
+    commitment?: any
+
+): Promise<PublicKey[]> {
+
+    let contributors: PublicKey[] = [];
+    let commitmentValue = commitment !== undefined ? commitment as Finality : 'confirmed';
+    let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, commitmentValue);
+
+    for (let sign of signatures) {
+        let tx = await connection.getParsedConfirmedTransaction(sign.signature, commitmentValue);
+
+        if (tx !== null) {
+            let lastIxIndex = tx.transaction.message.instructions.length - 1;
+            let lastIx = tx.transaction.message.instructions[lastIxIndex] as PartiallyDecodedInstruction;
+
+            if (lastIx.accounts.length) {
+                contributors.push(lastIx.accounts[0]);
+            }
+        }
+    }
+
+    return contributors;
+}
+
 function parseActivityData(
     tx: ParsedConfirmedTransaction,
     tokens: TokenInfo[],
@@ -524,6 +551,36 @@ export async function getTreasury(
     return treasury;
 }
 
+export async function getTreasuryMints(
+    connection: Connection,
+    programId: PublicKey,
+    treasury: PublicKey,
+    commitment?: any
+
+): Promise<PublicKey[]> {
+
+    let mints: PublicKey[] = [];
+    let commitmentValue = commitment !== undefined ? commitment as Finality : 'confirmed';
+    let context = await connection.getParsedTokenAccountsByOwner(
+        treasury,
+        {
+            programId
+        },
+        commitmentValue
+    );
+
+    for (let resp in context) {
+        let tokenAccount = (resp as any).account;
+        let parsedTokenAccount = await getTokenAccount(connection, tokenAccount.data)
+
+        if (parsedTokenAccount !== null) {
+            mints.push(parsedTokenAccount.mint);
+        }
+    }
+
+    return mints;
+}
+
 export async function findMSPAddress(
     programId: PublicKey,
     from: PublicKey,
@@ -612,6 +669,32 @@ export const deserializeMint = (data: Buffer): MintInfo => {
     }
 
     return mintInfo as MintInfo;
+};
+
+export const getTokenAccount = async (
+    connection: Connection,
+    pubKey: PublicKey | string
+
+): Promise<AccountInfo> => {
+
+    const address = typeof pubKey === 'string' ? new PublicKey(pubKey) : pubKey;
+    const info = await connection.getAccountInfo(address);
+
+    if (info === null) {
+        throw new Error('Failed to find token account');
+    }
+
+    return deserializeTokenAccount(info.data);
+};
+
+export const deserializeTokenAccount = (data: Buffer): AccountInfo => {
+    if (data.length !== AccountLayout.span) {
+        throw new Error('Not a valid Token');
+    }
+
+    const accountInfo = AccountLayout.decode(data);
+
+    return accountInfo as AccountInfo;
 };
 
 export function convertLocalDateToUTCIgnoringTimezone(date: Date) {
