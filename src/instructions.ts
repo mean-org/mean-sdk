@@ -63,10 +63,10 @@ export module Instructions {
             { pubkey: stream, isSigner: false, isWritable: true },
             { pubkey: associatedToken, isSigner: false, isWritable: false },
             { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
-            { pubkey: programId, isSigner: false, isWritable: false },
+            // { pubkey: programId, isSigner: false, isWritable: false },
             { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-            { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+            // { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
@@ -434,11 +434,12 @@ export module Instructions {
         treasurer: PublicKey,
         treasury: PublicKey,
         mint: PublicKey,
+        mspOps: PublicKey,
+        mspOpsToken: PublicKey,
         nounce: number,
 
     ): Promise<TransactionInstruction> => {
 
-        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
         const splTokenProgramAccount = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
 
         let data = Buffer.alloc(Layout.createTreasuryLayout.span)
@@ -457,9 +458,11 @@ export module Instructions {
                 { pubkey: treasurer, isSigner: true, isWritable: false },
                 { pubkey: treasury, isSigner: false, isWritable: true },
                 { pubkey: mint, isSigner: false, isWritable: true },
-                { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+                { pubkey: mspOps, isSigner: false, isWritable: true },
+                { pubkey: mspOpsToken, isSigner: false, isWritable: true },
                 { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
-                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+                { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+                { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
             ],
             programId,
             data

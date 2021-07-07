@@ -1,4 +1,4 @@
-import { BN } from '@project-serum/anchor/dist/index';
+import { BN } from '@project-serum/anchor';
 import { NodeWallet, Wallet } from '@project-serum/anchor/dist/provider';
 import { Token, AccountLayout, MintLayout } from '@solana/spl-token';
 import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
@@ -295,7 +295,10 @@ export class MoneyStreaming {
         if (start > now && treasury === undefined) {
             // Create the treasury
             txs.push(
-                await this.createTreasuryTransaction(treasurer)
+                await this.createTreasuryTransaction(
+                    treasurer,
+                    associatedToken
+                )
             );
         }
 
@@ -445,22 +448,14 @@ export class MoneyStreaming {
     }
 
     private async createTreasuryTransaction(
-        treasurer: PublicKey
+        treasurer: PublicKey,
+        mint: PublicKey
 
     ): Promise<Transaction> {
 
         let ixs: TransactionInstruction[] = [];
 
         const mintAccount = Keypair.generate();
-        const slot = await this.connection.getSlot();
-        const [
-            treasury,
-            buffers,
-            seed,
-            nounce
-
-        ] = await Utils.findMSPAddress(this.programId, treasurer, slot);
-
         const mintMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(MintLayout.span);
 
         // Create the treasury mint
@@ -475,25 +470,50 @@ export class MoneyStreaming {
         );
 
         const treasuryMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(Layout.treasuryLayout.span);
+        const slot = await this.connection.getSlot();
+        const seeds = [Buffer.from([slot])];
+        const bumpSeed = (await PublicKey.findProgramAddress(seeds, this.programId))[1];
+        const seed = Buffer.from([slot, bumpSeed]).toString();
+        const treasury = await PublicKey.createWithSeed(treasurer, seed, this.programId);
 
         // Create the treasury account
         ixs.push(
             SystemProgram.createAccountWithSeed({
-                basePubkey: treasurer,
                 fromPubkey: treasurer,
                 newAccountPubkey: treasury,
-                programId: this.programId,
+                basePubkey: treasurer,
                 seed: seed,
                 lamports: treasuryMinimumBalance,
-                space: Layout.treasuryLayout.span
-            }),
+                space: Layout.treasuryLayout.span,
+                programId: this.programId
+            })
+        );
 
+        // Get the money streaming program operations token account or create a new one
+        const mspOpsAccountKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const mspOpsTokenAccountKey = await Utils.findATokenAddress(mspOpsAccountKey, mint);
+        const mspOpsTokenAccountInfo = await this.connection.getAccountInfo(mspOpsTokenAccountKey);
+
+        if (mspOpsTokenAccountInfo === null) {
+            ixs.push(
+                await Instructions.createATokenAccountInstruction(
+                    mspOpsTokenAccountKey,
+                    treasurer,
+                    mspOpsAccountKey,
+                    mint
+                )
+            );
+        }
+
+        ixs.push(
             await Instructions.createTreasuryInstruction(
                 this.programId,
                 treasurer,
                 treasury,
                 mintAccount.publicKey,
-                nounce
+                mspOpsAccountKey,
+                mspOpsTokenAccountKey,
+                bumpSeed
             )
         );
 
@@ -649,7 +669,10 @@ export class MoneyStreaming {
         // Create the treasury
         if (treasury === undefined) {
             txs.push(
-                await this.createTreasuryTransaction(wallet.publicKey)
+                await this.createTreasuryTransaction(
+                    wallet.publicKey,
+                    beneficiaryAssociatedToken
+                )
             );
         }
 

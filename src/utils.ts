@@ -581,27 +581,26 @@ export async function getTreasuryMints(
     return mints;
 }
 
-export async function findMSPAddress(
+export async function createMSPAddress(
     programId: PublicKey,
     from: PublicKey,
     slot: number
 
-): Promise<[PublicKey, (Buffer | Uint8Array)[], string, number]> {
+): Promise<[PublicKey, string]> {
 
-    const bytes: number[] = [];
-    const buffers = [
-        from.toBuffer(),
-        Buffer.from([slot])
-    ];
+    // const bytes: number[] = [];
+    // const seeds = [
+    //     from.toBuffer(),
+    //     Buffer.from([slot])
+    // ];
 
-    buffers.forEach(item => item.map(n => bytes.push(n)));
-    const seed = Buffer.from(bytes).toString('utf-8');
-    const [key, nounce] = await PublicKey.findProgramAddress(
-        buffers,
-        programId
-    );
+    // seeds.forEach(item => item.map(n => bytes.push(n)));
+    // const uint8Array = new Uint8Array([slot]);
+    const seed = slot.toString();
+    const publicKey = await PublicKey.createWithSeed(from, seed, programId);
+    // const nounce = (await PublicKey.findProgramAddress(buffers, programId))[1];
 
-    return [key, buffers, seed, nounce];
+    return [publicKey, seed];
 }
 
 export async function findATokenAddress(
