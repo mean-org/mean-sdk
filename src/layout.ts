@@ -57,7 +57,7 @@ export module Layout {
         BufferLayout.u8('tag'),
         publicKey('beneficiary_address'),
         string('stream_name'),
-        // BufferLayout.f64('funding_amount'),
+        BufferLayout.f64('funding_amount'),
         BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
         BufferLayout.nu64('start_utc'),

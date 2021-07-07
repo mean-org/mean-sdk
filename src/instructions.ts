@@ -44,7 +44,7 @@ export module Instructions {
         rateIntervalInSeconds: number,
         startUtcNow: number,
         streamName?: String,
-        // fundingAmount?: number,
+        fundingAmount?: number,
         rateCliffInSeconds?: number,
         cliffVestAmount?: number,
         cliffVestPercent?: number,
@@ -84,7 +84,7 @@ export module Instructions {
                 tag: 0,
                 beneficiary_address: beneficiary.toBuffer(),
                 stream_name: nameBuffer,
-                // funding_amount: fundingAmount,
+                funding_amount: fundingAmount,
                 rate_amount: rateAmount,
                 rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
                 start_utc: startDateValue.getTime(),
@@ -109,29 +109,29 @@ export module Instructions {
         programId: PublicKey,
         contributor: PublicKey,
         contributorToken: PublicKey,
+        contributorTreasuryToken: PublicKey,
+        contributorMintToken: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
-        beneficiaryMintToken: PublicKey,
-        beneficiaryTreasuryToken: PublicKey,
         treasuryMintToken: PublicKey,
         stream: PublicKey,
+        mspOpsToken: PublicKey,
         amount: number,
         resume?: boolean
 
     ): Promise<TransactionInstruction> => {
 
-        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
         const splTokenProgramAccount = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
         const keys = [
             { pubkey: contributor, isSigner: true, isWritable: false },
             { pubkey: contributorToken, isSigner: false, isWritable: true },
+            { pubkey: contributorTreasuryToken, isSigner: false, isWritable: true },
+            { pubkey: contributorMintToken, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: treasuryToken, isSigner: false, isWritable: true },
-            { pubkey: beneficiaryMintToken, isSigner: false, isWritable: false },
-            { pubkey: beneficiaryTreasuryToken, isSigner: false, isWritable: true },
             { pubkey: treasuryMintToken, isSigner: false, isWritable: true },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: mspOpsToken, isSigner: false, isWritable: true },
             { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
         ];
@@ -299,11 +299,12 @@ export module Instructions {
         tokenMint: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
-        stream: PublicKey
+        stream: PublicKey,
+        mspOps: PublicKey,
+        mspOpsToken: PublicKey
 
     ): Promise<TransactionInstruction> => {
 
-        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
         const splTokenProgramAccount = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
         const keys = [
             { pubkey: initializer, isSigner: true, isWritable: false },
@@ -313,7 +314,8 @@ export module Instructions {
             { pubkey: tokenMint, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: treasuryToken, isSigner: false, isWritable: true },
-            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: mspOps, isSigner: false, isWritable: true },
+            { pubkey: mspOpsToken, isSigner: false, isWritable: true },
             { pubkey: programId, isSigner: false, isWritable: false },
             { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
