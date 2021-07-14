@@ -1,15 +1,16 @@
 import { BN, Provider, Wallet } from "@project-serum/anchor";
-import { Commitment, Connection, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, PublicKey, TransactionSignature } from "@solana/web3.js";
+import { Commitment, Connection, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, PublicKey } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
-import { StreamInfo, StreamTermsInfo, TreasuryInfo } from "./money-streaming";
+import { StreamActivity, StreamActivityType, StreamInfo, StreamTermsInfo, TreasuryInfo } from "./money-streaming";
 import { u64Number } from "./u64n";
-import { Token, AccountInfo, MintInfo, AccountLayout, MintLayout, u64 } from '@solana/spl-token';
+import { AccountInfo, MintInfo, AccountLayout, MintLayout, u64 } from '@solana/spl-token';
 import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
 import { Swap } from "@project-serum/swap";
 import { MEAN_TOKEN_LIST } from "./token-list";
 import base64 from "base64-js";
 import base58 from "bs58";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 declare global {
     export interface String {
@@ -103,8 +104,20 @@ let defaultStreamInfo: StreamInfo = {
 let defaultTreasuryInfo: TreasuryInfo = {
     id: undefined,
     initialized: false,
-    mintAddress: undefined,
     nounce: 0,
+    mintNounce: 0,
+    mintAddress: undefined,
+    mintSignerAddress: undefined
+}
+
+let defaultStreamActivity: StreamActivity = {
+    signature: '',
+    type: StreamActivityType.out,
+    action: '',
+    amount: 0,
+    mint: '',
+    blockTime: 0,
+    utcDate: ''
 }
 
 function parseStreamData(
@@ -124,7 +137,7 @@ function parseStreamData(
     let streamResumedBlockTime = parseFloat(u64Number.fromBuffer(decodedData.stream_resumed_block_time).toString());
     let autoPauseInSeconds = parseFloat(u64Number.fromBuffer(decodedData.auto_pause_in_seconds).toString());
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
-    let isStreaming = streamResumedBlockTime > escrowVestedAmountSnapBlockTime ? 1 : 0;
+    let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
     let lastTimeSnap = isStreaming === 1 ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
     let escrowVestedAmount = 0.0;
 
@@ -183,7 +196,7 @@ function parseStreamData(
         streamResumedBlockHeight: streamResumedBlockHeight,
         streamResumedBlockTime: streamResumedBlockTime,
         autoPauseInSeconds: autoPauseInSeconds,
-        isStreaming: isStreaming === 1 ? true : false,
+        isStreaming: (isStreaming === 1 && escrowVestedAmount < decodedData.totalDeposits) ? true : false,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0
@@ -411,12 +424,14 @@ export async function getStreamContributors(
 }
 
 function parseActivityData(
+    signature: string,
     tx: ParsedConfirmedTransaction,
     tokens: TokenInfo[],
     friendly: boolean = true
 
-): any {
+): StreamActivity {
 
+    let streamActivity: StreamActivity = defaultStreamActivity;
     let lastIxIndex = tx.transaction.message.instructions.length - 1;
     let lastIx = tx.transaction.message.instructions[lastIxIndex] as PartiallyDecodedInstruction;
     let buffer = base58.decode(lastIx.data);
@@ -447,20 +462,23 @@ function parseActivityData(
         } else if (tx.meta?.postTokenBalances?.length) {
             mint = tx.meta.postTokenBalances[0].mint;
         } else {
-            mint = 'Unknown';
+            mint = 'Unknown Token';
         }
 
         let tokenInfo = tokens.find((t) => t.address === mint);
 
-        return Object.assign({}, {
+        Object.assign(streamActivity, {
+            signature: signature,
             blockTime: blockTime,
             utcDate: new Date(blockTime).toUTCString(),
             action: action,
             amount: amount,
-            mint: !tokenInfo ? mint : (friendly ? tokenInfo.symbol : tokenInfo.address),
+            mint: !tokenInfo ? mint : tokenInfo.address,
             type: action === 'withdraw' ? 'in' : 'out',
         });
     }
+
+    return streamActivity;
 }
 
 export async function listStreamActivity(
@@ -482,6 +500,7 @@ export async function listStreamActivity(
 
         if (tx !== null) {
             activity.push(parseActivityData(
+                sign.signature,
                 tx,
                 tokenList,
                 friendly
@@ -582,25 +601,29 @@ export async function getTreasuryMints(
 }
 
 export async function createMSPAddress(
+    connection: Connection,
     programId: PublicKey,
-    from: PublicKey,
-    slot: number
+    from: PublicKey
 
-): Promise<[PublicKey, string]> {
+): Promise<[PublicKey, string, number]> {
 
-    // const bytes: number[] = [];
+    const slot = await connection.getSlot();
+    const blockTime = await connection.getBlockTime(slot) as number;
+    // const seed = blockTime.toString();
+    // const seeds = [Buffer.from(seed)];
+    // const seed = slot.toString();
+
+    // let seed = from.toBase58() + slot.toString();
     // const seeds = [
     //     from.toBuffer(),
-    //     Buffer.from([slot])
+    //     Buffer.from(seed)
     // ];
 
-    // seeds.forEach(item => item.map(n => bytes.push(n)));
-    // const uint8Array = new Uint8Array([slot]);
-    const seed = slot.toString();
-    const publicKey = await PublicKey.createWithSeed(from, seed, programId);
-    // const nounce = (await PublicKey.findProgramAddress(buffers, programId))[1];
+    // const nounce = (await PublicKey.findProgramAddress(seeds, programId))[1];
+    const key = await PublicKey.createWithSeed(from, blockTime.toString(), programId);
 
-    return [publicKey, seed];
+    // return [key, seed, nounce];
+    return [key, blockTime.toString(), slot];
 }
 
 export async function findATokenAddress(
@@ -692,6 +715,8 @@ export const deserializeTokenAccount = (data: Buffer): AccountInfo => {
     }
 
     const accountInfo = AccountLayout.decode(data);
+
+    accountInfo.amount = u64.fromBuffer(accountInfo.amount);
 
     return accountInfo as AccountInfo;
 };
@@ -860,4 +885,27 @@ export function encode(data: Buffer): string {
 
 export function decode(data: string): Buffer {
     return Buffer.from(base64.toByteArray(data));
+}
+
+export async function calculateWrapAmount(
+    connection: Connection,
+    token: PublicKey,
+    amount: number
+
+): Promise<number> {
+
+    const tokenAccountInfo = await getTokenAccount(connection, token);
+
+    if (!tokenAccountInfo) {
+        return amount;
+    } else {
+
+        const wrappedAmount = tokenAccountInfo.amount.toNumber() / LAMPORTS_PER_SOL;
+
+        if (wrappedAmount < amount) {
+            return amount - wrappedAmount;
+        } else {
+            return 0;
+        }
+    }
 }

@@ -57,7 +57,6 @@ export module Layout {
         BufferLayout.u8('tag'),
         publicKey('beneficiary_address'),
         string('stream_name'),
-        BufferLayout.f64('funding_amount'),
         BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
         BufferLayout.nu64('start_utc'),
@@ -136,29 +135,21 @@ export module Layout {
         BufferLayout.u8('approve')
     ]);
 
-    export const treasuryTokenLayout: typeof BufferLayout.Structure = BufferLayout.struct([
-        publicKey('address'),
-        publicKey('mint')
-    ]);
-
     export const treasuryLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('initialized'),
-        publicKey('mint'),
-        BufferLayout.u8('nounce')
+        uint64('treasury_block_height'),
+        publicKey('treasury_mint_address'),
+        publicKey('treasury_base_address')
     ]);
 
     export const createTreasuryLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
-        BufferLayout.u8('nounce')
+        uint64('treasury_block_height'),
+        publicKey('treasury_base_address')
     ]);
 
     export const transferLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
-        BufferLayout.u8('amount')
-    ]);
-
-    export const approveDelegationLayout: typeof BufferLayout.Structure = BufferLayout.struct([
-        BufferLayout.u8('instruction'),
         BufferLayout.f64('amount')
     ]);
 }
