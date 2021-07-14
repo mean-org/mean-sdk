@@ -195,7 +195,7 @@ function parseStreamData(
         streamResumedBlockHeight: streamResumedBlockHeight,
         streamResumedBlockTime: streamResumedBlockTime,
         autoPauseInSeconds: autoPauseInSeconds,
-        isStreaming: (isStreaming === 1 && escrowVestedAmount < decodedData.totalDeposits) ? true : false,
+        isStreaming: (isStreaming === 1 && escrowVestedAmount < (decodedData.total_deposits - decodedData.total_withdrawals)) ? true : false,
         isUpdatePending: false,
         transactionSignature: '',
         blockTime: 0
