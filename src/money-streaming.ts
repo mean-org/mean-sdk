@@ -185,7 +185,8 @@ export class MoneyStreaming {
         let ixs: TransactionInstruction[] = [];
         let txSigners: Array<Signer> = new Array<Signer>();
         let now = Date.parse(new Date().toUTCString());
-        let start = startUtc !== undefined ? startUtc.valueOf() : now;
+        let start = startUtc !== undefined ? startUtc.valueOf() : now,
+            treasuryTokenAccountKey: any;
 
         const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
         const treasurerTokenAccountInfo = await this.connection.getAccountInfo(treasurerTokenKey);
@@ -233,7 +234,7 @@ export class MoneyStreaming {
             ];
 
             const treasury = (await PublicKey.findProgramAddress(treasurySeeds, this.programId))[0];
-            const treasuryTokenAccountKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
+            treasuryTokenAccountKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
 
             // Initialize the treasury
             ixs.push(
@@ -291,7 +292,7 @@ export class MoneyStreaming {
                 const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMint);
                 const mspOpsTokenAccountInfo = await this.connection.getAccountInfo(mspOpsTokenKey);
 
-                if (!mspOpsTokenAccountInfo) {
+                if (mspOpsTokenAccountInfo === null) {
                     ixs.push(
                         await Instructions.createATokenAccountInstruction(
                             mspOpsTokenKey,
@@ -302,14 +303,26 @@ export class MoneyStreaming {
                     );
                 }
 
+                const treasuryTokenAccountInfo = await this.connection.getAccountInfo(treasuryTokenAccountKey);
+
+                if (!treasuryTokenAccountInfo) {
+                    throw Error(ErrorConstants.AccountNotFound);
+                }
+
                 ixs.push(
-                    await Instructions.transferInstruction(
+                    await Instructions.addFundsInstruction(
                         this.programId,
                         treasurer,
                         treasurerTokenKey,
-                        treasuryTokenAccountKey,
+                        PublicKey.default,
                         beneficiaryMint,
-                        amount
+                        treasury,
+                        treasuryTokenAccountKey,
+                        PublicKey.default,
+                        streamAccount.publicKey,
+                        mspOpsTokenKey,
+                        amount,
+                        true
                     )
                 );
             }
