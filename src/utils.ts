@@ -518,17 +518,23 @@ function parseTreasuryData(
 ): TreasuryInfo {
 
     let treasuryInfo: TreasuryInfo = defaultTreasuryInfo;
-    let decodedData = Layout.streamTermsLayout.decode(treasuryData);
+    let decodedData = Layout.treasuryLayout.decode(treasuryData);
 
     const treasuryId = friendly !== undefined ? id.toBase58() : id;
-    const mintToken = new PublicKey(decodedData.mint);
-    const mintTokenAddress = mintToken.toBase58() !== Constants.DEFAULT_PUBLICKEY
-        ? mintToken.toBase58() : (friendly ? mintToken.toBase58() : mintToken);
+    const treasuryBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.treasury_block_height).toString());
+    const treasuryMint = new PublicKey(decodedData.treasury_mint_address);
+    const treasuryMintAddress = treasuryMint.toBase58() !== Constants.DEFAULT_PUBLICKEY
+        ? treasuryMint.toBase58() : (friendly ? treasuryMint.toBase58() : treasuryMint);
+
+    const treasuryFrom = new PublicKey(decodedData.treasury_base_address);
+    const treasuryFromAddress = treasuryFrom.toBase58() !== Constants.DEFAULT_PUBLICKEY
+        ? treasuryFrom.toBase58() : (friendly ? treasuryFrom.toBase58() : treasuryFrom);
 
     Object.assign(treasuryInfo, { id: treasuryId }, {
         initialized: decodedData.initialized ? true : false,
-        mintAddress: mintTokenAddress,
-        nounce: decodedData.nounce
+        treasuryBlockHeight,
+        treasuryMintAddress,
+        treasuryFromAddress
     });
 
     return treasuryInfo;
