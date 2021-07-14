@@ -40,10 +40,9 @@ export type StreamActivity = {
 export type TreasuryInfo = {
     id: PublicKey | string | undefined,
     initialized: boolean,
-    nounce: number,
-    mintNounce: number,
-    mintAddress: PublicKey | string | undefined,
-    mintSignerAddress: PublicKey | string | undefined,
+    treasuryBlockHeight: number,
+    treasuryMintAddress: PublicKey | string | undefined,
+    treasuryBaseAddress: PublicKey | string | undefined,
 }
 
 export type StreamTermsInfo = {
@@ -131,6 +130,22 @@ export class MoneyStreaming {
     ): Promise<StreamInfo> {
 
         return await Utils.getStream(
+            this.connection,
+            id,
+            commitment,
+            friendly
+        );
+    }
+
+    public async getTreasury(
+        id: PublicKey,
+        commitment?: Commitment | undefined,
+        friendly: boolean = true
+
+    ): Promise<TreasuryInfo> {
+
+        return await Utils.getTreasury(
+            this.programId,
             this.connection,
             id,
             commitment,
@@ -287,6 +302,8 @@ export class MoneyStreaming {
 
             if (amount && amount > 0) {
 
+                // Get the treasury token account or create a new one
+                const treasuryTokenKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
                 // Get the money streaming program operations token account or create a new one
                 const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
                 const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMint);
@@ -303,12 +320,6 @@ export class MoneyStreaming {
                     );
                 }
 
-                const treasuryTokenAccountInfo = await this.connection.getAccountInfo(treasuryTokenAccountKey);
-
-                if (!treasuryTokenAccountInfo) {
-                    throw Error(ErrorConstants.AccountNotFound);
-                }
-
                 ixs.push(
                     await Instructions.addFundsInstruction(
                         this.programId,
@@ -317,7 +328,7 @@ export class MoneyStreaming {
                         PublicKey.default,
                         beneficiaryMint,
                         treasury,
-                        treasuryTokenAccountKey,
+                        treasuryTokenKey,
                         PublicKey.default,
                         streamAccount.publicKey,
                         mspOpsTokenKey,
@@ -760,6 +771,7 @@ export class MoneyStreaming {
 
     private async addFundsTransaction(
         contributor: PublicKey,
+        contributorToken: PublicKey,
         contributorMint: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
@@ -771,10 +783,12 @@ export class MoneyStreaming {
     ): Promise<Transaction> {
 
         let ixs: TransactionInstruction[] = [];
+        let contributorTreasuryTokenKey = PublicKey.default;
 
-        // Get the treasurer treasury token account or create a new one
-        const contributorTokenKey = await Utils.findATokenAddress(contributor, contributorMint);
-        const contributorTreasuryTokenKey = await Utils.findATokenAddress(treasury, treasuryMint);
+        if (treasuryMint !== PublicKey.default) {
+            contributorTreasuryTokenKey = await Utils.findATokenAddress(treasury, treasuryMint);
+        }
+
         const contributorTreasuryTokenAccountInfo = await this.connection.getAccountInfo(contributorTreasuryTokenKey);
 
         if (!contributorTreasuryTokenAccountInfo) {
@@ -808,7 +822,7 @@ export class MoneyStreaming {
             await Instructions.addFundsInstruction(
                 this.programId,
                 contributor,
-                contributorTokenKey,
+                contributorToken,
                 contributorTreasuryTokenKey,
                 contributorMint,
                 treasury,
@@ -833,6 +847,7 @@ export class MoneyStreaming {
         wallet: Wallet,
         stream: PublicKey,
         contributorMint: PublicKey,
+        beneficiaryMint: PublicKey,
         treasuryMint: PublicKey,
         amount: number,
         resume?: boolean
@@ -882,6 +897,7 @@ export class MoneyStreaming {
             await this.addFundsTransaction(
                 contributorAccountKey,
                 contributorTokenAccountKey,
+                beneficiaryMint,
                 treasuryAccountKey,
                 treasuryTokenAccountKey,
                 treasuryMint,

@@ -104,10 +104,9 @@ let defaultStreamInfo: StreamInfo = {
 let defaultTreasuryInfo: TreasuryInfo = {
     id: undefined,
     initialized: false,
-    nounce: 0,
-    mintNounce: 0,
-    mintAddress: undefined,
-    mintSignerAddress: undefined
+    treasuryBlockHeight: 0,
+    treasuryMintAddress: undefined,
+    treasuryBaseAddress: undefined
 }
 
 let defaultStreamActivity: StreamActivity = {
@@ -542,32 +541,31 @@ export async function getTreasury(
     commitment?: any,
     friendly: boolean = true
 
-): Promise<TreasuryInfo | undefined> {
+): Promise<TreasuryInfo> {
 
-    let treasury: TreasuryInfo | undefined;
+    let treasury;
     const accounts = await connection.getProgramAccounts(programId, commitment);
 
-    if (accounts === null || !accounts.length) {
-        return treasury;
-    }
+    if (accounts.length) {
 
-    for (let item of accounts) {
-        if (item.account.data !== undefined && item.account.data.length === Layout.treasuryLayout.span) {
+        for (let item of accounts) {
+            if (item.account.data !== undefined && item.account.data.length === Layout.treasuryLayout.span) {
 
-            let info = Object.assign({}, parseTreasuryData(
-                item.pubkey,
-                item.account.data,
-                friendly
-            ));
+                let info = Object.assign({}, parseTreasuryData(
+                    item.pubkey,
+                    item.account.data,
+                    friendly
+                ));
 
-            if (id.toBase58() === info.id) {
-                treasury = info;
-                break;
+                if (id.toBase58() === info.id) {
+                    treasury = info;
+                    break;
+                }
             }
         }
     }
 
-    return treasury;
+    return treasury as TreasuryInfo;
 }
 
 export async function getTreasuryMints(
