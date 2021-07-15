@@ -29,7 +29,8 @@ export enum StreamActivityType {
 
 export type StreamActivity = {
     signature: string,
-    type: StreamActivityType;
+    initializer: string,
+    type: StreamActivityType,
     action: string;
     amount: number;
     mint: string;
@@ -87,7 +88,7 @@ export type StreamInfo = {
     streamResumedBlockTime: number,
     autoPauseInSeconds: number,
     isStreaming: boolean,
-    isUpdatePending: boolean
+    isUpdatePending: boolean,
     transactionSignature: string | undefined,
     blockTime: number,
 }

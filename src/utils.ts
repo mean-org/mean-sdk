@@ -111,6 +111,7 @@ let defaultTreasuryInfo: TreasuryInfo = {
 
 let defaultStreamActivity: StreamActivity = {
     signature: '',
+    initializer: '',
     type: StreamActivityType.out,
     action: '',
     amount: 0,
@@ -431,12 +432,13 @@ function parseActivityData(
 ): StreamActivity {
 
     let streamActivity: StreamActivity = defaultStreamActivity;
+    let signer = tx.transaction.message.accountKeys.filter(a => a.signer)[0];
     let lastIxIndex = tx.transaction.message.instructions.length - 1;
     let lastIx = tx.transaction.message.instructions[lastIxIndex] as PartiallyDecodedInstruction;
     let buffer = base58.decode(lastIx.data);
     let actionIndex = buffer.readUInt8(0);
 
-    if (actionIndex <= 2) {
+    if (actionIndex <= 2 || actionIndex === 10 /*Transfer*/) {
         let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
         let action = actionIndex === 2 ? 'withdraw' : 'deposit';
         let layoutBuffer = Buffer.alloc(buffer.length, buffer);
@@ -454,12 +456,12 @@ function parseActivityData(
             amount = data.withdrawal_amount;
         }
 
-        let mint: string;
+        let mint: PublicKey | string;
 
         if (tx.meta?.preTokenBalances?.length) {
-            mint = tx.meta.preTokenBalances[0].mint;
+            mint = (friendly === true ? tx.meta.preTokenBalances[0].mint : new PublicKey(tx.meta.preTokenBalances[0].mint));
         } else if (tx.meta?.postTokenBalances?.length) {
-            mint = tx.meta.postTokenBalances[0].mint;
+            mint = (friendly === true ? tx.meta.postTokenBalances[0].mint : new PublicKey(tx.meta.postTokenBalances[0].mint));
         } else {
             mint = 'Unknown Token';
         }
@@ -468,12 +470,13 @@ function parseActivityData(
 
         Object.assign(streamActivity, {
             signature: signature,
+            initializer: (friendly === true ? signer.pubkey.toBase58() : signer.pubkey),
             blockTime: blockTime,
             utcDate: new Date(blockTime).toUTCString(),
             action: action,
             amount: amount,
             mint: !tokenInfo ? mint : tokenInfo.address,
-            type: action === 'withdraw' ? 'in' : 'out',
+            type: action === 'withdraw' ? 'in' : 'out', // this should be removed from here and be treated on MeanFi
         });
     }
 
@@ -496,14 +499,15 @@ export async function listStreamActivity(
 
     for (let sign of signatures) {
         let tx = await connection.getParsedConfirmedTransaction(sign.signature, commitmentValue);
+        console.log(sign.signature);
 
         if (tx !== null) {
-            activity.push(parseActivityData(
+            activity.push(Object.assign({}, parseActivityData(
                 sign.signature,
                 tx,
                 tokenList,
                 friendly
-            ));
+            )));
         }
     }
 
