@@ -1,5 +1,6 @@
 import { BN } from '@project-serum/anchor';
-import { NodeWallet, Wallet } from '@project-serum/anchor/dist/provider';
+// import Wallet from '@project-serum/sol-wallet-adapter';
+import { NodeWallet, Wallet as IWallet } from '@project-serum/anchor/dist/provider';
 import { Token, AccountLayout } from '@solana/spl-token';
 import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
 import { Account, LAMPORTS_PER_SOL, Signer, TransactionInstruction } from '@solana/web3.js';
@@ -355,7 +356,7 @@ export class MoneyStreaming {
     }
 
     public async oneTimePayment(
-        wallet: Wallet,
+        wallet: IWallet,
         treasurerMint: PublicKey,
         beneficiary: PublicKey,
         beneficiaryMint: PublicKey,
@@ -485,7 +486,7 @@ export class MoneyStreaming {
     }
 
     private async swapTransaction(
-        wallet: Wallet,
+        wallet: IWallet,
         fromMint: PublicKey,
         toMint: PublicKey,
         amount: number
@@ -694,7 +695,7 @@ export class MoneyStreaming {
     }
 
     public async createStream(
-        wallet: Wallet,
+        wallet: IWallet,
         treasury: PublicKey | undefined,
         beneficiary: PublicKey,
         treasurerMint: PublicKey,
@@ -847,7 +848,7 @@ export class MoneyStreaming {
     }
 
     public async addFunds(
-        wallet: Wallet,
+        wallet: IWallet,
         stream: PublicKey,
         contributorMint: PublicKey,
         beneficiaryMint: PublicKey,
@@ -1013,36 +1014,18 @@ export class MoneyStreaming {
     }
 
     public async signTransaction(
-        wallet: Wallet,
+        wallet: WalletAdapter,
         transaction: Transaction
 
     ): Promise<Transaction> {
 
         try {
             console.log("Sending transaction for wallet for approval...");
-            let signedTrans = await wallet.signTransaction(transaction);
-            return signedTrans;
+            let msgData = await Utils.buildTransactionsMessageData(this.connection, [transaction]);
+            let data = await wallet.sign(msgData, 'utf-8');
+            transaction.addSignature(data.publicKey, data.signature);
 
-        } catch (error) {
-            console.log("signTransaction failed!");
-            console.log(error);
-            throw error;
-        }
-    }
-
-    public async signTransactionMessage(
-        wallet: Wallet,
-        transaction: Transaction
-
-    ): Promise<Transaction> {
-
-        try {
-            console.log("Sending transaction for wallet for approval...");
-            const adapter = wallet as WalletAdapter;
-            let txMessage = await Utils.buildTransactionsMessage(this.connection, [transaction]);
-            let signedTrans = await adapter.signMessage(txMessage);
-
-            return signedTrans;
+            return transaction;
 
         } catch (error) {
             console.log("signTransaction failed!");
@@ -1052,19 +1035,21 @@ export class MoneyStreaming {
     }
 
     public async signAllTransactions(
-        wallet: Wallet,
+        wallet: WalletAdapter,
         ...transactions: Transaction[]
 
     ): Promise<Transaction[]> {
 
         try {
 
-            console.log("Sending transactions for wallet for approval...");
             let txs: Transaction[] = [];
+            console.log("Sending transaction for wallet for approval...");
+            let msgData = await Utils.buildTransactionsMessageData(this.connection, transactions);
+            let data = await wallet.sign(msgData, 'utf-8');
 
             for (let tx of transactions) {
-                let signedTx = await wallet.signTransaction(tx);
-                txs.push(signedTx);
+                tx.addSignature(data.publicKey, data.signature);
+                txs.push(tx);
             }
 
             return txs;

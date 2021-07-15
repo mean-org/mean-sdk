@@ -916,13 +916,13 @@ export async function calculateWrapAmount(
     }
 }
 
-export async function buildTransactionsMessage(
+export async function buildTransactionsMessageData(
     connection: Connection,
     transactions: Transaction[]
 
-): Promise<TransactionMessage> {
+): Promise<Uint8Array> {
 
-    let message: any;
+    let message = 'Sign this test message';
     // TODO: Implement
-    return message as TransactionMessage;
+    return new TextEncoder().encode(message);
 }

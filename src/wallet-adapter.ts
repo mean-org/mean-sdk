@@ -1,13 +1,18 @@
-import EventEmitter from 'eventemitter3';
-import { Wallet } from '@project-serum/anchor/dist/provider';
+import { Wallet as IWallet } from '@project-serum/anchor/dist/provider';
+import Wallet from '@project-serum/sol-wallet-adapter';
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { TransactionMessage } from './money-streaming';
 
-export interface WalletAdapter extends EventEmitter, Wallet {
+export interface IWalletAdapter extends IWallet {
     publicKey: PublicKey;
-    signMessage: (message: TransactionMessage) => Promise<Transaction>;
     signTransaction: (transaction: Transaction) => Promise<Transaction>;
     signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
     connect: () => any;
     disconnect: () => any;
+    sign: (data: Uint8Array, display: unknown) => Promise<{
+        signature: Buffer;
+        publicKey: PublicKey;
+    }>;
 }
+
+export class WalletAdapter extends Wallet { }
+
