@@ -30,3 +30,11 @@ export class ErrorConstants {
     static InvalidInitializer = 'InvalidInitializer';
     static InvalidStreamTerms = 'InvalidStreamTerms';
 }
+
+export class MSPActionsConstants {
+    static Transfer = 'Transfer';
+    static CreateStream = 'Create Stream';
+    static AddFunds = 'Add Funds';
+    static Withdraw = 'Withdraw';
+    static CloseStream = 'Close Stream';
+}

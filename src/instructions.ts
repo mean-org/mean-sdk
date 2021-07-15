@@ -148,27 +148,27 @@ export module Instructions {
         programId: PublicKey,
         beneficiary: PublicKey,
         beneficiaryToken: PublicKey,
-        associatedToken: PublicKey,
+        beneficiaryMint: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
-        streamId: PublicKey,
+        stream: PublicKey,
+        mspOpsToken: PublicKey,
         amount: number
 
     ): Promise<TransactionInstruction> => {
 
-        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+
         const splTokenProgramAccount = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
         const keys = [
             { pubkey: beneficiary, isSigner: true, isWritable: false },
             { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
-            { pubkey: associatedToken, isSigner: false, isWritable: false },
-            { pubkey: treasury, isSigner: false, isWritable: false },
+            { pubkey: beneficiaryMint, isSigner: false, isWritable: true },
+            { pubkey: treasury, isSigner: false, isWritable: true },
             { pubkey: treasuryToken, isSigner: false, isWritable: true },
-            { pubkey: streamId, isSigner: false, isWritable: true },
-            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: stream, isSigner: false, isWritable: true },
+            { pubkey: mspOpsToken, isSigner: false, isWritable: true },
             { pubkey: programId, isSigner: false, isWritable: false },
-            { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.withdrawLayout.span)

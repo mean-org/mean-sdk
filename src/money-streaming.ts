@@ -21,16 +21,11 @@ import { Layout } from './layout';
 import { TokenSwap } from './token-swap';
 import * as Utils from './utils';
 import { u64Number } from './u64n';
-
-export enum StreamActivityType {
-    in = 'in',
-    out = 'out'
-}
+import { WalletAdapter } from './wallet-adapter';
 
 export type StreamActivity = {
     signature: string,
     initializer: string,
-    type: StreamActivityType,
     action: string;
     amount: number;
     mint: string;
@@ -91,6 +86,13 @@ export type StreamInfo = {
     isUpdatePending: boolean,
     transactionSignature: string | undefined,
     blockTime: number,
+}
+
+export type TransactionMessage = {
+    title: string,
+    action: string,
+    amount: number,
+    fees: number
 }
 
 /**
@@ -291,7 +293,7 @@ export class MoneyStreaming {
                     beneficiaryMint,
                     streamAccount.publicKey,
                     streamName || "",
-                    amount || 0,
+                    0,
                     0,
                     start,
                     0,
@@ -911,42 +913,29 @@ export class MoneyStreaming {
         return txs;
     }
 
-    public async withdrawTransaction(
+    public async withdraw(
         stream: PublicKey,
         beneficiary: PublicKey,
         amount: number
 
     ): Promise<Transaction> {
 
-        let streamInfo = await Utils.getStream(
-            this.connection,
-            stream
-        );
+        let ixs: TransactionInstruction[] = [];
+        let streamInfo = await Utils.getStream(this.connection, stream);
 
         if (beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
             throw Error(ErrorConstants.AccountNotFound);
         }
 
-        const transaction = new Transaction();
         // Check for the beneficiary associated token account
         const mintTokenAccountKey = new PublicKey(streamInfo.associatedToken as PublicKey);
-        const beneficiaryTokenAccountKey = await Utils.findATokenAddress(
-            beneficiary,
-            mintTokenAccountKey
-        );
+        const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiary, mintTokenAccountKey);
+        const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenKey);
 
-        let beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
-
-        if (beneficiaryAccountInfo === null) {
-            throw Error(ErrorConstants.AccountNotFound);
-        }
-
-        let beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenAccountKey);
-
-        if (beneficiaryTokenAccountInfo === null) { // Create beneficiary associated token address
-            transaction.add(
+        if (!beneficiaryTokenAccountInfo) { // Create beneficiary associated token address
+            ixs.push(
                 await Instructions.createATokenAccountInstruction(
-                    beneficiaryTokenAccountKey,
+                    beneficiaryTokenKey,
                     beneficiary,
                     beneficiary,
                     mintTokenAccountKey
@@ -955,29 +944,30 @@ export class MoneyStreaming {
         }
 
         const treasuryAccountKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
-        const treasuryTokenAccountKey = await Utils.findATokenAddress(
-            treasuryAccountKey,
-            mintTokenAccountKey
-        )
+        const treasuryTokenAccountKey = await Utils.findATokenAddress(treasuryAccountKey, mintTokenAccountKey);
+        const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, mintTokenAccountKey);
 
-        transaction.add(
+        ixs.push(
             await Instructions.withdrawInstruction(
                 this.programId,
                 beneficiary,
-                beneficiaryTokenAccountKey,
+                beneficiaryTokenKey,
                 mintTokenAccountKey,
                 treasuryAccountKey,
                 treasuryTokenAccountKey,
                 stream,
+                mspOpsTokenKey,
                 amount
             )
         );
 
-        transaction.feePayer = beneficiary;
+        let tx = new Transaction().add(...ixs);
+        tx.feePayer = beneficiary;
         let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        transaction.recentBlockhash = hash.blockhash;
+        tx.recentBlockhash = hash.blockhash;
 
-        return transaction;
+        return tx;
     }
 
     public async pauseStreamTransaction(
@@ -1031,6 +1021,27 @@ export class MoneyStreaming {
         try {
             console.log("Sending transaction for wallet for approval...");
             let signedTrans = await wallet.signTransaction(transaction);
+            return signedTrans;
+
+        } catch (error) {
+            console.log("signTransaction failed!");
+            console.log(error);
+            throw error;
+        }
+    }
+
+    public async signTransactionMessage(
+        wallet: Wallet,
+        transaction: Transaction
+
+    ): Promise<Transaction> {
+
+        try {
+            console.log("Sending transaction for wallet for approval...");
+            const adapter = wallet as WalletAdapter;
+            let txMessage = await Utils.buildTransactionsMessage(this.connection, [transaction]);
+            let signedTrans = await adapter.signMessage(txMessage);
+
             return signedTrans;
 
         } catch (error) {

@@ -1,8 +1,8 @@
 import { BN, Provider, Wallet } from "@project-serum/anchor";
-import { Commitment, Connection, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, PublicKey } from "@solana/web3.js";
+import { Commitment, Connection, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, PublicKey, Transaction } from "@solana/web3.js";
 import { Constants } from "./constants";
 import { Layout } from "./layout";
-import { StreamActivity, StreamActivityType, StreamInfo, StreamTermsInfo, TreasuryInfo } from "./money-streaming";
+import { StreamActivity, StreamInfo, StreamTermsInfo, TransactionMessage, TreasuryInfo } from "./money-streaming";
 import { u64Number } from "./u64n";
 import { AccountInfo, MintInfo, AccountLayout, MintLayout, u64 } from '@solana/spl-token';
 import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
@@ -112,7 +112,6 @@ let defaultTreasuryInfo: TreasuryInfo = {
 let defaultStreamActivity: StreamActivity = {
     signature: '',
     initializer: '',
-    type: StreamActivityType.out,
     action: '',
     amount: 0,
     mint: '',
@@ -440,7 +439,7 @@ function parseActivityData(
 
     if (actionIndex <= 2 || actionIndex === 10 /*Transfer*/) {
         let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
-        let action = actionIndex === 2 ? 'withdraw' : 'deposit';
+        let action = actionIndex === 2 ? 'withdrew' : 'deposited';
         let layoutBuffer = Buffer.alloc(buffer.length, buffer);
         let data: any,
             amount = 0;
@@ -475,8 +474,7 @@ function parseActivityData(
             utcDate: new Date(blockTime).toUTCString(),
             action: action,
             amount: amount,
-            mint: !tokenInfo ? mint : tokenInfo.address,
-            type: action === 'withdraw' ? 'in' : 'out', // this should be removed from here and be treated on MeanFi
+            mint: !tokenInfo ? mint : tokenInfo.address
         });
     }
 
@@ -916,4 +914,15 @@ export async function calculateWrapAmount(
             return 0;
         }
     }
+}
+
+export async function buildTransactionsMessage(
+    connection: Connection,
+    transactions: Transaction[]
+
+): Promise<TransactionMessage> {
+
+    let message: any;
+    // TODO: Implement
+    return message as TransactionMessage;
 }
