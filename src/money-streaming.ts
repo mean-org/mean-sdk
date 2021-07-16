@@ -356,7 +356,7 @@ export class MoneyStreaming {
     }
 
     public async oneTimePayment(
-        wallet: WalletAdapter,
+        wallet: IWallet,
         treasurerMint: PublicKey,
         beneficiary: PublicKey,
         beneficiaryMint: PublicKey,
@@ -378,16 +378,6 @@ export class MoneyStreaming {
                 : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, amount);
 
             if (wrapAmount > 0) {
-
-                if (!treasurerTokenAccountInfo) {
-                    await Instructions.createATokenAccountInstruction(
-                        treasurerTokenKey,
-                        treasurer,
-                        treasurer,
-                        TOKEN_PROGRAM_ID
-                    );
-                }
-
                 txs.push(
                     await this.wrapTransaction(
                         treasurer,
@@ -739,16 +729,6 @@ export class MoneyStreaming {
                     : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, fundingAmount);
 
                 if (wrapAmount > 0) {
-
-                    if (!treasurerTokenAccountInfo) {
-                        await Instructions.createATokenAccountInstruction(
-                            treasurerTokenKey,
-                            treasurer,
-                            treasurer,
-                            TOKEN_PROGRAM_ID
-                        );
-                    }
-
                     txs.push(
                         await this.wrapTransaction(
                             treasurer,
