@@ -1027,7 +1027,11 @@ export class MoneyStreaming {
 
         let txs: Transaction[] = [],
             msg = await Utils.buildTransactionsMessageData(this.connection, transactions),
+            data: any;
+
+        if ('signMessage' in wallet && typeof wallet.signMessage === 'function') {
             data = await wallet.signMessage(msg);
+        }
 
         for (let tx of transactions) {
             tx.addSignature(data.publicKey as PublicKey, data.signature);

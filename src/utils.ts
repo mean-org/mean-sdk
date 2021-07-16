@@ -437,7 +437,7 @@ function parseActivityData(
     let buffer = base58.decode(lastIx.data);
     let actionIndex = buffer.readUInt8(0);
 
-    if (actionIndex <= 2 || actionIndex === 10 /*Transfer*/) {
+    if (actionIndex <= 3 || actionIndex === 10 /*Transfer*/) {
         let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
         let action = actionIndex === 2 ? 'withdrew' : 'deposited';
         let layoutBuffer = Buffer.alloc(buffer.length, buffer);
@@ -450,9 +450,15 @@ function parseActivityData(
         } else if (actionIndex === 1) {
             data = Layout.addFundsLayout.decode(layoutBuffer);
             amount = data.contribution_amount;
-        } else {
+        } else if (actionIndex === 2) {
+            // data = Layout.recoverFunds.decode(layoutBuffer);
+            // amount = data.recover_amount;
+        } else if (actionIndex === 3) {
             data = Layout.withdrawLayout.decode(layoutBuffer);
             amount = data.withdrawal_amount;
+        } else { // Transfer
+            data = Layout.transferLayout.decode(layoutBuffer);
+            amount = data.amount;
         }
 
         let mint: PublicKey | string;
