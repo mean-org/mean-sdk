@@ -356,7 +356,7 @@ export class MoneyStreaming {
     }
 
     public async oneTimePayment(
-        wallet: IWallet,
+        wallet: WalletAdapter,
         treasurerMint: PublicKey,
         beneficiary: PublicKey,
         beneficiaryMint: PublicKey,
@@ -372,9 +372,22 @@ export class MoneyStreaming {
         if (treasurerMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
 
             const treasurerTokenKey = await Utils.findATokenAddress(treasurer, treasurerMint);
-            const wrapAmount = await Utils.calculateWrapAmount(this.connection, treasurerTokenKey, amount);
+            const treasurerTokenAccountInfo = await Utils.getTokenAccount(this.connection, treasurerTokenKey);
+            const wrapAmount = !treasurerTokenAccountInfo
+                ? amount
+                : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, amount);
 
             if (wrapAmount > 0) {
+
+                if (!treasurerTokenAccountInfo) {
+                    await Instructions.createATokenAccountInstruction(
+                        treasurerTokenKey,
+                        treasurer,
+                        treasurer,
+                        TOKEN_PROGRAM_ID
+                    );
+                }
+
                 txs.push(
                     await this.wrapTransaction(
                         treasurer,
@@ -389,7 +402,7 @@ export class MoneyStreaming {
         if (treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
             txs.push(
                 await this.swapTransaction(
-                    wallet,
+                    wallet as IWallet,
                     treasurerMint,
                     beneficiaryMint,
                     amount
@@ -720,9 +733,22 @@ export class MoneyStreaming {
             if (treasurerMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
 
                 const treasurerTokenKey = await Utils.findATokenAddress(treasurer, treasurerMint);
-                const wrapAmount = await Utils.calculateWrapAmount(this.connection, treasurerTokenKey, fundingAmount);
+                const treasurerTokenAccountInfo = await Utils.getTokenAccount(this.connection, treasurerTokenKey);
+                const wrapAmount = !treasurerTokenAccountInfo
+                    ? fundingAmount
+                    : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, fundingAmount);
 
                 if (wrapAmount > 0) {
+
+                    if (!treasurerTokenAccountInfo) {
+                        await Instructions.createATokenAccountInstruction(
+                            treasurerTokenKey,
+                            treasurer,
+                            treasurer,
+                            TOKEN_PROGRAM_ID
+                        );
+                    }
+
                     txs.push(
                         await this.wrapTransaction(
                             treasurer,
@@ -1013,43 +1039,43 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async signTransaction(
+    private async signTransactionsWithMessage(
         wallet: WalletAdapter,
-        transaction: Transaction
+        transactions: Transaction[]
 
-    ): Promise<Transaction> {
+    ): Promise<Transaction[]> {
 
-        try {
-            console.log("Sending transaction for wallet for approval...");
-            let msgData = await Utils.buildTransactionsMessageData(this.connection, [transaction]);
-            let data = await wallet.sign(msgData, 'utf-8');
-            transaction.addSignature(data.publicKey, data.signature);
+        let txs: Transaction[] = [],
+            msg = await Utils.buildTransactionsMessageData(this.connection, transactions),
+            data = await wallet.signMessage(msg);
 
-            return transaction;
-
-        } catch (error) {
-            console.log("signTransaction failed!");
-            console.log(error);
-            throw error;
+        for (let tx of transactions) {
+            tx.addSignature(data.publicKey as PublicKey, data.signature);
+            txs.push(tx);
         }
+
+        return txs;
     }
 
     public async signAllTransactions(
         wallet: WalletAdapter,
-        ...transactions: Transaction[]
+        transactions: Transaction[],
+        friendly = true
 
     ): Promise<Transaction[]> {
 
         try {
 
+            if (friendly && friendly === true) {
+                return await this.signTransactionsWithMessage(wallet, transactions);
+            }
+
             let txs: Transaction[] = [];
             console.log("Sending transaction for wallet for approval...");
-            let msgData = await Utils.buildTransactionsMessageData(this.connection, transactions);
-            let data = await wallet.sign(msgData, 'utf-8');
 
             for (let tx of transactions) {
-                tx.addSignature(data.publicKey, data.signature);
-                txs.push(tx);
+                let signedTx = await wallet.signTransaction(tx);
+                txs.push(signedTx);
             }
 
             return txs;

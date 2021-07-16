@@ -703,13 +703,14 @@ export const getTokenAccount = async (
     connection: Connection,
     pubKey: PublicKey | string
 
-): Promise<AccountInfo> => {
+): Promise<AccountInfo | null> => {
 
     const address = typeof pubKey === 'string' ? new PublicKey(pubKey) : pubKey;
     const info = await connection.getAccountInfo(address);
 
     if (info === null) {
-        throw new Error('Failed to find token account');
+        // throw new Error('Failed to find token account');
+        return null;
     }
 
     return deserializeTokenAccount(info.data);
@@ -894,25 +895,17 @@ export function decode(data: string): Buffer {
 }
 
 export async function calculateWrapAmount(
-    connection: Connection,
-    token: PublicKey,
+    tokenInfo: AccountInfo,
     amount: number
 
 ): Promise<number> {
 
-    const tokenAccountInfo = await getTokenAccount(connection, token);
+    const wrappedAmount = tokenInfo.amount.toNumber() / LAMPORTS_PER_SOL;
 
-    if (!tokenAccountInfo) {
-        return amount;
+    if (wrappedAmount < amount) {
+        return amount - wrappedAmount;
     } else {
-
-        const wrappedAmount = tokenAccountInfo.amount.toNumber() / LAMPORTS_PER_SOL;
-
-        if (wrappedAmount < amount) {
-            return amount - wrappedAmount;
-        } else {
-            return 0;
-        }
+        return 0;
     }
 }
 
@@ -920,9 +913,9 @@ export async function buildTransactionsMessageData(
     connection: Connection,
     transactions: Transaction[]
 
-): Promise<Uint8Array> {
+): Promise<string> {
 
     let message = 'Sign this test message';
     // TODO: Implement
-    return new TextEncoder().encode(message);
+    return message;
 }
