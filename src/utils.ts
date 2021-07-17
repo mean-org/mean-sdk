@@ -437,17 +437,14 @@ function parseActivityData(
     let buffer = base58.decode(lastIx.data);
     let actionIndex = buffer.readUInt8(0);
 
-    if (actionIndex <= 3 || actionIndex === 10 /*Transfer*/) {
+    if ((actionIndex >= 1 && actionIndex <= 3) || actionIndex === 10 /*Transfer*/) {
         let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
         let action = actionIndex === 2 ? 'withdrew' : 'deposited';
         let layoutBuffer = Buffer.alloc(buffer.length, buffer);
         let data: any,
             amount = 0;
 
-        if (actionIndex === 0) {
-            data = Layout.createStreamLayout.decode(layoutBuffer);
-            amount = data.funding_amount;
-        } else if (actionIndex === 1) {
+        if (actionIndex === 1) {
             data = Layout.addFundsLayout.decode(layoutBuffer);
             amount = data.contribution_amount;
         } else if (actionIndex === 2) {
