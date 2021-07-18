@@ -135,6 +135,13 @@ export module Layout {
         BufferLayout.u8('approve')
     ]);
 
+    /**
+     * Close stream instruction layout
+     */
+    export const closeStreamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+        BufferLayout.u8('tag')
+    ]);
+
     export const treasuryLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('initialized'),
         uint64('treasury_block_height'),

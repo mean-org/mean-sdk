@@ -53,9 +53,11 @@ export module Instructions {
             { pubkey: treasurer, isSigner: true, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: true },
             { pubkey: beneficiaryMint, isSigner: false, isWritable: false },
-            { pubkey: stream, isSigner: false, isWritable: true },
+            { pubkey: stream, isSigner: true, isWritable: true },
             { pubkey: mspOpsKey, isSigner: false, isWritable: true },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+            { pubkey: programId, isSigner: false, isWritable: false },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.createStreamLayout.span)
@@ -103,13 +105,15 @@ export module Instructions {
         treasuryToken: PublicKey,
         treasuryMintToken: PublicKey,
         stream: PublicKey,
+        mspOps: PublicKey,
         mspOpsToken: PublicKey,
         amount: number,
         resume?: boolean
 
     ): Promise<TransactionInstruction> => {
 
-        const splTokenProgramAccount = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
+        const splTokenProgram = Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey();
+        const splAssociatedTokenProgram = Constants.ATOKEN_PROGRAM_ADDRESS.toPublicKey();
         const keys = [
             { pubkey: contributor, isSigner: true, isWritable: false },
             { pubkey: contributorToken, isSigner: false, isWritable: true },
@@ -119,10 +123,13 @@ export module Instructions {
             { pubkey: treasuryToken, isSigner: false, isWritable: true },
             { pubkey: treasuryMintToken, isSigner: false, isWritable: true },
             { pubkey: stream, isSigner: false, isWritable: true },
+            { pubkey: mspOps, isSigner: false, isWritable: false },
             { pubkey: mspOpsToken, isSigner: false, isWritable: true },
             { pubkey: programId, isSigner: false, isWritable: false },
-            { pubkey: splTokenProgramAccount, isSigner: false, isWritable: false },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+            { pubkey: splTokenProgram, isSigner: false, isWritable: false },
+            { pubkey: splAssociatedTokenProgram, isSigner: false, isWritable: false },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
         ];
 
         let data = Buffer.alloc(Layout.addFundsLayout.span)
@@ -153,7 +160,7 @@ export module Instructions {
         treasuryToken: PublicKey,
         stream: PublicKey,
         mspOpsToken: PublicKey,
-        amount: number
+        withdrawal_amount: number
 
     ): Promise<TransactionInstruction> => {
 
@@ -175,7 +182,7 @@ export module Instructions {
         {
             const decodedData = {
                 tag: 3,
-                withdrawal_amount: amount
+                withdrawal_amount
             };
 
             const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
@@ -196,11 +203,11 @@ export module Instructions {
 
     ): Promise<TransactionInstruction> => {
 
-        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
         const keys = [
             { pubkey: initializer, isSigner: true, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: mspOpsKey, isSigner: false, isWritable: true },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ];
 
@@ -225,11 +232,11 @@ export module Instructions {
 
     ): Promise<TransactionInstruction> => {
 
-        const mspOpsAccount = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
+        const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
         const keys = [
             { pubkey: initializer, isSigner: true, isWritable: false },
             { pubkey: stream, isSigner: false, isWritable: true },
-            { pubkey: mspOpsAccount, isSigner: false, isWritable: true },
+            { pubkey: mspOpsKey, isSigner: false, isWritable: true },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ];
 
@@ -252,7 +259,7 @@ export module Instructions {
         initializer: PublicKey,
         counterparty: PublicKey,
         beneficiaryToken: PublicKey,
-        tokenMint: PublicKey,
+        beneficiaryMint: PublicKey,
         treasury: PublicKey,
         treasuryToken: PublicKey,
         stream: PublicKey,
@@ -265,11 +272,11 @@ export module Instructions {
         const keys = [
             { pubkey: initializer, isSigner: true, isWritable: false },
             { pubkey: counterparty, isSigner: false, isWritable: false },
-            { pubkey: stream, isSigner: false, isWritable: true },
             { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
-            { pubkey: tokenMint, isSigner: false, isWritable: false },
+            { pubkey: beneficiaryMint, isSigner: false, isWritable: false },
             { pubkey: treasury, isSigner: false, isWritable: false },
             { pubkey: treasuryToken, isSigner: false, isWritable: true },
+            { pubkey: stream, isSigner: false, isWritable: true },
             { pubkey: mspOps, isSigner: false, isWritable: true },
             { pubkey: mspOpsToken, isSigner: false, isWritable: true },
             { pubkey: programId, isSigner: false, isWritable: false },
@@ -280,7 +287,7 @@ export module Instructions {
         let data = Buffer.alloc(1)
         {
             const decodedData = { tag: 8 };
-            const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
+            const encodeLength = Layout.closeStreamLayout.encode(decodedData, data);
             data = data.slice(0, encodeLength);
         };
 
