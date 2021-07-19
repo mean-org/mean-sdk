@@ -439,7 +439,7 @@ function parseActivityData(
 
     if ((actionIndex >= 1 && actionIndex <= 3) || actionIndex === 10 /*Transfer*/) {
         let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
-        let action = actionIndex === 2 ? 'withdrew' : 'deposited';
+        let action = actionIndex === 3 ? 'withdrew' : 'deposited';
         let layoutBuffer = Buffer.alloc(buffer.length, buffer);
         let data: any,
             amount = 0;

@@ -685,15 +685,12 @@ export class MoneyStreaming {
             }
         }
 
-        // const streamAccount = Keypair.generate();
-
         txs.push(
             await this.createStreamTransaction(
                 treasurer,
                 treasury,
                 beneficiary,
                 beneficiaryMint,
-                // streamAccount,
                 fundingAmount,
                 rateAmount,
                 rateIntervalInSeconds,
@@ -780,8 +777,6 @@ export class MoneyStreaming {
             const wrapAmount = !contributorTokenAccountInfo
                 ? amount
                 : await Utils.calculateWrapAmount(contributorTokenAccountInfo, amount);
-
-            console.log('wrapAmount => ', wrapAmount);
 
             if (wrapAmount > 0) {
                 txs.push(
@@ -944,16 +939,6 @@ export class MoneyStreaming {
         }
 
         const streamKey = streamInfo.id as PublicKey;
-
-        let tx = new Transaction().add(
-            // Pause stream
-            await Instructions.pauseStreamInstruction(
-                this.programId,
-                initializer,
-                streamKey
-            )
-        );
-
         const beneficiaryKey = new PublicKey(streamInfo.beneficiaryAddress as string);
         const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
         const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiaryKey, beneficiaryMintKey);
@@ -963,7 +948,7 @@ export class MoneyStreaming {
         const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
         const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMintKey);
 
-        tx.add(
+        let tx = new Transaction().add(
             // Close stream
             await Instructions.closeStreamInstruction(
                 this.programId,
@@ -1132,17 +1117,7 @@ export class MoneyStreaming {
         }
     }
 
-    public async sendSignedTransaction(signedTrans: Transaction): Promise<string> {
-        try {
-            let signature = await this.connection.sendRawTransaction(signedTrans.serialize());
-            console.log("send raw transaction");
-            return signature;
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    public async sendAllSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
+    public async sendSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
         try {
 
             let signatures: string[] = [];
@@ -1150,12 +1125,8 @@ export class MoneyStreaming {
 
             for (let tx of signedTrans) {
 
-                console.log('Sending transaction');
-
-                let result = await this.connection.sendRawTransaction(tx.serialize(), {
-                    preflightCommitment: this.commitment as Commitment
-                });
-
+                let options = { preflightCommitment: this.commitment as Commitment };
+                let result = await this.connection.sendRawTransaction(tx.serialize(), options);
                 let status = await this.connection.getSignatureStatus(result);
 
                 while ((status.value === null || status.value.confirmationStatus !== 'finalized') &&
@@ -1165,7 +1136,6 @@ export class MoneyStreaming {
 
                 console.log(`Transaction ${result} ${status.value.confirmationStatus}`);
                 signatures.push(result);
-
                 index++;
             }
 
