@@ -203,8 +203,7 @@ export class MoneyStreaming {
         let ixs: TransactionInstruction[] = [];
         let txSigners: Array<Signer> = new Array<Signer>();
         let now = Date.parse(new Date().toUTCString());
-        let start = startUtc !== undefined ? startUtc.valueOf() : now,
-            treasuryTokenAccountKey: any;
+        let start = startUtc !== undefined ? startUtc.valueOf() : now;
 
         const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
         const treasurerTokenAccountInfo = await this.connection.getAccountInfo(treasurerTokenKey);
@@ -246,13 +245,9 @@ export class MoneyStreaming {
 
             // Create the treasury account since the OTP is schedule
             const blockHeight = await this.connection.getSlot(this.commitment as Commitment);
-            const treasurySeeds = [
-                treasurer.toBuffer(),
-                new u64Number(blockHeight).toBuffer()
-            ];
-
+            const treasurySeeds = [treasurer.toBuffer(), new u64Number(blockHeight).toBuffer()];
             const treasury = (await PublicKey.findProgramAddress(treasurySeeds, this.programId))[0];
-            treasuryTokenAccountKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
+            const treasuryTokenKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
 
             // Initialize the treasury
             ixs.push(
@@ -260,7 +255,7 @@ export class MoneyStreaming {
                     this.programId,
                     treasurer,
                     treasury,
-                    treasuryTokenAccountKey,
+                    treasuryTokenKey,
                     beneficiaryMint,
                     PublicKey.default,
                     blockHeight
@@ -292,8 +287,6 @@ export class MoneyStreaming {
             );
 
             if (amount && amount > 0) {
-                // Get the treasury token account or create a new one
-                const treasuryTokenKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
                 // Get the money streaming program operations token account or create a new one
                 const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
                 const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMint);
@@ -537,18 +530,17 @@ export class MoneyStreaming {
 
         let ixs: Array<TransactionInstruction> = new Array<TransactionInstruction>();
         let txSigners: Array<Signer> = new Array<Signer>(),
+            treasuryToken: PublicKey = PublicKey.default,
             treasuryMint: PublicKey = PublicKey.default;
 
-
         if (!treasury) {
-
             const blockHeight = await this.connection.getSlot(this.commitment as Commitment);
             const blockHeightBuffer = new u64Number(blockHeight).toBuffer();
             const treasurySeeds = [treasurer.toBuffer(), blockHeightBuffer];
             treasury = (await PublicKey.findProgramAddress(treasurySeeds, this.programId))[0];
             const treasuryMintSeeds = [treasurer.toBuffer(), treasury.toBuffer(), blockHeightBuffer];
             treasuryMint = (await PublicKey.findProgramAddress(treasuryMintSeeds, this.programId))[0];
-            const treasuryTokenAccountKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
+            treasuryToken = await Utils.findATokenAddress(treasury, beneficiaryMint);
 
             // Create treasury
             ixs.push(
@@ -556,7 +548,7 @@ export class MoneyStreaming {
                     this.programId,
                     treasurer,
                     treasury,
-                    treasuryTokenAccountKey,
+                    treasuryToken,
                     beneficiaryMint,
                     treasuryMint,
                     blockHeight
@@ -588,13 +580,16 @@ export class MoneyStreaming {
         );
 
         if (fundingAmount && fundingAmount > 0) {
-            // Get the treasurer treasury token account or create a new one
+            // Get the treasurer and treasury treasury token account
             const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
-            const treasuryTokenKey = await Utils.findATokenAddress(treasury, beneficiaryMint);
             const treasurerTreasuryTokenKey = await Utils.findATokenAddress(treasurer, treasuryMint);
-            // Get the money streaming program operations token account or create a new one
+            // Get the money streaming program operations token account
             const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
             const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMint);
+
+            if (treasuryToken === PublicKey.default) {
+                treasuryToken = await Utils.findATokenAddress(treasury, beneficiaryMint);
+            }
 
             ixs.push(
                 await Instructions.addFundsInstruction(
@@ -604,7 +599,7 @@ export class MoneyStreaming {
                     treasurerTreasuryTokenKey,
                     beneficiaryMint,
                     treasury,
-                    treasuryTokenKey,
+                    treasuryToken,
                     treasuryMint,
                     streamAccount.publicKey,
                     mspOpsKey,
@@ -804,14 +799,14 @@ export class MoneyStreaming {
         }
 
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
-        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, contributorMint);
-        const treasury = await Utils.getTreasury(this.programId, this.connection, treasuryKey);
+        const treasuryInfo = await Utils.getTreasury(this.programId, this.connection, treasuryKey);
 
-        if (!treasury) {
+        if (!treasuryInfo) {
             throw Error(`${ErrorConstants.AccountNotFound}: Treasury account not found`);
         }
 
-        const treasuryMint = new PublicKey(treasury.treasuryMintAddress as string);
+        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, contributorMint);
+        const treasuryMint = new PublicKey(treasuryInfo.treasuryMintAddress as string);
 
         txs.push(
             await this.addFundsTransaction(
@@ -1168,4 +1163,6 @@ export class MoneyStreaming {
             throw error;
         }
     }
+
+    // public async autoCloseStream(stream: PublicKey): Promise<Transaction[]>
 }
