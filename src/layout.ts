@@ -32,6 +32,7 @@ export module Layout {
         publicKey('treasurer_address'),
         BufferLayout.f64('rate_amount'),
         uint64('rate_interval_in_seconds'),
+        BufferLayout.nu64('funded_on_utc'),
         BufferLayout.nu64('start_utc'),
         uint64('rate_cliff_in_seconds'),
         BufferLayout.f64('cliff_vest_amount'),
@@ -72,6 +73,7 @@ export module Layout {
     export const addFundsLayout: typeof BufferLayout.Structure = BufferLayout.struct([
         BufferLayout.u8('tag'),
         BufferLayout.f64('contribution_amount'),
+        BufferLayout.nu64('funded_on_utc'),
         BufferLayout.u8('resume')
     ]);
 

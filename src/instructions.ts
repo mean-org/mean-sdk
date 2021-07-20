@@ -134,9 +134,12 @@ export module Instructions {
 
         let data = Buffer.alloc(Layout.addFundsLayout.span)
         {
+            let fundedOnUtcDate = Date.parse(new Date().toUTCString());
+
             const decodedData = {
                 tag: 1,
                 contribution_amount: amount,
+                funded_on_utc: fundedOnUtcDate,
                 resume: resume ? resume : false
             };
 

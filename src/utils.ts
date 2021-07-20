@@ -77,6 +77,7 @@ let defaultStreamInfo: StreamInfo = {
     treasurerAddress: undefined,
     rateAmount: 0,
     rateIntervalInSeconds: 0,
+    fundedOnUtc: undefined,
     startUtc: undefined,
     rateCliffInSeconds: 0,
     cliffVestAmount: 0,
@@ -129,6 +130,7 @@ function parseStreamData(
 
     let stream: StreamInfo = defaultStreamInfo;
     let decodedData = Layout.streamLayout.decode(streamData);
+    let fundedOnUtc = new Date(decodedData.funded_on_utc as string);
     let startDateUtc = new Date(decodedData.start_utc as string);
     let escrowVestedAmountSnapBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_height).toString());
     let escrowVestedAmountSnapBlockTime = parseFloat(u64Number.fromBuffer(decodedData.escrow_vested_amount_snap_block_time).toString());
@@ -177,6 +179,7 @@ function parseStreamData(
         treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
         rateAmount: decodedData.rate_amount,
         rateIntervalInSeconds: rateIntervalInSeconds,
+        fundedOnUtc: fundedOnUtc.toUTCString(),
         startUtc: startDateUtc.toUTCString(),
         rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
         cliffVestAmount: decodedData.cliff_vest_amount,
@@ -215,7 +218,7 @@ export async function getStream(
     let stream;
     let accountInfo = await connection.getAccountInfo(id, commitment);
 
-    if (accountInfo?.data !== undefined && accountInfo?.data.length > 0) {
+    if (accountInfo?.data !== undefined && (accountInfo?.data.length === Layout.streamLayout.span || accountInfo?.data.length === 281 /*TODO: Remove*/)) {
 
         let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, 'confirmed');
 
@@ -347,7 +350,7 @@ export async function listStreams(
     let currentBlockTime = await connection.getBlockTime(slot);
 
     for (let item of accounts) {
-        if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
+        if (item.account.data !== undefined && (item.account.data.length === Layout.streamLayout.span || item.account.data.length === 281 /*TODO: Remove*/)) {
 
             let included = false;
             let info = Object.assign({}, parseStreamData(
