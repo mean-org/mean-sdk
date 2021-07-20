@@ -134,12 +134,12 @@ export module Instructions {
 
         let data = Buffer.alloc(Layout.addFundsLayout.span)
         {
-            let fundedOnUtcDate = Date.parse(new Date().toUTCString());
+            let fundedOnUtcDate = Utils.convertLocalDateToUTCIgnoringTimezone(new Date());
 
             const decodedData = {
                 tag: 1,
                 contribution_amount: amount,
-                funded_on_utc: fundedOnUtcDate,
+                funded_on_utc: fundedOnUtcDate.getTime(),
                 resume: resume ? resume : false
             };
 
