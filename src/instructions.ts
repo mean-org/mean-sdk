@@ -140,7 +140,7 @@ export module Instructions {
                 tag: 1,
                 contribution_amount: amount,
                 funded_on_utc: fundedOnUtcDate.getTime(),
-                resume: resume ? resume : false
+                resume: resume && resume === true ? resume : false
             };
 
             const encodeLength = Layout.addFundsLayout.encode(decodedData, data);

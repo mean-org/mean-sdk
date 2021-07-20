@@ -447,6 +447,8 @@ function parseActivityData(
         let data: any,
             amount = 0;
 
+        console.log('actionIndex => ', actionIndex);
+
         if (actionIndex === 1) {
             data = Layout.addFundsLayout.decode(layoutBuffer);
             amount = data.contribution_amount;
