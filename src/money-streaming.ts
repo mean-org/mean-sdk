@@ -338,25 +338,25 @@ export class MoneyStreaming {
         let txs: Transaction[] = [];
         const treasurer = wallet.publicKey;
 
-        if (treasurerMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
+        // if (treasurerMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
 
-            const treasurerTokenKey = await Utils.findATokenAddress(treasurer, treasurerMint);
-            const treasurerTokenAccountInfo = await Utils.getTokenAccount(this.connection, treasurerTokenKey);
-            const wrapAmount = !treasurerTokenAccountInfo
-                ? amount
-                : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, amount);
+        //     const treasurerTokenKey = await Utils.findATokenAddress(treasurer, treasurerMint);
+        //     const treasurerTokenAccountInfo = await Utils.getTokenAccount(this.connection, treasurerTokenKey);
+        //     const wrapAmount = !treasurerTokenAccountInfo
+        //         ? amount
+        //         : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, amount);
 
-            if (wrapAmount > 0) {
-                txs.push(
-                    await this.wrapTransaction(
-                        treasurer,
-                        treasurerTokenKey,
-                        treasurerMint,
-                        wrapAmount
-                    )
-                );
-            }
-        }
+        //     if (wrapAmount > 0) {
+        //         txs.push(
+        //             await this.wrapTransaction(
+        //                 treasurer,
+        //                 treasurerTokenKey,
+        //                 treasurerMint,
+        //                 wrapAmount
+        //             )
+        //         );
+        //     }
+        // }
 
         if (treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
             txs.push(
@@ -381,80 +381,6 @@ export class MoneyStreaming {
         );
 
         return txs;
-    }
-
-    private async wrapTransaction(
-        from: PublicKey,
-        account: PublicKey,
-        mint: PublicKey,
-        amount: number
-
-    ): Promise<Transaction> {
-
-        const ixs: TransactionInstruction[] = [];
-        const newAccount = new Account();
-        const minimumWrappedAccountBalance = await this.connection.getMinimumBalanceForRentExemption(AccountLayout.span);
-
-        ixs.push(
-            SystemProgram.transfer({
-                fromPubkey: from,
-                toPubkey: newAccount.publicKey,
-                lamports: (minimumWrappedAccountBalance * 2) + amount * LAMPORTS_PER_SOL
-            }),
-            SystemProgram.allocate({
-                accountPubkey: newAccount.publicKey,
-                space: AccountLayout.span
-            }),
-            SystemProgram.assign({
-                accountPubkey: newAccount.publicKey,
-                programId: TOKEN_PROGRAM_ID
-            }),
-            Token.createInitAccountInstruction(
-                TOKEN_PROGRAM_ID,
-                mint,
-                newAccount.publicKey,
-                from
-            )
-        );
-
-        const accountInfo = await this.connection.getAccountInfo(account);
-
-        if (accountInfo === null) {
-            ixs.push(
-                await Instructions.createATokenAccountInstruction(
-                    account,
-                    from,
-                    from,
-                    mint
-                ),
-            );
-        }
-
-        ixs.push(
-            Token.createTransferInstruction(
-                TOKEN_PROGRAM_ID,
-                newAccount.publicKey,
-                account,
-                from,
-                [newAccount],
-                (amount * LAMPORTS_PER_SOL)
-            ),
-            Token.createCloseAccountInstruction(
-                TOKEN_PROGRAM_ID,
-                newAccount.publicKey,
-                from,
-                from,
-                [newAccount]
-            )
-        )
-
-        let tx = new Transaction().add(...ixs);
-        tx.feePayer = from;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-        tx.partialSign(newAccount);
-
-        return tx;
     }
 
     private async swapTransaction(
@@ -644,41 +570,15 @@ export class MoneyStreaming {
         let txs: Transaction[] = [];
         const treasurer = wallet.publicKey;
 
-        if (fundingAmount && fundingAmount > 0) { // Wrap or Swap only if there is an initial funding amount for the stream
-
-            if (treasurerMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
-
-                const treasurerTokenKey = await Utils.findATokenAddress(treasurer, treasurerMint);
-                const treasurerTokenAccountInfo = await Utils.getTokenAccount(this.connection, treasurerTokenKey);
-                const wrapAmount = !treasurerTokenAccountInfo
-                    ? fundingAmount
-                    : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, fundingAmount);
-
-                if (wrapAmount > 0) {
-                    txs.push(
-                        await this.wrapTransaction(
-                            treasurer,
-                            treasurerTokenKey,
-                            treasurerMint,
-                            wrapAmount
-                        )
-                    );
-                }
-            }
-
-            if (treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
-
-                txs.push(
-                    await this.swapTransaction(
-                        wallet,
-                        treasurerMint,
-                        beneficiaryMint,
-                        fundingAmount
-                    )
-                );
-
-                treasurerMint = beneficiaryMint;
-            }
+        if (fundingAmount && fundingAmount > 0 && treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
+            txs.push(
+                await this.swapTransaction(
+                    wallet,
+                    treasurerMint,
+                    beneficiaryMint,
+                    fundingAmount
+                )
+            );
         }
 
         txs.push(
@@ -766,26 +666,6 @@ export class MoneyStreaming {
 
         const contributorKey = wallet.publicKey;
         const contributorTokenKey = await Utils.findATokenAddress(contributorKey, contributorMint);
-
-        if (contributorMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
-
-            const contributorTokenAccountInfo = await Utils.getTokenAccount(this.connection, contributorTokenKey);
-            const wrapAmount = !contributorTokenAccountInfo
-                ? amount
-                : await Utils.calculateWrapAmount(contributorTokenAccountInfo, amount);
-
-            if (wrapAmount > 0) {
-                txs.push(
-                    await this.wrapTransaction(
-                        contributorKey,
-                        contributorTokenKey,
-                        contributorMint,
-                        wrapAmount
-                    )
-                );
-            }
-        }
-
         const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
 
         if (contributorMint.toBase58() !== beneficiaryMintKey.toBase58()) {
@@ -967,7 +847,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async proposeUpdateTransaction(
+    public async proposeUpdate(
         stream: PublicKey,
         proposedBy: PublicKey,
         streamName?: string,
@@ -1041,7 +921,7 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async answerUpdateTransaction(
+    public async answerUpdate(
         streamId: PublicKey,
         answeredBy: PublicKey,
         approve: true
@@ -1142,28 +1022,19 @@ export class MoneyStreaming {
         }
     }
 
-    public async confirmTransaction(signature: any): Promise<any> {
-        try {
-            const result = await this.connection.confirmTransaction(signature, 'confirmed');
-            console.log("send raw transaction");
-            return result;
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    public async confirmAllTransactions(signatures: string[]): Promise<any> {
+    public async confirmTransactions(...signatures: string[]): Promise<any[]> {
         try {
             let results: any[] = [];
+
             for (const signature of signatures) {
                 const result = await this.connection.confirmTransaction(signature, 'confirmed');
                 results.push(result);
             }
+
             return results;
+
         } catch (error) {
             throw error;
         }
     }
-
-    // public async autoCloseStream(stream: PublicKey): Promise<Transaction[]>
 }
