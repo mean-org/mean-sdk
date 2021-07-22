@@ -1,8 +1,6 @@
-import { BN } from '@project-serum/anchor';
-import { NodeWallet, Wallet as IWallet } from '@project-serum/anchor/dist/provider';
-import { Token, AccountLayout } from '@solana/spl-token';
-import { TOKEN_PROGRAM_ID } from '@project-serum/serum/lib/token-instructions';
-import { Account, LAMPORTS_PER_SOL, Signer, TransactionInstruction } from '@solana/web3.js';
+/**
+ * Solana
+ */
 import {
     Commitment,
     Connection,
@@ -11,90 +9,30 @@ import {
     Keypair,
     PublicKey,
     SystemProgram,
-    Transaction
+    Transaction,
+    Signer,
+    TransactionInstruction
 
 } from '@solana/web3.js';
 
-import { Constants, ErrorConstants } from './constants';
-import { Instructions } from './instructions';
-import { Layout } from './layout';
-import { TokenSwap } from './token-swap';
+/**
+ * Serum
+ */
+import { BN } from '@project-serum/anchor';
+import { NodeWallet, Wallet as IWallet } from '@project-serum/anchor/dist/provider';
+import { } from '@solana/web3.js';
+
+/**
+ * MSP
+ */
+import * as Instructions from './instructions';
 import * as Utils from './utils';
+import * as Layout from './layout';
+import { TokenSwap } from './token-swap';
 import { u64Number } from './u64n';
-import { WalletAdapter } from './wallet-adapter';
-
-export type StreamActivity = {
-    signature: string,
-    initializer: string,
-    action: string;
-    amount: number;
-    mint: string;
-    blockTime: number;
-    utcDate: string;
-}
-
-export type TreasuryInfo = {
-    id: PublicKey | string | undefined,
-    initialized: boolean,
-    treasuryBlockHeight: number,
-    treasuryMintAddress: PublicKey | string | undefined,
-    treasuryBaseAddress: PublicKey | string | undefined,
-}
-
-export type StreamTermsInfo = {
-    id: PublicKey | string | undefined,
-    initialized: boolean,
-    streamId: PublicKey | string | undefined,
-    streamMemo: String,
-    treasurerAddress: PublicKey | string | undefined,
-    beneficiaryAddress: PublicKey | string | undefined,
-    associatedToken: PublicKey | string | undefined,
-    rateAmount: number,
-    rateIntervalInSeconds: number,
-    rateCliffInSeconds: number,
-    cliffVestAmount: number,
-    cliffVestPercent: number,
-    autoPauseInSeconds: number
-}
-
-export type StreamInfo = {
-    id: PublicKey | string | undefined,
-    initialized: boolean,
-    memo: String,
-    treasurerAddress: PublicKey | string | undefined,
-    rateAmount: number,
-    rateIntervalInSeconds: number,
-    fundedOnUtc: Date | string | undefined,
-    startUtc: Date | string | undefined,
-    rateCliffInSeconds: number,
-    cliffVestAmount: number,
-    cliffVestPercent: number,
-    beneficiaryAddress: PublicKey | string | undefined,
-    associatedToken: PublicKey | string | undefined,
-    escrowVestedAmount: number,
-    escrowUnvestedAmount: number,
-    treasuryAddress: PublicKey | string | undefined,
-    escrowEstimatedDepletionUtc: Date | string | undefined,
-    totalDeposits: number,
-    totalWithdrawals: number,
-    escrowVestedAmountSnap: number,
-    escrowVestedAmountSnapBlockHeight: number,
-    escrowVestedAmountSnapBlockTime: number,
-    streamResumedBlockHeight: number,
-    streamResumedBlockTime: number,
-    autoPauseInSeconds: number,
-    isStreaming: boolean,
-    isUpdatePending: boolean,
-    transactionSignature: string | undefined,
-    blockTime: number,
-}
-
-export type TransactionMessage = {
-    title: string,
-    action: string,
-    amount: number,
-    fees: number
-}
+import { IWalletAdapter } from './wallet-adapter';
+import { Constants, StreamInfo, StreamTermsInfo, TransactionFees, TransactionFeesParams, TreasuryInfo } from './types';
+import { Errors } from './errors';
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API 
@@ -191,6 +129,45 @@ export class MoneyStreaming {
         );
     }
 
+    public async oneTimePayment(
+        wallet: IWallet,
+        treasurerMint: PublicKey,
+        beneficiary: PublicKey,
+        beneficiaryMint: PublicKey,
+        amount: number,
+        startUtc?: Date,
+        streamName?: String
+
+    ): Promise<Transaction[]> {
+
+        let txs: Transaction[] = [];
+        const treasurer = wallet.publicKey;
+
+        if (treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
+            txs.push(
+                await this.swapTransaction(
+                    wallet as IWallet,
+                    treasurerMint,
+                    beneficiaryMint,
+                    amount
+                )
+            );
+        }
+
+        txs.push(
+            await this.oneTimePaymentTransaction(
+                treasurer,
+                beneficiary,
+                beneficiaryMint,
+                amount || 0,
+                startUtc,
+                streamName
+            )
+        );
+
+        return txs;
+    }
+
     private async oneTimePaymentTransaction(
         treasurer: PublicKey,
         beneficiary: PublicKey,
@@ -203,17 +180,17 @@ export class MoneyStreaming {
 
         let ixs: TransactionInstruction[] = [];
         let txSigners: Array<Signer> = new Array<Signer>();
-        let now = Date.parse(new Date().toUTCString());
-        let start = startUtc !== undefined ? startUtc.valueOf() : now;
 
+        const now = new Date();
+        const start = startUtc ? new Date(startUtc.toLocaleString()) : now;
         const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
         const treasurerTokenAccountInfo = await this.connection.getAccountInfo(treasurerTokenKey);
 
         if (!treasurerTokenAccountInfo) {
-            throw Error(ErrorConstants.AccountNotFound);
+            throw Error(Errors.AccountNotFound);
         }
 
-        if (start < now) {
+        if (start <= now) {
             // Just create the beneficiary token account and transfer since the payment is not scheduled
             const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiary, beneficiaryMint);
             const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenKey);
@@ -279,7 +256,7 @@ export class MoneyStreaming {
                     streamName || "",
                     0,
                     0,
-                    start,
+                    startUtc ? startUtc.getTime() : Date.parse(now.toUTCString()),
                     0,
                     0,
                     100,
@@ -289,8 +266,7 @@ export class MoneyStreaming {
 
             if (amount && amount > 0) {
                 // Get the money streaming program operations token account or create a new one
-                const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
-                const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMint);
+                const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS_KEY, beneficiaryMint);
 
                 ixs.push(
                     await Instructions.addFundsInstruction(
@@ -303,7 +279,7 @@ export class MoneyStreaming {
                         treasuryTokenKey,
                         PublicKey.default,
                         streamAccount.publicKey,
-                        mspOpsKey,
+                        Constants.MSP_OPS_KEY,
                         mspOpsTokenKey,
                         amount,
                         true
@@ -324,64 +300,487 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async oneTimePayment(
+    public async createStream(
         wallet: IWallet,
-        treasurerMint: PublicKey,
+        treasury: PublicKey | undefined,
         beneficiary: PublicKey,
+        treasurerMint: PublicKey,
         beneficiaryMint: PublicKey,
-        amount: number,
+        rateAmount?: number,
+        rateIntervalInSeconds?: number,
         startUtc?: Date,
-        streamName?: String
+        streamName?: String,
+        fundingAmount?: number,
+        rateCliffInSeconds?: number,
+        cliffVestAmount?: number,
+        cliffVestPercent?: number,
+        autoPauseInSeconds?: number
 
     ): Promise<Transaction[]> {
 
         let txs: Transaction[] = [];
         const treasurer = wallet.publicKey;
 
-        // if (treasurerMint.toBase58() === Constants.WSOL_TOKEN_MINT_ADDRESS) {
-
-        //     const treasurerTokenKey = await Utils.findATokenAddress(treasurer, treasurerMint);
-        //     const treasurerTokenAccountInfo = await Utils.getTokenAccount(this.connection, treasurerTokenKey);
-        //     const wrapAmount = !treasurerTokenAccountInfo
-        //         ? amount
-        //         : await Utils.calculateWrapAmount(treasurerTokenAccountInfo, amount);
-
-        //     if (wrapAmount > 0) {
-        //         txs.push(
-        //             await this.wrapTransaction(
-        //                 treasurer,
-        //                 treasurerTokenKey,
-        //                 treasurerMint,
-        //                 wrapAmount
-        //             )
-        //         );
-        //     }
-        // }
-
-        if (treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
+        if (fundingAmount && fundingAmount > 0 && treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
             txs.push(
                 await this.swapTransaction(
-                    wallet as IWallet,
+                    wallet,
                     treasurerMint,
                     beneficiaryMint,
-                    amount
+                    fundingAmount
                 )
             );
         }
 
         txs.push(
-            await this.oneTimePaymentTransaction(
+            await this.createStreamTransaction(
                 treasurer,
+                treasury,
                 beneficiary,
                 beneficiaryMint,
-                amount || 0,
+                fundingAmount,
+                rateAmount,
+                rateIntervalInSeconds,
                 startUtc,
-                streamName
+                streamName,
+                rateCliffInSeconds,
+                cliffVestAmount,
+                cliffVestPercent,
+                autoPauseInSeconds
             )
         );
 
         return txs;
     }
+
+    public async addFunds(
+        wallet: IWallet,
+        stream: PublicKey,
+        contributorMint: PublicKey,
+        amount: number,
+        resume = false
+
+    ): Promise<Transaction[]> {
+
+        let txs: Transaction[] = [];
+        let streamInfo = await Utils.getStream(this.connection, stream, false);
+
+        if (streamInfo === null) {
+            throw Error(Errors.AccountNotFound);
+        }
+
+        const contributorKey = wallet.publicKey;
+        const contributorTokenKey = await Utils.findATokenAddress(contributorKey, contributorMint);
+        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
+
+        if (contributorMint.toBase58() !== beneficiaryMintKey.toBase58()) {
+            txs.push(
+                await this.swapTransaction(
+                    wallet,
+                    contributorMint,
+                    beneficiaryMintKey,
+                    amount
+                )
+            );
+        }
+
+        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
+        const treasuryInfo = await Utils.getTreasury(this.programId, this.connection, treasuryKey);
+
+        if (!treasuryInfo) {
+            throw Error(`${Errors.AccountNotFound}: Treasury account not found`);
+        }
+
+        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, contributorMint);
+        const treasuryMint = new PublicKey(treasuryInfo.treasuryMintAddress as string);
+
+        txs.push(
+            await this.addFundsTransaction(
+                contributorKey,
+                contributorTokenKey,
+                beneficiaryMintKey,
+                treasuryKey,
+                treasuryTokenKey,
+                treasuryMint,
+                stream,
+                amount,
+                resume
+            )
+        );
+
+        return txs;
+    }
+
+    public async withdraw(
+        stream: PublicKey,
+        beneficiary: PublicKey,
+        withdrawal_amount: number
+
+    ): Promise<Transaction> {
+
+        let ixs: TransactionInstruction[] = [];
+        let streamInfo = await Utils.getStream(this.connection, stream);
+
+        if (!streamInfo || beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
+            throw Error(Errors.AccountNotFound);
+        }
+
+        // Check for the beneficiary associated token account
+        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
+        const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiary, beneficiaryMintKey);
+        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
+        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
+        const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS_KEY, beneficiaryMintKey);
+
+        ixs.push(
+            await Instructions.withdrawInstruction(
+                this.programId,
+                beneficiary,
+                beneficiaryTokenKey,
+                beneficiaryMintKey,
+                treasuryKey,
+                treasuryTokenKey,
+                stream,
+                mspOpsTokenKey,
+                withdrawal_amount
+            )
+        );
+
+        let tx = new Transaction().add(...ixs);
+        tx.feePayer = beneficiary;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async pauseStream(
+        initializer: PublicKey,
+        stream: PublicKey
+
+    ): Promise<Transaction> {
+
+        let tx = new Transaction().add(
+            await Instructions.pauseStreamInstruction(
+                this.programId,
+                initializer,
+                stream
+            )
+        );
+
+        tx.feePayer = initializer;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async resumeStream(
+        initializer: PublicKey,
+        stream: PublicKey
+
+    ): Promise<Transaction> {
+
+        let tx = new Transaction().add(
+            await Instructions.resumeStreamInstruction(
+                this.programId,
+                initializer,
+                stream
+            )
+        );
+
+        tx.feePayer = initializer;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async closeStream(
+        stream: PublicKey,
+        initializer: PublicKey
+
+    ): Promise<Transaction> {
+
+        let streamInfo = await Utils.getStream(this.connection, stream);
+
+        if (!streamInfo) {
+            throw Error(`${Errors.AccountNotFound}: Stream address not found`);
+        }
+
+        let counterparty: PublicKey;
+
+        if (initializer.toBase58() === streamInfo.treasurerAddress as string) {
+            counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
+        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
+            counterparty = new PublicKey(streamInfo.treasurerAddress as string);
+        } else {
+            throw Error(`${Errors.Unauthorized}: Address ${initializer.toBase58()} not authorized to close the stream`);
+        }
+
+        const streamKey = streamInfo.id as PublicKey;
+        const beneficiaryKey = new PublicKey(streamInfo.beneficiaryAddress as string);
+        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
+        const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiaryKey, beneficiaryMintKey);
+        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
+        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
+        // Get the money streaming program operations token account or create a new one
+        const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS_KEY, beneficiaryMintKey);
+
+        let tx = new Transaction().add(
+            // Close stream
+            await Instructions.closeStreamInstruction(
+                this.programId,
+                initializer,
+                counterparty,
+                beneficiaryTokenKey,
+                beneficiaryMintKey,
+                treasuryKey,
+                treasuryTokenKey,
+                streamKey,
+                Constants.MSP_OPS_KEY,
+                mspOpsTokenKey
+            )
+        );
+
+        tx.feePayer = initializer;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async proposeUpdate(
+        stream: PublicKey,
+        proposedBy: PublicKey,
+        streamName?: string,
+        associatedToken?: PublicKey,
+        rateAmount?: number,
+        rateIntervalInSeconds?: number,
+        rateCliffInSeconds?: number,
+        cliffVestAmount?: number,
+        cliffVestPercent?: number,
+        autoPauseInSeconds?: number
+
+    ): Promise<Transaction> {
+
+        let ixs: TransactionInstruction[] = [];
+        // Create stream terms account
+        const streamTermsAccount = Keypair.generate();
+        const streamTermsMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(Layout.streamTermsLayout.span);
+
+        ixs.push(
+            SystemProgram.createAccount({
+                fromPubkey: proposedBy,
+                newAccountPubkey: streamTermsAccount.publicKey,
+                lamports: streamTermsMinimumBalance,
+                space: Layout.streamTermsLayout.span,
+                programId: this.programId
+            })
+        );
+
+        let streamInfo = await Utils.getStream(
+            this.connection,
+            stream
+        );
+
+        let initializer: PublicKey = proposedBy,
+            counterparty: string | PublicKey | undefined;
+
+        if (initializer === streamInfo.treasurerAddress) {
+            initializer = streamInfo.treasurerAddress;
+            counterparty = streamInfo.beneficiaryAddress;
+        } else if (initializer === streamInfo.beneficiaryAddress) {
+            initializer = streamInfo.beneficiaryAddress;
+            counterparty = streamInfo.treasurerAddress;
+        } else {
+            throw Error(Errors.InvalidInitializer);
+        }
+
+        ixs.push(
+            await Instructions.proposeUpdateInstruction(
+                this.programId,
+                streamInfo,
+                streamTermsAccount.publicKey,
+                initializer,
+                counterparty as PublicKey,
+                streamName,
+                associatedToken,
+                rateAmount,
+                rateIntervalInSeconds,
+                rateCliffInSeconds,
+                cliffVestAmount,
+                cliffVestPercent,
+                autoPauseInSeconds || ((rateAmount || 0) * (rateIntervalInSeconds || 0))
+            )
+        );
+
+        let tx = new Transaction().add(...ixs);
+        tx.feePayer = proposedBy;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+        tx.partialSign(streamTermsAccount);
+
+        return tx;
+    }
+
+    public async answerUpdate(
+        streamId: PublicKey,
+        answeredBy: PublicKey,
+        approve: true
+
+    ): Promise<Transaction> {
+
+        const stream = await Utils.getStream(
+            this.connection,
+            streamId
+        );
+
+        const streamTerms = await Utils.getStreamTerms(
+            this.programId,
+            this.connection,
+            stream.id as PublicKey
+        );
+
+        let initializer: PublicKey = answeredBy,
+            counterparty: string | PublicKey | undefined;
+
+        if (initializer === stream.treasurerAddress) {
+            initializer = stream.treasurerAddress;
+            counterparty = stream.beneficiaryAddress;
+        } else if (initializer === stream.beneficiaryAddress) {
+            initializer = stream.beneficiaryAddress;
+            counterparty = stream.treasurerAddress;
+        } else {
+            throw Error(Errors.InvalidInitializer);
+        }
+
+        let tx = new Transaction().add(
+            await Instructions.answerUpdateInstruction(
+                this.programId,
+                streamTerms as StreamTermsInfo,
+                initializer,
+                counterparty as PublicKey,
+                approve
+            )
+        );
+
+        tx.feePayer = answeredBy;
+        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async signTransactions(
+        adapter: IWalletAdapter,
+        transactions: Transaction[],
+        friendly: boolean = false
+
+    ): Promise<Transaction[]> {
+
+        try {
+
+            if (transactions.length === 0) {
+                throw Error(`${Errors.InvalidParameters}: Transactions amount can not be zero`);
+            }
+
+            let txText = transactions.length === 1 ? 'transaction' : 'transactions';
+            console.log(`Sending ${txText} for wallet for approval`);
+
+            let signedTxs: Array<Transaction> = new Array<Transaction>(),
+                signData: any | null = null;
+
+            if (friendly) {
+                let txsSignMessage = await Utils.buildTransactionsMessageData(this.connection, transactions);
+                signData = adapter.signMessage(txsSignMessage);
+            }
+
+            for (let tx of transactions) {
+                let sTx = tx;
+
+                if (friendly && signData) {
+                    sTx.addSignature(signData.publicKey as PublicKey, signData.signature);
+                } else {
+                    sTx = await adapter.signTransaction(tx);
+                }
+
+                signedTxs.push(sTx);
+            }
+
+            return signedTxs;
+
+        } catch (error) {
+            console.log("signTransaction failed!");
+            console.log(error);
+            throw error;
+        }
+    }
+
+    public async sendSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
+        try {
+
+            let signatures: string[] = [];
+            let index = 0;
+
+            for (let tx of signedTrans) {
+
+                let options = { preflightCommitment: this.commitment as Commitment };
+                let result = await this.connection.sendRawTransaction(tx.serialize(), options);
+                let status = await this.connection.getSignatureStatus(result);
+
+                while ((status.value === null || status.value.confirmationStatus !== 'finalized') &&
+                    (status.value === null || index !== signedTrans.length - 1)) {
+                    status = await this.connection.getSignatureStatus(result);
+                }
+
+                console.log(`Transaction ${result} ${status.value.confirmationStatus}`);
+                signatures.push(result);
+                index++;
+            }
+
+            return signatures;
+
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async confirmTransactions(...signatures: string[]): Promise<any[]> {
+        try {
+            let results: any[] = [];
+
+            for (const signature of signatures) {
+                const result = await this.connection.confirmTransaction(signature, 'confirmed');
+                results.push(result);
+            }
+
+            return results;
+
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // public async calculateTransactionFees(feeParams: TransactionFeesParams): Promise<TransactionFees> {
+
+    //     let txsFees: TransactionFees = {
+    //         blockchainFee: 0,
+    //         mspFlatFee: 0,
+    //         mspPercentFee: 0
+    //     };
+
+    //     let recentBlockhash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    //     let mspFees = Utils.calculateTransactionFees(feeParams.instruction);
+    //     txsFees.push({
+    //         blockchainFee: feeParams.signaturesAmount * recentBlockhash.feeCalculator.lamportsPerSignature,
+    //         mspFlatFee: flatFee,
+    //         mspPercentFee: percentFee
+
+    //     } as TransactionFees)
+
+    //     return txsFees;
+    // }
 
     private async swapTransaction(
         wallet: IWallet,
@@ -400,9 +799,9 @@ export class MoneyStreaming {
         );
 
         if (fromMintAccountInfo === null) {
-            throw Error(ErrorConstants.AccountNotFound);
+            throw Error(Errors.AccountNotFound);
         } else if (toMintAccountInfo === null) {
-            throw Error(ErrorConstants.AccountNotFound);
+            throw Error(Errors.AccountNotFound);
         } else {
             const estimatedAmount = await tokenSwap.estimate({
                 fromMint: fromMint,
@@ -485,6 +884,7 @@ export class MoneyStreaming {
 
         const streamAccount = Keypair.generate();
         txSigners.push(streamAccount);
+        const startTimeUtc = startUtc ? startUtc.getTime() : Date.parse(new Date().toUTCString());
 
         // Create stream contract
         ixs.push(
@@ -498,7 +898,7 @@ export class MoneyStreaming {
                 streamName || "",
                 rateAmount || 0.0,
                 rateIntervalInSeconds || 0,
-                startUtc?.valueOf() || Date.parse(new Date().toUTCString()),
+                startTimeUtc,
                 rateCliffInSeconds || 0,
                 cliffVestAmount || 0,
                 cliffVestPercent || 100,
@@ -511,8 +911,7 @@ export class MoneyStreaming {
             const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
             const treasurerTreasuryTokenKey = await Utils.findATokenAddress(treasurer, treasuryMint);
             // Get the money streaming program operations token account
-            const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
-            const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMint);
+            const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS_KEY, beneficiaryMint);
 
             if (treasuryToken === PublicKey.default) {
                 treasuryToken = await Utils.findATokenAddress(treasury, beneficiaryMint);
@@ -529,7 +928,7 @@ export class MoneyStreaming {
                     treasuryToken,
                     treasuryMint,
                     streamAccount.publicKey,
-                    mspOpsKey,
+                    Constants.MSP_OPS_KEY,
                     mspOpsTokenKey,
                     fundingAmount,
                     true
@@ -549,59 +948,6 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async createStream(
-        wallet: IWallet,
-        treasury: PublicKey | undefined,
-        beneficiary: PublicKey,
-        treasurerMint: PublicKey,
-        beneficiaryMint: PublicKey,
-        rateAmount?: number,
-        rateIntervalInSeconds?: number,
-        startUtc?: Date,
-        streamName?: String,
-        fundingAmount?: number,
-        rateCliffInSeconds?: number,
-        cliffVestAmount?: number,
-        cliffVestPercent?: number,
-        autoPauseInSeconds?: number
-
-    ): Promise<Transaction[]> {
-
-        let txs: Transaction[] = [];
-        const treasurer = wallet.publicKey;
-
-        if (fundingAmount && fundingAmount > 0 && treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
-            txs.push(
-                await this.swapTransaction(
-                    wallet,
-                    treasurerMint,
-                    beneficiaryMint,
-                    fundingAmount
-                )
-            );
-        }
-
-        txs.push(
-            await this.createStreamTransaction(
-                treasurer,
-                treasury,
-                beneficiary,
-                beneficiaryMint,
-                fundingAmount,
-                rateAmount,
-                rateIntervalInSeconds,
-                startUtc,
-                streamName,
-                rateCliffInSeconds,
-                cliffVestAmount,
-                cliffVestPercent,
-                autoPauseInSeconds
-            )
-        );
-
-        return txs;
-    }
-
     private async addFundsTransaction(
         contributor: PublicKey,
         contributorToken: PublicKey,
@@ -619,8 +965,7 @@ export class MoneyStreaming {
 
         // Get the money streaming program operations token account or create a new one
         const contributorTreasuryTokenKey = await Utils.findATokenAddress(contributor, treasuryMint);
-        const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
-        const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, contributorMint);
+        const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS_KEY, contributorMint);
 
         ixs.push(
             await Instructions.addFundsInstruction(
@@ -633,7 +978,7 @@ export class MoneyStreaming {
                 treasuryToken,
                 treasuryMint,
                 stream,
-                mspOpsKey,
+                Constants.MSP_OPS_KEY,
                 mspOpsTokenKey,
                 amount,
                 resume
@@ -648,393 +993,5 @@ export class MoneyStreaming {
         return tx;
     }
 
-    public async addFunds(
-        wallet: IWallet,
-        stream: PublicKey,
-        contributorMint: PublicKey,
-        amount: number,
-        resume = false
 
-    ): Promise<Transaction[]> {
-
-        let txs: Transaction[] = [];
-        let streamInfo = await Utils.getStream(this.connection, stream, false);
-
-        if (streamInfo === null) {
-            throw Error(ErrorConstants.AccountNotFound);
-        }
-
-        const contributorKey = wallet.publicKey;
-        const contributorTokenKey = await Utils.findATokenAddress(contributorKey, contributorMint);
-        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
-
-        if (contributorMint.toBase58() !== beneficiaryMintKey.toBase58()) {
-            txs.push(
-                await this.swapTransaction(
-                    wallet,
-                    contributorMint,
-                    beneficiaryMintKey,
-                    amount
-                )
-            );
-        }
-
-        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
-        const treasuryInfo = await Utils.getTreasury(this.programId, this.connection, treasuryKey);
-
-        if (!treasuryInfo) {
-            throw Error(`${ErrorConstants.AccountNotFound}: Treasury account not found`);
-        }
-
-        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, contributorMint);
-        const treasuryMint = new PublicKey(treasuryInfo.treasuryMintAddress as string);
-
-        txs.push(
-            await this.addFundsTransaction(
-                contributorKey,
-                contributorTokenKey,
-                beneficiaryMintKey,
-                treasuryKey,
-                treasuryTokenKey,
-                treasuryMint,
-                stream,
-                amount,
-                resume
-            )
-        );
-
-        return txs;
-    }
-
-    public async withdraw(
-        stream: PublicKey,
-        beneficiary: PublicKey,
-        withdrawal_amount: number
-
-    ): Promise<Transaction> {
-
-        let ixs: TransactionInstruction[] = [];
-        let streamInfo = await Utils.getStream(this.connection, stream);
-
-        if (!streamInfo || beneficiary.toBase58() !== streamInfo.beneficiaryAddress as string) {
-            throw Error(ErrorConstants.AccountNotFound);
-        }
-
-        // Check for the beneficiary associated token account
-        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
-        const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiary, beneficiaryMintKey);
-        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
-        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
-        const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
-        const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMintKey);
-
-        ixs.push(
-            await Instructions.withdrawInstruction(
-                this.programId,
-                beneficiary,
-                beneficiaryTokenKey,
-                beneficiaryMintKey,
-                treasuryKey,
-                treasuryTokenKey,
-                stream,
-                mspOpsTokenKey,
-                withdrawal_amount
-            )
-        );
-
-        let tx = new Transaction().add(...ixs);
-        tx.feePayer = beneficiary;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-
-        return tx;
-    }
-
-    public async pauseStream(
-        initializer: PublicKey,
-        stream: PublicKey
-
-    ): Promise<Transaction> {
-
-        let tx = new Transaction().add(
-            await Instructions.pauseStreamInstruction(
-                this.programId,
-                initializer,
-                stream
-            )
-        );
-
-        tx.feePayer = initializer;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-
-        return tx;
-    }
-
-    public async resumeStream(
-        initializer: PublicKey,
-        stream: PublicKey
-
-    ): Promise<Transaction> {
-
-        let tx = new Transaction().add(
-            await Instructions.resumeStreamInstruction(
-                this.programId,
-                initializer,
-                stream
-            )
-        );
-
-        tx.feePayer = initializer;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-
-        return tx;
-    }
-
-    public async closeStream(
-        stream: PublicKey,
-        initializer: PublicKey
-
-    ): Promise<Transaction> {
-
-        let streamInfo = await Utils.getStream(this.connection, stream);
-
-        if (!streamInfo) {
-            throw Error(`${ErrorConstants.AccountNotFound}: Stream address not found`);
-        }
-
-        let counterparty: PublicKey;
-
-        if (initializer.toBase58() === streamInfo.treasurerAddress as string) {
-            counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
-            counterparty = new PublicKey(streamInfo.treasurerAddress as string);
-        } else {
-            throw Error(`${ErrorConstants.Unauthorized}: Address ${initializer.toBase58()} not authorized to close the stream`);
-        }
-
-        const streamKey = streamInfo.id as PublicKey;
-        const beneficiaryKey = new PublicKey(streamInfo.beneficiaryAddress as string);
-        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
-        const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiaryKey, beneficiaryMintKey);
-        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
-        const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
-        // Get the money streaming program operations token account or create a new one
-        const mspOpsKey = Constants.MSP_OPERATIONS_ADDRESS.toPublicKey();
-        const mspOpsTokenKey = await Utils.findATokenAddress(mspOpsKey, beneficiaryMintKey);
-
-        let tx = new Transaction().add(
-            // Close stream
-            await Instructions.closeStreamInstruction(
-                this.programId,
-                initializer,
-                counterparty,
-                beneficiaryTokenKey,
-                beneficiaryMintKey,
-                treasuryKey,
-                treasuryTokenKey,
-                streamKey,
-                mspOpsKey,
-                mspOpsTokenKey
-            )
-        );
-
-        tx.feePayer = initializer;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-
-        return tx;
-    }
-
-    public async proposeUpdate(
-        stream: PublicKey,
-        proposedBy: PublicKey,
-        streamName?: string,
-        associatedToken?: PublicKey,
-        rateAmount?: number,
-        rateIntervalInSeconds?: number,
-        rateCliffInSeconds?: number,
-        cliffVestAmount?: number,
-        cliffVestPercent?: number,
-        autoPauseInSeconds?: number
-
-    ): Promise<Transaction> {
-
-        let ixs: TransactionInstruction[] = [];
-        // Create stream terms account
-        const streamTermsAccount = Keypair.generate();
-        const streamTermsMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(Layout.streamTermsLayout.span);
-
-        ixs.push(
-            SystemProgram.createAccount({
-                fromPubkey: proposedBy,
-                newAccountPubkey: streamTermsAccount.publicKey,
-                lamports: streamTermsMinimumBalance,
-                space: Layout.streamTermsLayout.span,
-                programId: this.programId
-            })
-        );
-
-        let streamInfo = await Utils.getStream(
-            this.connection,
-            stream
-        );
-
-        let initializer: PublicKey = proposedBy,
-            counterparty: string | PublicKey | undefined;
-
-        if (initializer === streamInfo.treasurerAddress) {
-            initializer = streamInfo.treasurerAddress;
-            counterparty = streamInfo.beneficiaryAddress;
-        } else if (initializer === streamInfo.beneficiaryAddress) {
-            initializer = streamInfo.beneficiaryAddress;
-            counterparty = streamInfo.treasurerAddress;
-        } else {
-            throw Error(ErrorConstants.InvalidInitializer);
-        }
-
-        ixs.push(
-            await Instructions.proposeUpdateInstruction(
-                this.programId,
-                streamInfo,
-                streamTermsAccount.publicKey,
-                initializer,
-                counterparty as PublicKey,
-                streamName,
-                associatedToken,
-                rateAmount,
-                rateIntervalInSeconds,
-                rateCliffInSeconds,
-                cliffVestAmount,
-                cliffVestPercent,
-                autoPauseInSeconds || ((rateAmount || 0) * (rateIntervalInSeconds || 0))
-            )
-        );
-
-        let tx = new Transaction().add(...ixs);
-        tx.feePayer = proposedBy;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-        tx.partialSign(streamTermsAccount);
-
-        return tx;
-    }
-
-    public async answerUpdate(
-        streamId: PublicKey,
-        answeredBy: PublicKey,
-        approve: true
-
-    ): Promise<Transaction> {
-
-        const stream = await Utils.getStream(
-            this.connection,
-            streamId
-        );
-
-        const streamTerms = await Utils.getStreamTerms(
-            this.programId,
-            this.connection,
-            stream.id as PublicKey
-        );
-
-        let initializer: PublicKey = answeredBy,
-            counterparty: string | PublicKey | undefined;
-
-        if (initializer === stream.treasurerAddress) {
-            initializer = stream.treasurerAddress;
-            counterparty = stream.beneficiaryAddress;
-        } else if (initializer === stream.beneficiaryAddress) {
-            initializer = stream.beneficiaryAddress;
-            counterparty = stream.treasurerAddress;
-        } else {
-            throw Error(ErrorConstants.InvalidInitializer);
-        }
-
-        let tx = new Transaction().add(
-            await Instructions.answerUpdateInstruction(
-                this.programId,
-                streamTerms as StreamTermsInfo,
-                initializer,
-                counterparty as PublicKey,
-                approve
-            )
-        );
-
-        tx.feePayer = answeredBy;
-        let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-        tx.recentBlockhash = hash.blockhash;
-
-        return tx;
-    }
-
-    public async signTransactions(
-        adapter: WalletAdapter,
-        transactions: Transaction[]
-
-    ): Promise<Transaction[]> {
-
-        try {
-            let txs: Transaction[] = [];
-            console.log("Sending transaction for wallet for approval...");
-
-            for (let tx of transactions) {
-                let signedTx = await adapter.signTransaction(tx);
-                txs.push(signedTx);
-            }
-
-            return txs;
-
-        } catch (error) {
-            console.log("signTransaction failed!");
-            console.log(error);
-            throw error;
-        }
-    }
-
-    public async sendSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
-        try {
-
-            let signatures: string[] = [];
-            let index = 0;
-
-            for (let tx of signedTrans) {
-
-                let options = { preflightCommitment: this.commitment as Commitment };
-                let result = await this.connection.sendRawTransaction(tx.serialize(), options);
-                let status = await this.connection.getSignatureStatus(result);
-
-                while ((status.value === null || status.value.confirmationStatus !== 'finalized') &&
-                    (status.value === null || index !== signedTrans.length - 1)) {
-                    status = await this.connection.getSignatureStatus(result);
-                }
-
-                console.log(`Transaction ${result} ${status.value.confirmationStatus}`);
-                signatures.push(result);
-                index++;
-            }
-
-            return signatures;
-
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    public async confirmTransactions(...signatures: string[]): Promise<any[]> {
-        try {
-            let results: any[] = [];
-
-            for (const signature of signatures) {
-                const result = await this.connection.confirmTransaction(signature, 'confirmed');
-                results.push(result);
-            }
-
-            return results;
-
-        } catch (error) {
-            throw error;
-        }
-    }
 }

@@ -1,11 +1,11 @@
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
-// const Buffer = require('buffer');
 
 /**
- * 64-bit class
+ * u64Number
  */
 export class u64Number extends BN {
+
     /**
      * Convert to Buffer
      */

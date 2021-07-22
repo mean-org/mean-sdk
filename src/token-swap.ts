@@ -1,13 +1,14 @@
 import { Program, Provider, BN, Wallet } from '@project-serum/anchor';
 import { Market, OpenOrders } from '@project-serum/serum';
-import { TokenListContainer, TokenListProvider } from '@solana/spl-token-registry';
-import { Account, Commitment, Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction, TransactionSignature } from '@solana/web3.js';
-import { Swap, SwapParams } from "@project-serum/swap";
+import { TokenListProvider } from '@solana/spl-token-registry';
+import { Account, Commitment, Connection, PublicKey, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { SwapParams } from "@project-serum/swap";
 import SwapMarkets from '@project-serum/swap/lib/swap-markets';
 import { getVaultOwnerAndNonce } from '@project-serum/swap/lib/utils';
 import { IDL } from '@project-serum/swap/lib/idl';
-import { Constants } from './constants';
 import * as Utils from './utils';
+import { Constants } from './types';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 type ExchangeRate = {
     rate: BN;
@@ -25,7 +26,7 @@ const Side = {
 
 export class TokenSwap {
 
-    private serumDex: PublicKey = Constants.SERUM_SWAP_ADDRESS.toPublicKey();
+    private serumDex: PublicKey = Constants.SERUM_SWAP_KEY;
     private markets!: SwapMarkets;
     private program!: Program;
     private connection!: Connection;
@@ -119,8 +120,8 @@ export class TokenSwap {
             );
         }
 
-        if (fromMint.equals(Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey()) ||
-            fromMint.equals(Constants.USDT_TOKEN_MINT_ADDRESS.toPublicKey())) {
+        if (fromMint.equals(Constants.USDC_TOKEN_MINT_KEY) ||
+            fromMint.equals(Constants.USDT_TOKEN_MINT_KEY)) {
 
             return await this.swapDirectInstructions({
                 coinWallet: toWallet,
@@ -132,8 +133,8 @@ export class TokenSwap {
                 minExchangeRate,
             });
 
-        } else if (toMint.equals(Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey()) ||
-            toMint.equals(Constants.USDT_TOKEN_MINT_ADDRESS.toPublicKey())) {
+        } else if (toMint.equals(Constants.USDC_TOKEN_MINT_KEY) ||
+            toMint.equals(Constants.USDT_TOKEN_MINT_KEY)) {
 
             return await this.swapDirectInstructions({
                 coinWallet: fromWallet,
@@ -150,13 +151,13 @@ export class TokenSwap {
             if (this.markets.usdcPathExists(fromMint, toMint)) {
                 quoteWallet = await Utils.findATokenAddress(
                     this.program.provider.wallet.publicKey,
-                    Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey()
+                    Constants.USDC_TOKEN_MINT_KEY
                 );
 
             } else {
                 quoteWallet = await Utils.findATokenAddress(
                     this.program.provider.wallet.publicKey,
-                    Constants.USDT_TOKEN_MINT_ADDRESS.toPublicKey()
+                    Constants.USDT_TOKEN_MINT_KEY
                 );
             }
         }
@@ -237,7 +238,7 @@ export class TokenSwap {
                     marketClient.address,
                     this.program.provider.wallet.publicKey,
                     oo.publicKey,
-                    Constants.SERUM_DEX_ADDRESS.toPublicKey()
+                    Constants.SERUM_DEX_KEY
                 )
             );
         }
@@ -264,8 +265,8 @@ export class TokenSwap {
                     },
                     pcWallet,
                     authority: this.program.provider.wallet.publicKey,
-                    dexProgram: Constants.SERUM_DEX_ADDRESS.toPublicKey(),
-                    tokenProgram: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(),
+                    dexProgram: Constants.SERUM_DEX_KEY,
+                    tokenProgram: TOKEN_PROGRAM_ID,
                     rent: SYSVAR_RENT_PUBKEY,
                 }
             }),
@@ -281,7 +282,7 @@ export class TokenSwap {
                         authority: this.program.provider.wallet.publicKey,
                         destination: this.program.provider.wallet.publicKey,
                         market: marketClient.address,
-                        dexProgram: Constants.SERUM_DEX_ADDRESS.toPublicKey()
+                        dexProgram: Constants.SERUM_DEX_KEY
                     }
                 })
             );
@@ -316,13 +317,13 @@ export class TokenSwap {
 
         try {
 
-            fromMarket = this.markets.getMarketAddress(Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey(), fromMint);
-            toMarket = this.markets.getMarketAddress(Constants.USDC_TOKEN_MINT_ADDRESS.toPublicKey(), toMint);
+            fromMarket = this.markets.getMarketAddress(Constants.USDC_TOKEN_MINT_KEY, fromMint);
+            toMarket = this.markets.getMarketAddress(Constants.USDC_TOKEN_MINT_KEY, toMint);
 
         } catch (err) {
 
-            fromMarket = this.markets.getMarketAddress(Constants.USDT_TOKEN_MINT_ADDRESS.toPublicKey(), fromMint);
-            toMarket = this.markets.getMarketAddress(Constants.USDT_TOKEN_MINT_ADDRESS.toPublicKey(), toMint);
+            fromMarket = this.markets.getMarketAddress(Constants.USDT_TOKEN_MINT_KEY, fromMint);
+            toMarket = this.markets.getMarketAddress(Constants.USDT_TOKEN_MINT_KEY, toMint);
 
         }
 
@@ -331,14 +332,14 @@ export class TokenSwap {
                 this.program.provider.connection,
                 fromMarket as PublicKey,
                 this.program.provider.opts,
-                Constants.SERUM_DEX_ADDRESS.toPublicKey(),
+                Constants.SERUM_DEX_KEY,
             ),
 
             Market.load(
                 this.program.provider.connection,
                 toMarket as PublicKey,
                 this.program.provider.opts,
-                Constants.SERUM_DEX_ADDRESS.toPublicKey(),
+                Constants.SERUM_DEX_KEY,
             )
         ]);
 
@@ -351,13 +352,13 @@ export class TokenSwap {
                     this.program.provider.connection,
                     fromMarketClient.address,
                     this.program.provider.wallet.publicKey,
-                    Constants.SERUM_DEX_ADDRESS.toPublicKey(),
+                    Constants.SERUM_DEX_KEY,
                 ),
                 OpenOrders.findForMarketAndOwner(
                     this.program.provider.connection,
                     toMarketClient.address,
                     this.program.provider.wallet.publicKey,
-                    Constants.SERUM_DEX_ADDRESS.toPublicKey(),
+                    Constants.SERUM_DEX_KEY,
                 ),
             ]);
 
@@ -406,7 +407,7 @@ export class TokenSwap {
             //     this.program.instruction.createAccounts({
             //         accounts: {
             //             funding: this.program.provider.wallet.publicKey,
-            //             owner: Constants.SERUM_DEX_ADDRESS.toPublicKey(),
+            //             owner: Constants.SERUM_DEX_KEY.toPublicKey(),
             //             systemProgram: SystemProgram.programId,
             //         },
             //         remainingAccounts,
@@ -453,8 +454,8 @@ export class TokenSwap {
                     },
                     pcWallet,
                     authority: this.program.provider.wallet.publicKey,
-                    dexProgram: Constants.SERUM_DEX_ADDRESS.toPublicKey(),
-                    tokenProgram: Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey(),
+                    dexProgram: Constants.SERUM_DEX_KEY,
+                    tokenProgram: TOKEN_PROGRAM_ID,
                     rent: SYSVAR_RENT_PUBKEY,
                 },
                 remainingAccounts: referral && [referral],
