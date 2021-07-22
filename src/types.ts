@@ -12,19 +12,19 @@ declare global {
 /**
  * MSP Instructions types
  */
-export const enum MSP_ACTIONS {
+export enum MSP_ACTIONS {
     oneTimePayment = 1,
     scheduleOneTimePayment = 2,
-    createStream = 1,
-    createStreamWithFunds = 2,
-    addFunds = 2,
-    withdraw = 3,
-    pauseStream = 4,
-    resumeStream = 5,
-    proposeUpdate = 6,
-    answerUpdate = 7,
-    createTreasury = 8,
-    closeStream = 9
+    createStream = 3,
+    createStreamWithFunds = 4,
+    addFunds = 5,
+    withdraw = 6,
+    pauseStream = 7,
+    resumeStream = 8,
+    proposeUpdate = 9,
+    answerUpdate = 10,
+    createTreasury = 11,
+    closeStream = 12
 }
 
 /**

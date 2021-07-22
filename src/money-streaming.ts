@@ -692,7 +692,14 @@ export class MoneyStreaming {
             //     return await this.signTransactionsWithMessage(adapter, transactions);
             // }
 
-            return await adapter.signAllTransactions(transactions);
+            let sinedTxs: Array<Transaction> = new Array<Transaction>();
+
+            for (let tx of transactions) {
+                let sTx = await adapter.signTransaction(tx);
+                sinedTxs.push(sTx);
+            }
+
+            return sinedTxs;
 
         } catch (error) {
             console.log("signTransaction failed!");
