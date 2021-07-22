@@ -131,8 +131,14 @@ const parseStreamData = (
     let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
     let lastTimeSnap = isStreaming === 1 ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
     let escrowVestedAmount = 0.0;
+    let rateAmount = decodedData.rate_amount;
+    let rate = rateAmount / rateIntervalInSeconds * isStreaming;
 
-    const rate = decodedData.rate_amount / rateIntervalInSeconds * isStreaming;
+    if (rateAmount === 0) {
+        rateAmount = decodedData.total_deposits - decodedData.total_withdrawals;
+        rate = rateAmount / rateIntervalInSeconds;
+    }
+
     const elapsedTime = currentBlockTime - lastTimeSnap;
     const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
     const associatedToken = (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
@@ -149,7 +155,7 @@ const parseStreamData = (
     let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc);
 
     if (decodedData.escrow_estimated_depletion_utc === 0) {
-        let depletionTimeInSeconds = decodedData.total_deposits / decodedData.rate_amount * rateIntervalInSeconds;
+        let depletionTimeInSeconds = decodedData.total_deposits / rateAmount * rateIntervalInSeconds;
         escrowEstimatedDepletionDateUtc.setTime(startDateUtc.getTime() + depletionTimeInSeconds * 1000);
     }
 

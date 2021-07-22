@@ -30,7 +30,7 @@ import * as Utils from './utils';
 import * as Layout from './layout';
 import { TokenSwap } from './token-swap';
 import { u64Number } from './u64n';
-import { IWalletAdapter } from './wallet-adapter';
+import { WalletAdapter } from './wallet-adapter';
 import { Constants, StreamInfo, StreamTermsInfo, TransactionFees, TransactionFeesParams, TreasuryInfo } from './types';
 import { Errors } from './errors';
 
@@ -673,7 +673,7 @@ export class MoneyStreaming {
     }
 
     public async signTransactions(
-        adapter: IWalletAdapter,
+        adapter: WalletAdapter,
         transactions: Transaction[],
         friendly: boolean = false
 
@@ -691,9 +691,8 @@ export class MoneyStreaming {
             let signedTxs: Array<Transaction> = new Array<Transaction>(),
                 signData: any | null = null;
 
-            if (friendly) {
-                let txsSignMessage = await Utils.buildTransactionsMessageData(this.connection, transactions);
-                signData = adapter.signMessage(txsSignMessage);
+            if (friendly && friendly === true) {
+                return this.signTransactionsWithMessage(adapter, transactions);
             }
 
             for (let tx of transactions) {
@@ -993,5 +992,26 @@ export class MoneyStreaming {
         return tx;
     }
 
+    private async signTransactionsWithMessage(
+        wallet: WalletAdapter,
+        transactions: Transaction[]
 
+    ): Promise<Transaction[]> {
+
+        let txs: Transaction[] = [],
+            msg = await Utils.buildTransactionsMessageData(this.connection, transactions),
+            data: any;
+
+        if ('signMessage' in wallet && typeof wallet.signMessage === 'function') {
+            let encodedMessage = new TextEncoder().encode(msg);
+            data = await wallet.signMessage(encodedMessage, 'utf-8');
+        }
+
+        for (let tx of transactions) {
+            tx.addSignature(data.publicKey as PublicKey, data.signature);
+            txs.push(tx);
+        }
+
+        return txs;
+    }
 }

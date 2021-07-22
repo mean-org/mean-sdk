@@ -8,29 +8,7 @@ export interface IWalletAdapter extends IWallet {
     disconnect: () => any;
     signTransaction: (tx: Transaction) => Promise<Transaction>;
     signAllTransactions: (txs: Transaction[]) => Promise<Transaction[]>;
-    signMessage: (msg: string) => Promise<{
-        signature: Buffer;
-        publicKey: PublicKey;
-    }>;
 }
-
-// const wallet = useMemo(
-//     function () {
-//         let adapter: any;
-//
-//         if (provider && provider.adapter) {
-//             adapter = new (provider.adapter) (providerUrl, endpoint);
-//         } else {
-//            adapter = new WalletAdapter(
-//                providerUrl,
-//                network
-//            );
-//         }
-
-//         return adapter;
-//     },
-//     [provider, providerUrl, endpoint]
-// );
 
 export class WalletAdapter extends Wallet implements IWalletAdapter {
 
@@ -42,15 +20,21 @@ export class WalletAdapter extends Wallet implements IWalletAdapter {
         return super.publicKey || PublicKey.default;
     }
 
-    public async signMessage(msg: string): Promise<{
+    public async signMessage(
+        data: Uint8Array,
+        display: unknown
+    ): Promise<{
         signature: Buffer;
         publicKey: PublicKey;
     }> {
 
-        const msgBuffer = new TextEncoder().encode(msg);
-        const result = super.sign(msgBuffer, 'utf-8');
+        let self = this;
 
-        return result;
-    }
+        if ('signMessage' in self && typeof self.signMessage === 'function') {
+            return self.signMessage(data, display);
+        }
+
+        return self.sign(data, display);
+    };
 
 }
