@@ -688,26 +688,11 @@ export class MoneyStreaming {
             let txText = transactions.length === 1 ? 'transaction' : 'transactions';
             console.log(`Sending ${txText} for wallet for approval`);
 
-            let signedTxs: Array<Transaction> = new Array<Transaction>(),
-                signData: any | null = null;
+            // if (friendly && friendly === true) {
+            //     return await this.signTransactionsWithMessage(adapter, transactions);
+            // }
 
-            if (friendly && friendly === true) {
-                return this.signTransactionsWithMessage(adapter, transactions);
-            }
-
-            for (let tx of transactions) {
-                let sTx = tx;
-
-                if (friendly && signData) {
-                    sTx.addSignature(signData.publicKey as PublicKey, signData.signature);
-                } else {
-                    sTx = await adapter.signTransaction(tx);
-                }
-
-                signedTxs.push(sTx);
-            }
-
-            return signedTxs;
+            return await adapter.signAllTransactions(transactions);
 
         } catch (error) {
             console.log("signTransaction failed!");
@@ -992,26 +977,26 @@ export class MoneyStreaming {
         return tx;
     }
 
-    private async signTransactionsWithMessage(
-        wallet: WalletAdapter,
-        transactions: Transaction[]
+    // private async signTransactionsWithMessage(
+    //     wallet: WalletAdapter,
+    //     transactions: Transaction[]
 
-    ): Promise<Transaction[]> {
+    // ): Promise<Transaction[]> {
 
-        let txs: Transaction[] = [],
-            msg = await Utils.buildTransactionsMessageData(this.connection, transactions),
-            data: any;
+    //     let txs: Transaction[] = [],
+    //         msg = await Utils.buildTransactionsMessageData(this.connection, transactions),
+    //         data: any;
 
-        if ('signMessage' in wallet && typeof wallet.signMessage === 'function') {
-            let encodedMessage = new TextEncoder().encode(msg);
-            data = await wallet.signMessage(encodedMessage, 'utf-8');
-        }
+    //     if ('signMessage' in wallet && typeof wallet.signMessage === 'function') {
+    //         let encodedMessage = new TextEncoder().encode(msg);
+    //         data = await wallet.signMessage(encodedMessage, 'utf-8');
+    //     }
 
-        for (let tx of transactions) {
-            tx.addSignature(data.publicKey as PublicKey, data.signature);
-            txs.push(tx);
-        }
+    //     for (let tx of transactions) {
+    //         tx.addSignature(data.publicKey as PublicKey, data.signature);
+    //         txs.push(tx);
+    //     }
 
-        return txs;
-    }
+    //     return txs;
+    // }
 }
