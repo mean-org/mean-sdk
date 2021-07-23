@@ -4,7 +4,7 @@ import base64 from "base64-js";
 /**
  * Solana
  */
-import { AccountInfo, MintInfo, AccountLayout, MintLayout, TOKEN_PROGRAM_ID, u64 } from '@solana/spl-token';
+import { Token, AccountInfo, MintInfo, AccountLayout, MintLayout, TOKEN_PROGRAM_ID, u64 } from '@solana/spl-token';
 import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
 import {
     Commitment,
@@ -14,7 +14,9 @@ import {
     PartiallyDecodedInstruction,
     PublicKey,
     Transaction,
-    LAMPORTS_PER_SOL
+    LAMPORTS_PER_SOL,
+    TransactionInstruction,
+    SystemProgram
 
 } from "@solana/web3.js";
 
@@ -22,12 +24,13 @@ import {
  * Serum
  */
 import { Swap } from "@project-serum/swap";
-import { Provider, utils, Wallet } from "@project-serum/anchor";
+import { Provider, Wallet } from "@project-serum/anchor";
 
 /**
  * MSP
  */
 import * as Layout from "./layout";
+import * as Instructions from './instructions';
 import { MEAN_TOKEN_LIST } from "./token-list";
 import { u64Number } from "./u64n";
 import {
@@ -36,9 +39,11 @@ import {
     StreamActivity,
     StreamInfo,
     StreamTermsInfo,
+    TransactionFees,
     TreasuryInfo
 
 } from './types';
+import { Account } from "@solana/web3.js";
 
 String.prototype.toPublicKey = function (): PublicKey {
     return new PublicKey(this.toString());
@@ -802,20 +807,59 @@ export const calculateWrapAmount = async (
     }
 }
 
-export const calculateTransactionFees = async (
+export const calculateActionFees = async (
+    connection: Connection,
     action: MSP_ACTIONS
 
-): Promise<[number, number]> => {
+): Promise<TransactionFees> => {
 
-    let result = [0, 0];
+    let txFees: TransactionFees = {
+        blockchainFee: 0.0,
+        mspFlatFee: 0.0,
+        mspPercentFee: 0.0
+    };
 
     switch (action) {
         case MSP_ACTIONS.createStream: {
-            result = [0.025, 0];
+            let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span) + 2 * AccountLayout.span;
+            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            txFees.mspFlatFee = 0.025;
             break;
         }
         case MSP_ACTIONS.createStreamWithFunds: {
-            result = [0.025, 0];
+            let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span + MintLayout.span) + 2 * AccountLayout.span;
+            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            txFees.mspPercentFee = 0.3;
+            break;
+        }
+        case MSP_ACTIONS.oneTimePayment: {
+            txFees.mspPercentFee = 0.3;
+            break;
+        }
+        case MSP_ACTIONS.scheduleOneTimePayment: {
+            let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span) + 2 * AccountLayout.span;
+            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            txFees.mspPercentFee = 0.3;
+            break;
+        }
+        case MSP_ACTIONS.addFunds: {
+            txFees.mspPercentFee = 0.3;
+            break;
+        }
+        case MSP_ACTIONS.withdraw: {
+            let maxAccountsSize = 2 * AccountLayout.span;
+            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            txFees.mspPercentFee = 0.3;
+            break;
+        }
+        case MSP_ACTIONS.closeStream: {
+            txFees.mspFlatFee = 0.025;
+            txFees.mspPercentFee = 0.3;
+            break;
+        }
+        case MSP_ACTIONS.wrapSol: {
+            let maxAccountsSize = 2 * AccountLayout.span;
+            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             break;
         }
         default: {
@@ -823,10 +867,84 @@ export const calculateTransactionFees = async (
         }
     }
 
-    return [
-        0,
-        0
-    ];
+    let recentBlockhash = await connection.getRecentBlockhash(connection.commitment as Commitment);
+    txFees.blockchainFee = (txFees.blockchainFee + recentBlockhash.feeCalculator.lamportsPerSignature) / LAMPORTS_PER_SOL;
+
+    return txFees;
+}
+
+export const wrapSol = async (
+    connection: Connection,
+    from: PublicKey,
+    amount: number
+
+): Promise<Transaction> => {
+
+    const ixs: TransactionInstruction[] = [];
+    const tokenKey = await findATokenAddress(from, Constants.WSOL_TOKEN_MINT_KEY);
+    const newAccount = new Account();
+    const minimumWrappedAccountBalance = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
+
+    ixs.push(
+        SystemProgram.transfer({
+            fromPubkey: from,
+            toPubkey: newAccount.publicKey,
+            lamports: (minimumWrappedAccountBalance * 2) + amount * LAMPORTS_PER_SOL
+        }),
+        SystemProgram.allocate({
+            accountPubkey: newAccount.publicKey,
+            space: AccountLayout.span
+        }),
+        SystemProgram.assign({
+            accountPubkey: newAccount.publicKey,
+            programId: TOKEN_PROGRAM_ID
+        }),
+        Token.createInitAccountInstruction(
+            TOKEN_PROGRAM_ID,
+            Constants.WSOL_TOKEN_MINT_KEY,
+            newAccount.publicKey,
+            from
+        )
+    );
+
+    const accountInfo = await connection.getAccountInfo(tokenKey);
+
+    if (accountInfo === null) {
+        ixs.push(
+            await Instructions.createATokenAccountInstruction(
+                tokenKey,
+                from,
+                from,
+                Constants.WSOL_TOKEN_MINT_KEY
+            ),
+        );
+    }
+
+    ixs.push(
+        Token.createTransferInstruction(
+            TOKEN_PROGRAM_ID,
+            newAccount.publicKey,
+            tokenKey,
+            from,
+            [newAccount],
+            (amount * LAMPORTS_PER_SOL)
+        ),
+        Token.createCloseAccountInstruction(
+            TOKEN_PROGRAM_ID,
+            newAccount.publicKey,
+            from,
+            from,
+            [newAccount]
+        )
+    )
+
+    let tx = new Transaction().add(...ixs);
+    tx.feePayer = from;
+    let hash = await connection.getRecentBlockhash(connection.commitment as Commitment);
+    tx.recentBlockhash = hash.blockhash;
+    tx.partialSign(newAccount);
+
+    return tx;
 }
 
 export const buildTransactionsMessageData = async (

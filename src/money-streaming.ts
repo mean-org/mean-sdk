@@ -31,7 +31,7 @@ import * as Layout from './layout';
 import { TokenSwap } from './token-swap';
 import { u64Number } from './u64n';
 import { WalletAdapter } from './wallet-adapter';
-import { Constants, StreamInfo, StreamTermsInfo, TransactionFees, TransactionFeesParams, TreasuryInfo } from './types';
+import { Constants, MSP_ACTIONS, StreamInfo, StreamTermsInfo, TransactionFees, TransactionFeesParams, TreasuryInfo } from './types';
 import { Errors } from './errors';
 
 /**
@@ -753,26 +753,6 @@ export class MoneyStreaming {
         }
     }
 
-    // public async calculateTransactionFees(feeParams: TransactionFeesParams): Promise<TransactionFees> {
-
-    //     let txsFees: TransactionFees = {
-    //         blockchainFee: 0,
-    //         mspFlatFee: 0,
-    //         mspPercentFee: 0
-    //     };
-
-    //     let recentBlockhash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-    //     let mspFees = Utils.calculateTransactionFees(feeParams.instruction);
-    //     txsFees.push({
-    //         blockchainFee: feeParams.signaturesAmount * recentBlockhash.feeCalculator.lamportsPerSignature,
-    //         mspFlatFee: flatFee,
-    //         mspPercentFee: percentFee
-
-    //     } as TransactionFees)
-
-    //     return txsFees;
-    // }
-
     private async swapTransaction(
         wallet: IWallet,
         fromMint: PublicKey,
@@ -983,27 +963,4 @@ export class MoneyStreaming {
 
         return tx;
     }
-
-    // private async signTransactionsWithMessage(
-    //     wallet: WalletAdapter,
-    //     transactions: Transaction[]
-
-    // ): Promise<Transaction[]> {
-
-    //     let txs: Transaction[] = [],
-    //         msg = await Utils.buildTransactionsMessageData(this.connection, transactions),
-    //         data: any;
-
-    //     if ('signMessage' in wallet && typeof wallet.signMessage === 'function') {
-    //         let encodedMessage = new TextEncoder().encode(msg);
-    //         data = await wallet.signMessage(encodedMessage, 'utf-8');
-    //     }
-
-    //     for (let tx of transactions) {
-    //         tx.addSignature(data.publicKey as PublicKey, data.signature);
-    //         txs.push(tx);
-    //     }
-
-    //     return txs;
-    // }
 }
