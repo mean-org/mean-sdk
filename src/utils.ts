@@ -137,6 +137,11 @@ const parseStreamData = (
     let lastTimeSnap = isStreaming === 1 ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
     let escrowVestedAmount = 0.0;
     let rateAmount = decodedData.rate_amount;
+
+    if (rateIntervalInSeconds === 0) {
+        rateIntervalInSeconds = 1;
+    }
+
     let rate = rateAmount && rateIntervalInSeconds ? (rateAmount / rateIntervalInSeconds * isStreaming) : 0;
 
     if (rateAmount === 0) {
