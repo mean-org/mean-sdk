@@ -20,7 +20,6 @@ import {
  */
 import { BN } from '@project-serum/anchor';
 import { NodeWallet, Wallet as IWallet } from '@project-serum/anchor/dist/provider';
-import { } from '@solana/web3.js';
 
 /**
  * MSP
@@ -31,7 +30,7 @@ import * as Layout from './layout';
 import { TokenSwap } from './token-swap';
 import { u64Number } from './u64n';
 import { WalletAdapter } from './wallet-adapter';
-import { Constants, MSP_ACTIONS, StreamInfo, StreamTermsInfo, TransactionFees, TransactionFeesParams, TreasuryInfo } from './types';
+import { Constants, StreamInfo, StreamTermsInfo, TreasuryInfo } from './types';
 import { Errors } from './errors';
 
 /**
@@ -206,6 +205,8 @@ export class MoneyStreaming {
                 );
             }
 
+            const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS_KEY, beneficiaryMint);
+
             if (amount && amount > 0) {
                 ixs.push(
                     await Instructions.transferInstruction(
@@ -214,6 +215,8 @@ export class MoneyStreaming {
                         treasurerTokenKey,
                         beneficiaryTokenKey,
                         beneficiaryMint,
+                        Constants.MSP_OPS_KEY,
+                        mspOpsTokenKey,
                         amount
                     )
                 );
@@ -441,6 +444,7 @@ export class MoneyStreaming {
                 treasuryKey,
                 treasuryTokenKey,
                 stream,
+                Constants.MSP_OPS_KEY,
                 mspOpsTokenKey,
                 withdrawal_amount
             )

@@ -175,6 +175,7 @@ export const withdrawInstruction = async (
     treasury: PublicKey,
     treasuryToken: PublicKey,
     stream: PublicKey,
+    mspOps: PublicKey,
     mspOpsToken: PublicKey,
     withdrawal_amount: number
 
@@ -187,6 +188,7 @@ export const withdrawInstruction = async (
         { pubkey: treasury, isSigner: false, isWritable: true },
         { pubkey: treasuryToken, isSigner: false, isWritable: true },
         { pubkey: stream, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: mspOpsToken, isSigner: false, isWritable: true },
         { pubkey: programId, isSigner: false, isWritable: false },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
@@ -451,6 +453,8 @@ export const transferInstruction = async (
     senderToken: PublicKey,
     recipientToken: PublicKey,
     mint: PublicKey,
+    mspOps: PublicKey,
+    mspOpsToken: PublicKey,
     amount: number,
 
 ): Promise<TransactionInstruction> => {
@@ -472,6 +476,8 @@ export const transferInstruction = async (
             { pubkey: senderToken, isSigner: false, isWritable: true },
             { pubkey: recipientToken, isSigner: false, isWritable: true },
             { pubkey: mint, isSigner: false, isWritable: true },
+            { pubkey: mspOps, isSigner: false, isWritable: false },
+            { pubkey: mspOpsToken, isSigner: false, isWritable: true },
             { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
         ],
         programId,
