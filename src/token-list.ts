@@ -8,7 +8,7 @@ export const getTokenDecimals = (address: string): number => {
     return 0;
 }
 
-export const MEAN_TOKEN_LIST: TokenInfo[] = [
+export const MEAN_TOKEN_LIST: Array<TokenInfo> = [
     {
         chainId: 101,
         address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',

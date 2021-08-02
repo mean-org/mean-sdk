@@ -2,9 +2,10 @@ import { Buffer } from 'buffer';
 import BN from 'bn.js';
 
 /**
- * 64-bit class
+ * u64Number
  */
 export class u64Number extends BN {
+
     /**
      * Convert to Buffer
      */
