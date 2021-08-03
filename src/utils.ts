@@ -818,22 +818,26 @@ export const calculateActionFees = async (
 
 ): Promise<TransactionFees> => {
 
-    let txFees: TransactionFees = {
-        blockchainFee: 0.0,
-        mspFlatFee: 0.0,
-        mspPercentFee: 0.0
-    };
+    let recentBlockhash = await connection.getRecentBlockhash(connection.commitment as Commitment),
+        lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature,
+        blockchainFee = 0,
+        txFees: TransactionFees = {
+            blockchainFee: 0.0,
+            mspFlatFee: 0.0,
+            mspPercentFee: 0.0
+        };
 
     switch (action) {
         case MSP_ACTIONS.createStream: {
             let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span) + 2 * AccountLayout.span;
-            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             txFees.mspFlatFee = 0.025;
             break;
         }
         case MSP_ACTIONS.createStreamWithFunds: {
             let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span + MintLayout.span) + 2 * AccountLayout.span;
-            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             txFees.mspPercentFee = 0.3;
             break;
         }
@@ -843,7 +847,7 @@ export const calculateActionFees = async (
         }
         case MSP_ACTIONS.scheduleOneTimePayment: {
             let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span) + 2 * AccountLayout.span;
-            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             txFees.mspPercentFee = 0.3;
             break;
         }
@@ -853,7 +857,7 @@ export const calculateActionFees = async (
         }
         case MSP_ACTIONS.withdraw: {
             let maxAccountsSize = 2 * AccountLayout.span;
-            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             txFees.mspPercentFee = 0.3;
             break;
         }
@@ -864,7 +868,7 @@ export const calculateActionFees = async (
         }
         case MSP_ACTIONS.wrapSol: {
             let maxAccountsSize = 2 * AccountLayout.span;
-            txFees.blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             break;
         }
         default: {
@@ -872,8 +876,7 @@ export const calculateActionFees = async (
         }
     }
 
-    let recentBlockhash = await connection.getRecentBlockhash(connection.commitment as Commitment);
-    txFees.blockchainFee = (txFees.blockchainFee + recentBlockhash.feeCalculator.lamportsPerSignature) / LAMPORTS_PER_SOL;
+    txFees.blockchainFee = (blockchainFee + lamportsPerSignatureFee) / LAMPORTS_PER_SOL;
 
     return txFees;
 }
@@ -931,7 +934,7 @@ export const wrapSol = async (
             newAccount.publicKey,
             tokenKey,
             from,
-            [newAccount],
+            [],
             (amount * LAMPORTS_PER_SOL)
         ),
         Token.createCloseAccountInstruction(
@@ -939,7 +942,7 @@ export const wrapSol = async (
             newAccount.publicKey,
             from,
             from,
-            [newAccount]
+            []
         )
     )
 
