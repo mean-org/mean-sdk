@@ -867,7 +867,8 @@ export const calculateActionFees = async (
             break;
         }
         case MSP_ACTIONS.wrapSol: {
-            let maxAccountsSize = 2 * AccountLayout.span;
+            let maxAccountsSize = 3 * AccountLayout.span;
+            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             break;
         }
