@@ -12,7 +12,8 @@ import {
     Transaction,
     Signer,
     TransactionInstruction,
-    Cluster
+    Cluster,
+    clusterApiUrl
 
 } from '@solana/web3.js';
 
@@ -55,7 +56,9 @@ export class MoneyStreaming {
         commitment: Commitment | string = 'finalized'
     ) {
         this.cluster = cluster;
-        this.connection = new Connection(cluster, commitment as Commitment);
+
+        let networkUrl = clusterApiUrl(this.cluster as Cluster);
+        this.connection = new Connection(networkUrl, commitment as Commitment);
 
         if (typeof programId === 'string') {
             this.programId = programId.toPublicKey();
