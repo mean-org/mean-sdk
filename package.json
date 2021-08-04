@@ -51,9 +51,6 @@
     "typescript": "^4.3.2"
   },
   "type": "commonjs",
-  "scripts": {
-    "start": "ts-node -r esm main.ts"
-  },
   "author": "",
   "license": "ISC",
   "engines": {
