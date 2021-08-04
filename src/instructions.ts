@@ -53,6 +53,7 @@ export const createStreamInstruction = async (
     beneficiary: PublicKey,
     beneficiaryMint: PublicKey,
     stream: PublicKey,
+    mspOps: PublicKey,
     streamName: String,
     rateAmount: number,
     rateIntervalInSeconds: number,
@@ -69,7 +70,7 @@ export const createStreamInstruction = async (
         { pubkey: treasury, isSigner: false, isWritable: true },
         { pubkey: beneficiaryMint, isSigner: false, isWritable: false },
         { pubkey: stream, isSigner: true, isWritable: true },
-        { pubkey: Constants.MSP_OPS_KEY, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: programId, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
@@ -215,14 +216,15 @@ export const withdrawInstruction = async (
 export const pauseStreamInstruction = async (
     programId: PublicKey,
     initializer: PublicKey,
-    stream: PublicKey
+    stream: PublicKey,
+    mspOps: PublicKey
 
 ): Promise<TransactionInstruction> => {
 
     const keys = [
         { pubkey: initializer, isSigner: true, isWritable: false },
         { pubkey: stream, isSigner: false, isWritable: true },
-        { pubkey: Constants.MSP_OPS_KEY, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ];
 
@@ -243,14 +245,15 @@ export const pauseStreamInstruction = async (
 export const resumeStreamInstruction = async (
     programId: PublicKey,
     initializer: PublicKey,
-    stream: PublicKey
+    stream: PublicKey,
+    mspOps: PublicKey
 
 ): Promise<TransactionInstruction> => {
 
     const keys = [
         { pubkey: initializer, isSigner: true, isWritable: false },
         { pubkey: stream, isSigner: false, isWritable: true },
-        { pubkey: Constants.MSP_OPS_KEY, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ];
 
@@ -317,6 +320,7 @@ export const proposeUpdateInstruction = async (
     streamTerms: PublicKey,
     initializer: PublicKey,
     counterparty: PublicKey,
+    mspOps: PublicKey,
     streamName?: string,
     associatedToken?: PublicKey,
     rateAmount?: number,
@@ -333,7 +337,7 @@ export const proposeUpdateInstruction = async (
         { pubkey: streamTerms, isSigner: false, isWritable: true },
         { pubkey: counterparty, isSigner: false, isWritable: false },
         { pubkey: streamInfo.id as PublicKey, isSigner: false, isWritable: true },
-        { pubkey: Constants.MSP_OPS_KEY, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
     ];
 
@@ -372,6 +376,7 @@ export const answerUpdateInstruction = async (
     streamTerms: StreamTermsInfo,
     initializer: PublicKey,
     counterparty: PublicKey,
+    mspOps: PublicKey,
     approve: true
 
 ): Promise<TransactionInstruction> => {
@@ -381,7 +386,7 @@ export const answerUpdateInstruction = async (
         { pubkey: streamTerms.id as PublicKey, isSigner: false, isWritable: true },
         { pubkey: counterparty, isSigner: false, isWritable: false },
         { pubkey: streamTerms.streamId as PublicKey, isSigner: false, isWritable: true },
-        { pubkey: Constants.MSP_OPS_KEY, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
     ];
 
@@ -410,6 +415,7 @@ export const createTreasuryInstruction = async (
     treasuryToken: PublicKey,
     treasuryTokenMint: PublicKey,
     treasuryMint: PublicKey,
+    mspOps: PublicKey,
     treasuryBlockHeight: number
 
 ): Promise<TransactionInstruction> => {
@@ -421,7 +427,7 @@ export const createTreasuryInstruction = async (
         { pubkey: treasuryTokenMint, isSigner: false, isWritable: true },
         { pubkey: treasuryMint, isSigner: false, isWritable: true },
         { pubkey: programId, isSigner: false, isWritable: false },
-        { pubkey: Constants.MSP_OPS_KEY, isSigner: false, isWritable: true },
+        { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: Constants.ASSOCIATED_TOKEN_PROGRAM_KEY, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },

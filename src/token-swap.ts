@@ -1,13 +1,13 @@
 import { Program, Provider, BN, Wallet } from '@project-serum/anchor';
 import { Market, OpenOrders } from '@project-serum/serum';
 import { TokenListProvider } from '@solana/spl-token-registry';
-import { Account, Commitment, Connection, PublicKey, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { Account, Cluster, Commitment, Connection, PublicKey, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { SwapParams } from "@project-serum/swap";
 import SwapMarkets from '@project-serum/swap/lib/swap-markets';
 import { getVaultOwnerAndNonce } from '@project-serum/swap/lib/utils';
 import { IDL } from '@project-serum/swap/lib/idl';
 import * as Utils from './utils';
-import { Constants } from './types';
+import { Constants, PublicKeys } from './types';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 type ExchangeRate = {
@@ -30,10 +30,12 @@ export class TokenSwap {
     private markets!: SwapMarkets;
     private program!: Program;
     private connection!: Connection;
+    private cluster!: Cluster | string;
 
     constructor(
         connection: Connection,
         wallet: Wallet,
+        cluster: Cluster | string,
         commitment: Commitment | string
     ) {
 
@@ -53,6 +55,7 @@ export class TokenSwap {
             self.program = new Program(IDL, self.serumDex, provider);
             self.markets = new SwapMarkets(provider, container);
             self.connection = connection;
+            self.cluster = cluster;
         });
     }
 
@@ -94,6 +97,9 @@ export class TokenSwap {
 
     ): Promise<[TransactionInstruction[], Account[]]> {
 
+        const usdcPublicKey = PublicKeys.USDC_TOKEN_MINT_KEY[this.cluster];
+        const usdtPublicKey = PublicKeys.USDT_TOKEN_MINT_KEY[this.cluster];
+
         let {
             fromMint,
             toMint,
@@ -120,8 +126,7 @@ export class TokenSwap {
             );
         }
 
-        if (fromMint.equals(Constants.USDC_TOKEN_MINT_KEY) ||
-            fromMint.equals(Constants.USDT_TOKEN_MINT_KEY)) {
+        if (fromMint.equals(usdcPublicKey) || fromMint.equals(usdtPublicKey)) {
 
             return await this.swapDirectInstructions({
                 coinWallet: toWallet,
@@ -133,8 +138,7 @@ export class TokenSwap {
                 minExchangeRate,
             });
 
-        } else if (toMint.equals(Constants.USDC_TOKEN_MINT_KEY) ||
-            toMint.equals(Constants.USDT_TOKEN_MINT_KEY)) {
+        } else if (toMint.equals(usdcPublicKey) || toMint.equals(usdtPublicKey)) {
 
             return await this.swapDirectInstructions({
                 coinWallet: fromWallet,
@@ -151,13 +155,13 @@ export class TokenSwap {
             if (this.markets.usdcPathExists(fromMint, toMint)) {
                 quoteWallet = await Utils.findATokenAddress(
                     this.program.provider.wallet.publicKey,
-                    Constants.USDC_TOKEN_MINT_KEY
+                    PublicKeys.USDC_TOKEN_MINT_KEY[this.cluster]
                 );
 
             } else {
                 quoteWallet = await Utils.findATokenAddress(
                     this.program.provider.wallet.publicKey,
-                    Constants.USDT_TOKEN_MINT_KEY
+                    PublicKeys.USDT_TOKEN_MINT_KEY[this.cluster]
                 );
             }
         }
@@ -312,18 +316,21 @@ export class TokenSwap {
 
     }): Promise<[TransactionInstruction[], Account[]]> {
 
+        const usdcPublicKey = PublicKeys.USDC_TOKEN_MINT_KEY[this.cluster];
+        const usdtPublicKey = PublicKeys.USDT_TOKEN_MINT_KEY[this.cluster];
+
         let fromMarket: PublicKey | null,
             toMarket: PublicKey | null;
 
         try {
 
-            fromMarket = this.markets.getMarketAddress(Constants.USDC_TOKEN_MINT_KEY, fromMint);
-            toMarket = this.markets.getMarketAddress(Constants.USDC_TOKEN_MINT_KEY, toMint);
+            fromMarket = this.markets.getMarketAddress(usdcPublicKey, fromMint);
+            toMarket = this.markets.getMarketAddress(usdtPublicKey, toMint);
 
         } catch (err) {
 
-            fromMarket = this.markets.getMarketAddress(Constants.USDT_TOKEN_MINT_KEY, fromMint);
-            toMarket = this.markets.getMarketAddress(Constants.USDT_TOKEN_MINT_KEY, toMint);
+            fromMarket = this.markets.getMarketAddress(usdcPublicKey, fromMint);
+            toMarket = this.markets.getMarketAddress(usdtPublicKey, toMint);
 
         }
 

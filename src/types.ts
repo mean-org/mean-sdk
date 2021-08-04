@@ -136,17 +136,47 @@ export type StreamInfo = {
     blockTime: number,
 }
 
+/**
+ * Constants
+ */
 export class Constants {
 
-    static MSP_PROGRAM_KEY = new PublicKey('9yMq7x4LstWYWi14pr8BEBsEX33L3HnugpiM2PT96x4k'); //'37z61WhJCAaDADwcpJRHgr66FUhHB9TfkS49Ssvp3Cdb';
-    static MSP_OPS_KEY = new PublicKey('BgxJuujLZDR27SS41kYZhsHkXx6CP2ELaVyg1qBxWYNU');
     static MEMO_PROGRAM_KEY = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
     static ASSOCIATED_TOKEN_PROGRAM_KEY = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
     static WSOL_TOKEN_MINT_KEY = new PublicKey('So11111111111111111111111111111111111111112');
-    static USDC_TOKEN_MINT_KEY = new PublicKey('AbQBt9V212HpPVk64YWAApFJrRzdAdu66fwF9neYucpU'); //'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-    static USDT_TOKEN_MINT_KEY = new PublicKey('42f2yFqXh8EDCRCiEBQSweWqpTzKGa9DC8e7UjUfFNrP'); //'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-    static ETH_TOKEN_MINT_KEY = new PublicKey('2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk');
     static SERUM_DEX_KEY = new PublicKey('9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin');
     static SERUM_SWAP_KEY = new PublicKey('22Y43yTVxuUkoRKdm9thyRhQ3SdgQS7c7kB6UNCiaczD');
-    static DEVNET_CLUSTER = 'https://api.devnet.solana.com';
+    static DEVNET_SLUG = 'devnet';
+    static TESTNET_SLUG = 'testnet';
+    static MAINNET_BETA_SLUG = 'mainnet-beta';
+}
+
+/**
+ * PublicKeys keypairs
+ */
+export class PublicKeys {
+
+    static MSP_PROGRAM_KEY: Record<string, PublicKey> = {
+        'devnet': new PublicKey('9yMq7x4LstWYWi14pr8BEBsEX33L3HnugpiM2PT96x4k'),
+        'testnet': new PublicKey('37z61WhJCAaDADwcpJRHgr66FUhHB9TfkS49Ssvp3Cdb'),
+        'mainnet-beta': new PublicKey('H6wJxgkcc93yeUFnsZHgor3Q3pSWgGpEysfqKrwLtMko')
+    };
+
+    static MSP_OPS_KEY: Record<string, PublicKey> = {
+        'devnet': new PublicKey('BgxJuujLZDR27SS41kYZhsHkXx6CP2ELaVyg1qBxWYNU'),
+        'testnet': new PublicKey('BgxJuujLZDR27SS41kYZhsHkXx6CP2ELaVyg1qBxWYNU'),
+        'mainnet-beta': new PublicKey('CLazQV1BhSrxfgRHko4sC8GYBU3DoHcX4xxRZd12Kohr')
+    };
+
+    static USDC_TOKEN_MINT_KEY: Record<string, PublicKey> = {
+        'devnet': new PublicKey('AbQBt9V212HpPVk64YWAApFJrRzdAdu66fwF9neYucpU'),
+        'testnet': new PublicKey('AbQBt9V212HpPVk64YWAApFJrRzdAdu66fwF9neYucpU'),
+        'mainnet-beta': new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')
+    };
+
+    static USDT_TOKEN_MINT_KEY: Record<string, PublicKey> = {
+        'devnet': new PublicKey('42f2yFqXh8EDCRCiEBQSweWqpTzKGa9DC8e7UjUfFNrP'),
+        'testnet': new PublicKey('42f2yFqXh8EDCRCiEBQSweWqpTzKGa9DC8e7UjUfFNrP'),
+        'mainnet-beta': new PublicKey('Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB')
+    };
 }
