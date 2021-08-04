@@ -842,11 +842,13 @@ export const calculateActionFees = async (
             break;
         }
         case MSP_ACTIONS.oneTimePayment: {
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
             txFees.mspPercentFee = 0.3;
             break;
         }
         case MSP_ACTIONS.scheduleOneTimePayment: {
             let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span) + 2 * AccountLayout.span;
+            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             txFees.mspPercentFee = 0.3;
             break;
