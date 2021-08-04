@@ -138,7 +138,7 @@ export type StreamInfo = {
 
 export class Constants {
 
-    static MSP_PROGRAM_KEY = new PublicKey('37z61WhJCAaDADwcpJRHgr66FUhHB9TfkS49Ssvp3Cdb');;
+    static MSP_PROGRAM_KEY = new PublicKey('H6wJxgkcc93yeUFnsZHgor3Q3pSWgGpEysfqKrwLtMko');;
     static MSP_OPS_KEY = new PublicKey('CLazQV1BhSrxfgRHko4sC8GYBU3DoHcX4xxRZd12Kohr');
     static MEMO_PROGRAM_KEY = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
     static ASSOCIATED_TOKEN_PROGRAM_KEY = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
