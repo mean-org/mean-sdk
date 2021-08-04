@@ -10,13 +10,14 @@ import {
     Commitment,
     Connection,
     Finality,
-    ParsedConfirmedTransaction,
+    // ParsedConfirmedTransaction,
     PartiallyDecodedInstruction,
     PublicKey,
     Transaction,
     LAMPORTS_PER_SOL,
     TransactionInstruction,
-    SystemProgram
+    SystemProgram,
+    ParsedConfirmedTransaction
 
 } from "@solana/web3.js";
 
