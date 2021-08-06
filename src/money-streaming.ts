@@ -528,16 +528,6 @@ export class MoneyStreaming {
             throw Error(`${Errors.AccountNotFound}: Stream address not found`);
         }
 
-        let counterparty: PublicKey;
-
-        if (initializer.toBase58() === streamInfo.treasurerAddress as string) {
-            counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
-            counterparty = new PublicKey(streamInfo.treasurerAddress as string);
-        } else {
-            throw Error(`${Errors.Unauthorized}: Address ${initializer.toBase58()} not authorized to close the stream`);
-        }
-
         const streamKey = streamInfo.id as PublicKey;
         const beneficiaryKey = new PublicKey(streamInfo.beneficiaryAddress as string);
         const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
@@ -553,7 +543,6 @@ export class MoneyStreaming {
             await Instructions.closeStreamInstruction(
                 this.programId,
                 initializer,
-                counterparty,
                 beneficiaryTokenKey,
                 beneficiaryMintKey,
                 treasuryKey,
