@@ -45,6 +45,7 @@ import {
 
 } from './types';
 import { Account } from "@solana/web3.js";
+import { _OPEN_ORDERS_LAYOUT_V2 } from "@project-serum/serum/lib/market";
 
 String.prototype.toPublicKey = function (): PublicKey {
     return new PublicKey(this.toString());
@@ -429,7 +430,7 @@ export async function listStreams(
     programId: PublicKey,
     treasurer?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
-    commitment?: any,
+    commitment?: Commitment | undefined,
     friendly: boolean = true
 
 ): Promise<StreamInfo[]> {
@@ -471,7 +472,7 @@ export async function listStreams(
 
                     let signatures = await connection.getConfirmedSignaturesForAddress2(
                         (friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey)),
-                        {}, commitment
+                        {}, 'finalized'
                     );
 
                     if (signatures.length > 0) {
@@ -501,11 +502,10 @@ export async function getStreamContributors(
 ): Promise<PublicKey[]> {
 
     let contributors: PublicKey[] = [];
-    let commitmentValue = commitment !== undefined ? commitment as Finality : 'confirmed';
-    let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, commitmentValue);
+    let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, 'finalized');
 
     for (let sign of signatures) {
-        let tx = await connection.getParsedConfirmedTransaction(sign.signature, commitmentValue);
+        let tx = await connection.getParsedConfirmedTransaction(sign.signature, 'finalized');
 
         if (tx !== null) {
             let lastIxIndex = tx.transaction.message.instructions.length - 1;
@@ -524,18 +524,16 @@ export async function listStreamActivity(
     connection: Connection,
     cluster: string | number,
     streamId: PublicKey,
-    commitment?: Commitment | string,
     friendly: boolean = true
 
 ): Promise<any[]> {
 
     let activity: any = [];
-    let commitmentValue = commitment !== undefined ? commitment as Finality : 'confirmed';
-    let signatures = await connection.getConfirmedSignaturesForAddress2(streamId, {}, commitmentValue);
+    let signatures = await connection.getConfirmedSignaturesForAddress2(streamId, {}, 'finalized');
     let tokenList = await getTokenList(cluster);
 
     for (let sign of signatures) {
-        let tx = await connection.getParsedConfirmedTransaction(sign.signature, commitmentValue);
+        let tx = await connection.getParsedConfirmedTransaction(sign.signature, 'finalized');
 
         if (tx !== null) {
             activity.push(Object.assign({}, parseActivityData(
@@ -869,9 +867,9 @@ export const calculateActionFees = async (
             txFees.mspPercentFee = 0.3;
             break;
         }
-        case MSP_ACTIONS.wrapSol: {
-            let maxAccountsSize = 3 * AccountLayout.span;
-            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
+        case MSP_ACTIONS.swapTokens: {
+            let maxAccountsSize = (2 * AccountLayout.span) + (2 * _OPEN_ORDERS_LAYOUT_V2.span) + 0.00002; // Serum swap fees
+            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 3;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
             break;
         }
@@ -977,91 +975,3 @@ export function encode(data: Buffer): string {
 export function decode(data: string): Buffer {
     return Buffer.from(base64.toByteArray(data));
 }
-
-// async function getMarketAddress(
-//     tokenList: TokenListContainer,
-//     usdxMint: PublicKey,
-//     baseMint: PublicKey
-
-// ): Promise<PublicKey> {
-
-//     const market = tokenList.filterByClusterSlug(Constants.DEVNET_CLUSTER)
-//         .getList()
-//         .filter((t) => {
-//             if (t.address !== baseMint?.toString()) {
-//                 return false;
-//             }
-//             if (usdxMint.equals(USDC_PUBKEY)) {
-//                 return t.extensions?.serumV3Usdc !== undefined;
-//             } else if (usdxMint.equals(USDT_PUBKEY)) {
-//                 return t.extensions?.serumV3Usdt !== undefined;
-//             } else {
-//                 return false;
-//             }
-//         })
-//         .map((t) => {
-//             if (usdxMint!.equals(USDC_PUBKEY)) {
-//                 return new PublicKey(t.extensions!.serumV3Usdc as string);
-//             } else {
-//                 return new PublicKey(t.extensions!.serumV3Usdt as string);
-//             }
-//         })[0];
-
-//     if (market === undefined) {
-//         return null;
-//     }
-
-//     return market;
-// }
-
-/*
-export async function swapTokens(
-    connection: Connection,
-    client: Swap,
-    fromWallet: PublicKey,
-    fromMint: PublicKey,
-    toWallet: PublicKey,
-    toMint: PublicKey,
-    amount: number
-
-): Promise<Array<TransactionSignature>> {
-
-    // const serumDexKey = Constants.SERUM_DEX_KEY.toPublicKey();
-    // const fromMarket = await Market.load(
-    //     connection,
-    //     fromMint,
-    //     { commitment: connection.commitment },
-    //     Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey()
-    // );
-
-    // const toMarket = await Market.load(
-    //     connection,
-    //     toMint,
-    //     { commitment: connection.commitment },
-    //     Constants.TOKEN_PROGRAM_ADDRESS.toPublicKey()
-    // );
-
-    // const fromMintAccount = await getMintAccount(connection, fromMint);
-    // const toMintAccount = await getMintAccount(connection, toMint);
-    const bn = toNative(amount, 9);
-    const minExpectedExRate = {
-        rate: bn.mul(new BN(99)).div(new BN(100)), // 0.1%
-        fromDecimals: 9,
-        quoteDecimals: 6,
-        strict: false
-    };
-
-    const txs = client.swap({
-        fromMint: fromMint,
-        toMint: toMint,
-        // fromWallet,
-        // toWallet,
-        // fromMarket,
-        // toMarket,
-        amount: bn,
-        minExchangeRate: minExpectedExRate
-    });
-
-    return txs;
-}
-*/

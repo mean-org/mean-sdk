@@ -274,7 +274,6 @@ export const resumeStreamInstruction = async (
 export const closeStreamInstruction = async (
     programId: PublicKey,
     initializer: PublicKey,
-    counterparty: PublicKey,
     beneficiaryToken: PublicKey,
     beneficiaryMint: PublicKey,
     treasury: PublicKey,
@@ -287,7 +286,6 @@ export const closeStreamInstruction = async (
 
     const keys = [
         { pubkey: initializer, isSigner: true, isWritable: false },
-        { pubkey: counterparty, isSigner: false, isWritable: false },
         { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
         { pubkey: beneficiaryMint, isSigner: false, isWritable: false },
         { pubkey: treasury, isSigner: false, isWritable: false },

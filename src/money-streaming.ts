@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import {
+ import {
     Commitment,
     Connection,
     ConnectionConfig,
@@ -20,8 +20,7 @@ import {
 /**
  * Serum
  */
-import { BN } from '@project-serum/anchor';
-import { NodeWallet, Wallet as IWallet } from '@project-serum/anchor/dist/provider';
+import { Wallet as IWallet } from '@project-serum/anchor/dist/provider';
 
 /**
  * MSP
@@ -29,7 +28,6 @@ import { NodeWallet, Wallet as IWallet } from '@project-serum/anchor/dist/provid
 import * as Instructions from './instructions';
 import * as Utils from './utils';
 import * as Layout from './layout';
-import { TokenSwap } from './token-swap';
 import { u64Number } from './u64n';
 import { WalletAdapter } from './wallet-adapter';
 import { PublicKeys, StreamInfo, StreamTermsInfo, TreasuryInfo } from './types';
@@ -101,7 +99,7 @@ export class MoneyStreaming {
     public async listStreams(
         treasurer?: PublicKey | undefined,
         beneficiary?: PublicKey | undefined,
-        commitment?: GetProgramAccountsConfig | Commitment | undefined,
+        commitment?: Commitment | undefined,
         friendly: boolean = true
 
     ): Promise<StreamInfo[]> {
@@ -127,7 +125,6 @@ export class MoneyStreaming {
             this.connection,
             this.cluster,
             id,
-            commitment,
             friendly
         );
     }
@@ -145,17 +142,6 @@ export class MoneyStreaming {
 
         let txs: Transaction[] = [];
         const treasurer = wallet.publicKey;
-
-        if (treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
-            txs.push(
-                await this.swapTransaction(
-                    wallet as IWallet,
-                    treasurerMint,
-                    beneficiaryMint,
-                    amount
-                )
-            );
-        }
 
         txs.push(
             await this.oneTimePaymentTransaction(
@@ -333,17 +319,6 @@ export class MoneyStreaming {
         let txs: Transaction[] = [];
         const treasurer = wallet.publicKey;
 
-        if (fundingAmount && fundingAmount > 0 && treasurerMint.toBase58() !== beneficiaryMint.toBase58()) {
-            txs.push(
-                await this.swapTransaction(
-                    wallet,
-                    treasurerMint,
-                    beneficiaryMint,
-                    fundingAmount
-                )
-            );
-        }
-
         txs.push(
             await this.createStreamTransaction(
                 treasurer,
@@ -384,18 +359,6 @@ export class MoneyStreaming {
         const contributorKey = wallet.publicKey;
         const contributorTokenKey = await Utils.findATokenAddress(contributorKey, contributorMint);
         const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
-
-        if (contributorMint.toBase58() !== beneficiaryMintKey.toBase58()) {
-            txs.push(
-                await this.swapTransaction(
-                    wallet,
-                    contributorMint,
-                    beneficiaryMintKey,
-                    amount
-                )
-            );
-        }
-
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
         const treasuryInfo = await Utils.getTreasury(this.programId, this.connection, treasuryKey);
 
@@ -528,16 +491,6 @@ export class MoneyStreaming {
             throw Error(`${Errors.AccountNotFound}: Stream address not found`);
         }
 
-        let counterparty: PublicKey;
-
-        if (initializer.toBase58() === streamInfo.treasurerAddress as string) {
-            counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress as string) {
-            counterparty = new PublicKey(streamInfo.treasurerAddress as string);
-        } else {
-            throw Error(`${Errors.Unauthorized}: Address ${initializer.toBase58()} not authorized to close the stream`);
-        }
-
         const streamKey = streamInfo.id as PublicKey;
         const beneficiaryKey = new PublicKey(streamInfo.beneficiaryAddress as string);
         const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
@@ -553,7 +506,6 @@ export class MoneyStreaming {
             await Instructions.closeStreamInstruction(
                 this.programId,
                 initializer,
-                counterparty,
                 beneficiaryTokenKey,
                 beneficiaryMintKey,
                 treasuryKey,
@@ -777,62 +729,6 @@ export class MoneyStreaming {
 
         } catch (error) {
             throw error;
-        }
-    }
-
-    private async swapTransaction(
-        wallet: IWallet,
-        fromMint: PublicKey,
-        toMint: PublicKey,
-        amount: number
-
-    ): Promise<Transaction> {
-
-        const fromMintAccountInfo = await Utils.getMintAccount(this.connection, fromMint);
-        const toMintAccountInfo = await Utils.getMintAccount(this.connection, toMint);
-        const tokenSwap = new TokenSwap(
-            this.connection,
-            wallet as NodeWallet,
-            this.cluster,
-            this.commitment as Commitment
-        );
-
-        if (fromMintAccountInfo === null) {
-            throw Error(Errors.AccountNotFound);
-        } else if (toMintAccountInfo === null) {
-            throw Error(Errors.AccountNotFound);
-        } else {
-            const estimatedAmount = await tokenSwap.estimate({
-                fromMint: fromMint,
-                toMint: toMint,
-                amount: new BN(amount),
-                minExchangeRate: {
-                    rate: new BN(amount).mul(new BN(99.5)).div(new BN(100)),
-                    fromDecimals: fromMintAccountInfo.decimals,
-                    quoteDecimals: toMintAccountInfo.decimals,
-                    strict: false
-                }
-            });
-
-            const minExchangeRate = {
-                rate: estimatedAmount.mul(new BN(99.5)).div(new BN(100)),
-                fromDecimals: fromMintAccountInfo.decimals,
-                quoteDecimals: toMintAccountInfo.decimals,
-                strict: false
-            };
-
-            let tx = await tokenSwap.swapTransaction({
-                fromMint: fromMint,
-                toMint: toMint,
-                amount: new BN(amount),
-                minExchangeRate: minExchangeRate
-            });
-
-            tx.feePayer = wallet.publicKey;
-            let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment);
-            tx.recentBlockhash = hash.blockhash;
-
-            return tx;
         }
     }
 
