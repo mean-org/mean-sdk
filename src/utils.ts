@@ -612,32 +612,6 @@ export async function getTreasuryMints(
     return mints;
 }
 
-export async function createMSPAddress(
-    connection: Connection,
-    programId: PublicKey,
-    from: PublicKey
-
-): Promise<[PublicKey, string, number]> {
-
-    const slot = await connection.getSlot();
-    const blockTime = await connection.getBlockTime(slot) as number;
-    // const seed = blockTime.toString();
-    // const seeds = [Buffer.from(seed)];
-    // const seed = slot.toString();
-
-    // let seed = from.toBase58() + slot.toString();
-    // const seeds = [
-    //     from.toBuffer(),
-    //     Buffer.from(seed)
-    // ];
-
-    // const nounce = (await PublicKey.findProgramAddress(seeds, programId))[1];
-    const key = await PublicKey.createWithSeed(from, blockTime.toString(), programId);
-
-    // return [key, seed, nounce];
-    return [key, blockTime.toString(), slot];
-}
-
 export async function findATokenAddress(
     walletAddress: PublicKey,
     tokenMintAddress: PublicKey
@@ -770,47 +744,6 @@ export async function getTokenList(
     return MEAN_TOKEN_LIST.filter((t) => t.chainId === chainId);
 }
 
-export async function swapClient(
-    connection: Connection,
-    // cluster: string,
-    wallet: Wallet,
-    commitment: Commitment | string
-
-): Promise<Swap> {
-
-    let preflightCommitment = typeof commitment === 'string' ? commitment : 'finalized';
-    let provider = new Provider(
-        connection,
-        wallet,
-        {
-            commitment: preflightCommitment as Commitment,
-            preflightCommitment: preflightCommitment as Commitment
-        }
-    );
-
-    // let tokenList = getTokenList(cluster);
-    let tokenListContainer = await new TokenListProvider().resolve();
-    let tokenList = tokenListContainer.filterByChainId(101).getList();
-    let container = new TokenListContainer(tokenList);
-
-    return new Swap(provider, container);
-}
-
-export const calculateWrapAmount = async (
-    tokenInfo: AccountInfo,
-    amount: number
-
-): Promise<number> => {
-
-    const wrappedAmount = tokenInfo.amount.toNumber() / LAMPORTS_PER_SOL;
-
-    if (wrappedAmount < amount) {
-        return amount - wrappedAmount;
-    } else {
-        return 0;
-    }
-}
-
 export const calculateActionFees = async (
     connection: Connection,
     action: MSP_ACTIONS
@@ -871,6 +804,7 @@ export const calculateActionFees = async (
             let maxAccountsSize = (2 * AccountLayout.span) + (2 * _OPEN_ORDERS_LAYOUT_V2.span) + 0.00002; // Serum swap fees
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 3;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(maxAccountsSize);
+            txFees.mspPercentFee = 0.3;
             break;
         }
         default: {
