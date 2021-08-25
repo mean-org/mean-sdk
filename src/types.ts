@@ -25,7 +25,7 @@ export enum MSP_ACTIONS {
     answerUpdate = 10,
     createTreasury = 11,
     closeStream = 12,
-    wrapSol = 13
+    swapTokens = 13
 }
 
 /**
