@@ -5,7 +5,6 @@
     Commitment,
     Connection,
     ConnectionConfig,
-    GetProgramAccountsConfig,
     Keypair,
     PublicKey,
     SystemProgram,
@@ -51,7 +50,7 @@ export class MoneyStreaming {
     constructor(
         cluster: Cluster | string,
         programId: PublicKey | string,
-        commitment: Commitment | string = 'finalized'
+        commitment: Commitment | string = 'confirmed'
     ) {
         this.cluster = cluster;
 
