@@ -13,10 +13,12 @@
         "allowSyntheticDefaultImports": true,
         "module": "commonjs",
         "strict": true,
+        "sourceMap": false,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
-    "display": "Recommended"
+    "display": "Recommended",
+    "exclude": ["main.ts", "main-utils.ts"]
 }
