@@ -5,12 +5,11 @@ import base64 from "base64-js";
  * Solana
  */
 import { Token, AccountInfo, MintInfo, AccountLayout, MintLayout, TOKEN_PROGRAM_ID, u64 } from '@solana/spl-token';
-import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
+import { TokenInfo } from "@solana/spl-token-registry";
 import {
     Commitment,
     Connection,
     Finality,
-    // ParsedConfirmedTransaction,
     PartiallyDecodedInstruction,
     PublicKey,
     Transaction,
@@ -22,20 +21,14 @@ import {
 } from "@solana/web3.js";
 
 /**
- * Serum
- */
-import { Swap } from "@project-serum/swap";
-import { Provider, Wallet } from "@project-serum/anchor";
-
-/**
  * MSP
  */
 import * as Layout from "./layout";
 import * as Instructions from './instructions';
+import { Constants } from "./constants";
 import { MEAN_TOKEN_LIST } from "./token-list";
 import { u64Number } from "./u64n";
 import {
-    Constants,
     MSP_ACTIONS,
     StreamActivity,
     StreamInfo,
@@ -44,6 +37,7 @@ import {
     TreasuryInfo
 
 } from './types';
+
 import { Account } from "@solana/web3.js";
 import { _OPEN_ORDERS_LAYOUT_V2 } from "@project-serum/serum/lib/market";
 
@@ -625,7 +619,7 @@ export async function findATokenAddress(
                 TOKEN_PROGRAM_ID.toBuffer(),
                 tokenMintAddress.toBuffer(),
             ],
-            Constants.ASSOCIATED_TOKEN_PROGRAM_KEY
+            Constants.ASSOCIATED_TOKEN_PROGRAM
         )
     )[0];
 }
@@ -833,7 +827,7 @@ export const wrapSol = async (
 ): Promise<Transaction> => {
 
     const ixs: TransactionInstruction[] = [];
-    const tokenKey = await findATokenAddress(from, Constants.WSOL_TOKEN_MINT_KEY);
+    const tokenKey = await findATokenAddress(from, Constants.WSOL_TOKEN_MINT);
     const newAccount = new Account();
     const minimumWrappedAccountBalance = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
 
@@ -853,7 +847,7 @@ export const wrapSol = async (
         }),
         Token.createInitAccountInstruction(
             TOKEN_PROGRAM_ID,
-            Constants.WSOL_TOKEN_MINT_KEY,
+            Constants.WSOL_TOKEN_MINT,
             newAccount.publicKey,
             from
         )
@@ -867,7 +861,7 @@ export const wrapSol = async (
                 tokenKey,
                 from,
                 from,
-                Constants.WSOL_TOKEN_MINT_KEY
+                Constants.WSOL_TOKEN_MINT
             ),
         );
     }

@@ -15,7 +15,7 @@ import {
  */
 import * as Utils from "./utils";
 import * as Layout from "./layout";
-import { Constants } from "./types";
+import { Constants } from "./constants";
 import { u64Number } from "./u64n";
 import { Buffer } from 'buffer';
 import {
@@ -42,7 +42,7 @@ export const createATokenAccountInstruction = async (
             { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
             { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
-        programId: Constants.ASSOCIATED_TOKEN_PROGRAM_KEY,
+        programId: Constants.ASSOCIATED_TOKEN_PROGRAM,
     });
 }
 
@@ -141,7 +141,7 @@ export const addFundsInstruction = async (
         { pubkey: mspOpsToken, isSigner: false, isWritable: true },
         { pubkey: programId, isSigner: false, isWritable: false },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: Constants.ASSOCIATED_TOKEN_PROGRAM_KEY, isSigner: false, isWritable: false },
+        { pubkey: Constants.ASSOCIATED_TOKEN_PROGRAM, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
     ];
@@ -427,7 +427,7 @@ export const createTreasuryInstruction = async (
         { pubkey: programId, isSigner: false, isWritable: false },
         { pubkey: mspOps, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: Constants.ASSOCIATED_TOKEN_PROGRAM_KEY, isSigner: false, isWritable: false },
+        { pubkey: Constants.ASSOCIATED_TOKEN_PROGRAM, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
     ];
