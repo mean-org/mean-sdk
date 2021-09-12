@@ -5,12 +5,12 @@ import base64 from "base64-js";
  * Solana
  */
 import { Token, AccountInfo, MintInfo, AccountLayout, MintLayout, TOKEN_PROGRAM_ID, u64 } from '@solana/spl-token';
-import { TokenInfo, TokenListContainer, TokenListProvider } from "@solana/spl-token-registry";
+import { TokenInfo } from "@solana/spl-token-registry";
 import {
     Commitment,
     Connection,
     Finality,
-    // ParsedConfirmedTransaction,
+    Account,
     PartiallyDecodedInstruction,
     PublicKey,
     Transaction,
@@ -22,16 +22,9 @@ import {
 } from "@solana/web3.js";
 
 /**
- * Serum
- */
-import { Swap } from "@project-serum/swap";
-import { Provider, Wallet } from "@project-serum/anchor";
-
-/**
  * MSP
  */
 import * as Layout from "./layout";
-import * as Instructions from './instructions';
 import { MEAN_TOKEN_LIST } from "./token-list";
 import { u64Number } from "./u64n";
 import {
@@ -44,8 +37,6 @@ import {
     TreasuryInfo
 
 } from './types';
-import { Account } from "@solana/web3.js";
-import { _OPEN_ORDERS_LAYOUT_V2 } from "@project-serum/serum/lib/market";
 
 String.prototype.toPublicKey = function (): PublicKey {
     return new PublicKey(this.toString());
@@ -762,27 +753,27 @@ export const calculateActionFees = async (
     switch (action) {
         case MSP_ACTIONS.createStream: {
             let maxAccountsSize = 2 * AccountLayout.span + (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span);
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspFlatFee = 0.000010;
             break;
         }
         case MSP_ACTIONS.createStreamWithFunds: {
             let maxAccountsSize = 2 * AccountLayout.span + (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span + MintLayout.span);
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspFlatFee = 0.000010;
             txFees.mspPercentFee = 0.3;
             break;
         }
         case MSP_ACTIONS.oneTimePayment: {
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(AccountLayout.span.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(AccountLayout.span.toFixed(9)));
             txFees.mspPercentFee = 0.3;
             break;
         }
         case MSP_ACTIONS.scheduleOneTimePayment: {
             let maxAccountsSize = (Layout.createStreamLayout.span + Layout.createTreasuryLayout.span) + 2 * AccountLayout.span;
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspPercentFee = 0.3;
             break;
         }
@@ -792,7 +783,7 @@ export const calculateActionFees = async (
         }
         case MSP_ACTIONS.withdraw: {
             let maxAccountsSize = 2 * AccountLayout.span;
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspPercentFee = 0.05;
             break;
         }
@@ -802,16 +793,16 @@ export const calculateActionFees = async (
             break;
         }
         case MSP_ACTIONS.wrap: {
-            let maxAccountsSize = (2 * AccountLayout.span);
+            let maxAccountsSize = (3 * AccountLayout.span);
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 3;
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspPercentFee = 0.05;
             break;
         }
         case MSP_ACTIONS.swap: {
-            let maxAccountsSize = (3 * AccountLayout.span) + (2 * _OPEN_ORDERS_LAYOUT_V2.span);
+            let maxAccountsSize = (3 * AccountLayout.span);
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 3;
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed()));
+            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspPercentFee = 0.05;
             break;
         }
@@ -833,25 +824,18 @@ export const wrapSol = async (
 ): Promise<Transaction> => {
 
     const ixs: TransactionInstruction[] = [];
-    const tokenKey = await findATokenAddress(from, Constants.WSOL_TOKEN_MINT_KEY);
     const newAccount = new Account();
     const minimumWrappedAccountBalance = await connection.getMinimumBalanceForRentExemption(AccountLayout.span);
-
+    
     ixs.push(
-        SystemProgram.transfer({
+        SystemProgram.createAccount({
             fromPubkey: from,
-            toPubkey: newAccount.publicKey,
-            lamports: (minimumWrappedAccountBalance * 2) + amount * LAMPORTS_PER_SOL
+            newAccountPubkey: newAccount.publicKey,
+            lamports: minimumWrappedAccountBalance + amount * LAMPORTS_PER_SOL,
+            space: AccountLayout.span,
+            programId: TOKEN_PROGRAM_ID,
         }),
-        SystemProgram.allocate({
-            accountPubkey: newAccount.publicKey,
-            space: AccountLayout.span
-        }),
-        SystemProgram.assign({
-            accountPubkey: newAccount.publicKey,
-            programId: TOKEN_PROGRAM_ID
-        }),
-        Token.createInitAccountInstruction(
+            Token.createInitAccountInstruction(
             TOKEN_PROGRAM_ID,
             Constants.WSOL_TOKEN_MINT_KEY,
             newAccount.publicKey,
@@ -859,16 +843,26 @@ export const wrapSol = async (
         )
     );
 
-    const accountInfo = await connection.getAccountInfo(tokenKey);
+    const aTokenKey = await Token.getAssociatedTokenAddress(
+        Constants.ASSOCIATED_TOKEN_PROGRAM_KEY,
+        TOKEN_PROGRAM_ID,
+        Constants.WSOL_TOKEN_MINT_KEY,
+        from,
+        true
+    );
+
+    const accountInfo = await connection.getAccountInfo(aTokenKey);
 
     if (accountInfo === null) {
         ixs.push(
-            await Instructions.createATokenAccountInstruction(
-                tokenKey,
+            Token.createAssociatedTokenAccountInstruction(
+                Constants.ASSOCIATED_TOKEN_PROGRAM_KEY,
+                TOKEN_PROGRAM_ID,
+                Constants.WSOL_TOKEN_MINT_KEY,
+                aTokenKey,
                 from,
-                from,
-                Constants.WSOL_TOKEN_MINT_KEY
-            ),
+                from
+            )
         );
     }
 
@@ -876,7 +870,7 @@ export const wrapSol = async (
         Token.createTransferInstruction(
             TOKEN_PROGRAM_ID,
             newAccount.publicKey,
-            tokenKey,
+            aTokenKey,
             from,
             [],
             (amount * LAMPORTS_PER_SOL)
