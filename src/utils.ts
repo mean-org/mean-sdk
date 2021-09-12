@@ -10,14 +10,14 @@ import {
     Commitment,
     Connection,
     Finality,
-    Account,
     PartiallyDecodedInstruction,
     PublicKey,
     Transaction,
     LAMPORTS_PER_SOL,
     TransactionInstruction,
     SystemProgram,
-    ParsedConfirmedTransaction
+    ParsedConfirmedTransaction,
+    Account
 
 } from "@solana/web3.js";
 
@@ -25,10 +25,10 @@ import {
  * MSP
  */
 import * as Layout from "./layout";
+import { Constants } from "./constants";
 import { MEAN_TOKEN_LIST } from "./token-list";
 import { u64Number } from "./u64n";
 import {
-    Constants,
     MSP_ACTIONS,
     StreamActivity,
     StreamInfo,
@@ -616,7 +616,7 @@ export async function findATokenAddress(
                 TOKEN_PROGRAM_ID.toBuffer(),
                 tokenMintAddress.toBuffer(),
             ],
-            Constants.ASSOCIATED_TOKEN_PROGRAM_KEY
+            Constants.ASSOCIATED_TOKEN_PROGRAM
         )
     )[0];
 }
@@ -837,16 +837,16 @@ export const wrapSol = async (
         }),
             Token.createInitAccountInstruction(
             TOKEN_PROGRAM_ID,
-            Constants.WSOL_TOKEN_MINT_KEY,
+            Constants.WSOL_TOKEN_MINT,
             newAccount.publicKey,
             from
         )
     );
 
     const aTokenKey = await Token.getAssociatedTokenAddress(
-        Constants.ASSOCIATED_TOKEN_PROGRAM_KEY,
+        Constants.ASSOCIATED_TOKEN_PROGRAM,
         TOKEN_PROGRAM_ID,
-        Constants.WSOL_TOKEN_MINT_KEY,
+        Constants.WSOL_TOKEN_MINT,
         from,
         true
     );
@@ -856,9 +856,9 @@ export const wrapSol = async (
     if (accountInfo === null) {
         ixs.push(
             Token.createAssociatedTokenAccountInstruction(
-                Constants.ASSOCIATED_TOKEN_PROGRAM_KEY,
+                Constants.ASSOCIATED_TOKEN_PROGRAM,
                 TOKEN_PROGRAM_ID,
-                Constants.WSOL_TOKEN_MINT_KEY,
+                Constants.WSOL_TOKEN_MINT,
                 aTokenKey,
                 from,
                 from
