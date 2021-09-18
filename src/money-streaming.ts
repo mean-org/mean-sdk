@@ -17,11 +17,6 @@
 } from '@solana/web3.js';
 
 /**
- * Serum
- */
-import { Wallet as IWallet } from '@project-serum/anchor/dist/provider';
-
-/**
  * MSP
  */
 import * as Instructions from './instructions';
@@ -205,15 +200,15 @@ export class MoneyStreaming {
     ): Promise<Transaction[]> {
 
         let txs: Transaction[] = [];
-        let streamInfo = await Utils.getStream(this.connection, stream, this.commitment, false);
+        let streamInfo = await Utils.getStream(this.connection, stream, this.commitment);
 
         if (streamInfo === null) {
             throw Error(Errors.AccountNotFound);
         }
 
         const contributorTokenKey = await Utils.findATokenAddress(contributor, contributorMint);
-        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
-        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
+        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
+        const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
         const treasuryInfo = await Utils.getTreasury(this.programId, this.connection, treasuryKey);
 
         if (!treasuryInfo) {
@@ -255,8 +250,21 @@ export class MoneyStreaming {
         }
 
         // Check for the beneficiary associated token account
-        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as PublicKey);
+        const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
         const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiary, beneficiaryMintKey);
+        const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenKey);
+
+        if (!beneficiaryTokenAccountInfo) {
+            ixs.push(
+                await Instructions.createATokenAccountInstruction(
+                    beneficiaryTokenKey,
+                    beneficiary,
+                    beneficiaryTokenKey,
+                    beneficiaryMintKey
+                )
+            );
+        }
+
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
         const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, beneficiaryMintKey);
@@ -334,22 +342,36 @@ export class MoneyStreaming {
 
     ): Promise<Transaction> {
 
+        let tx = new Transaction();
         let streamInfo = await Utils.getStream(this.connection, stream, this.commitment);
 
         if (!streamInfo) {
             throw Error(`${Errors.AccountNotFound}: Stream address not found`);
         }
 
-        const streamKey = streamInfo.id as PublicKey;
+        const streamKey = new PublicKey(streamInfo.id as string);
         const beneficiaryKey = new PublicKey(streamInfo.beneficiaryAddress as string);
         const beneficiaryMintKey = new PublicKey(streamInfo.associatedToken as string);
         const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiaryKey, beneficiaryMintKey);
+        const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenKey);
+
+        if (!beneficiaryTokenAccountInfo) {
+            tx.add(
+                await Instructions.createATokenAccountInstruction(
+                    beneficiaryTokenKey,
+                    initializer,
+                    beneficiaryKey,
+                    beneficiaryMintKey
+                )
+            );
+        }
+
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
         // Get the money streaming program operations token account or create a new one
         const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, beneficiaryMintKey);
 
-        let tx = new Transaction().add(
+        tx.add(
             // Close stream
             await Instructions.closeStreamInstruction(
                 this.programId,

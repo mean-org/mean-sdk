@@ -144,7 +144,7 @@ const parseStreamData = (
 
     const elapsedTime = currentBlockTime - lastTimeSnap;
     const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
-    const associatedToken = (friendly ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
+    const associatedToken = (friendly === true ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
 
     if (currentBlockTime >= lastTimeSnap) {
         escrowVestedAmount = decodedData.escrow_vested_amount_snap + rate * elapsedTime;
@@ -168,7 +168,7 @@ const parseStreamData = (
             return elem !== 0;
         });
 
-    const id = friendly !== undefined ? streamId.toBase58() : streamId;
+    const id = friendly === true ? streamId.toBase58() : streamId;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
@@ -321,12 +321,12 @@ const parseTreasuryData = (
     let treasuryInfo: TreasuryInfo = defaultTreasuryInfo;
     let decodedData = Layout.treasuryLayout.decode(treasuryData);
 
-    const treasuryId = friendly !== undefined ? id.toBase58() : id;
+    const treasuryId = friendly === true ? id.toBase58() : id;
     const treasuryBlockHeight = parseFloat(u64Number.fromBuffer(decodedData.treasury_block_height).toString());
     const treasuryMint = new PublicKey(decodedData.treasury_mint_address);
-    const treasuryMintAddress = (friendly ? treasuryMint.toBase58() : treasuryMint);
+    const treasuryMintAddress = (friendly === true ? treasuryMint.toBase58() : treasuryMint);
     const treasuryFrom = new PublicKey(decodedData.treasury_base_address);
-    const treasuryFromAddress = (friendly ? treasuryFrom.toBase58() : treasuryFrom);
+    const treasuryFromAddress = (friendly === true ? treasuryFrom.toBase58() : treasuryFrom);
 
     Object.assign(treasuryInfo, { id: treasuryId }, {
         initialized: decodedData.initialized ? true : false,
