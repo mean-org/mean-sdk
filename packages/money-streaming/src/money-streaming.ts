@@ -366,6 +366,8 @@ export class MoneyStreaming {
             );
         }
 
+        const treasurerKey = new PublicKey(streamInfo.treasuryAddress as string);
+        const treasurerTokenKey = await Utils.findATokenAddress(treasurerKey, beneficiaryMintKey);
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
         // Get the money streaming program operations token account or create a new one
@@ -376,6 +378,7 @@ export class MoneyStreaming {
             await Instructions.closeStreamInstruction(
                 this.programId,
                 initializer,
+                treasurerTokenKey,
                 beneficiaryTokenKey,
                 beneficiaryMintKey,
                 treasuryKey,
