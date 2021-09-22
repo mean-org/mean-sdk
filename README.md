@@ -1,2 +1,2 @@
-# mean-sdk
-Typescript SDKs of Mean DAO
+# Mean SKD
+Typescript SDKs for the Mean Protocol
