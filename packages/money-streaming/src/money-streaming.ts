@@ -37,6 +37,9 @@ export class MoneyStreaming {
     private cluster: Cluster | string;
     private programId: PublicKey;
     private commitment: Commitment | ConnectionConfig | undefined;
+    private mspOps: PublicKey;
+    private mspOpsAddress: PublicKey = new PublicKey('CLazQV1BhSrxfgRHko4sC8GYBU3DoHcX4xxRZd12Kohr');
+    private mspOpsDevAddress: PublicKey = new PublicKey('BgxJuujLZDR27SS41kYZhsHkXx6CP2ELaVyg1qBxWYNU');
 
     /**
      * Create a Streaming API object
@@ -58,6 +61,8 @@ export class MoneyStreaming {
         } else {
             this.programId = programId;
         }
+
+        this.mspOps = this.cluster === 'mainnet-beta' ? this.mspOpsAddress: this.mspOpsDevAddress;
     }
 
     public async getStream(
@@ -267,7 +272,7 @@ export class MoneyStreaming {
 
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
-        const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, beneficiaryMintKey);
+        const mspOpsTokenKey = await Utils.findATokenAddress(this.mspOps, beneficiaryMintKey);
 
         ixs.push(
             await Instructions.withdrawInstruction(
@@ -278,7 +283,7 @@ export class MoneyStreaming {
                 treasuryKey,
                 treasuryTokenKey,
                 stream,
-                Constants.MSP_OPS,
+                this.mspOps,
                 mspOpsTokenKey,
                 withdrawal_amount
             )
@@ -303,7 +308,7 @@ export class MoneyStreaming {
                 this.programId,
                 initializer,
                 stream,
-                Constants.MSP_OPS
+                this.mspOps
             )
         );
 
@@ -325,7 +330,7 @@ export class MoneyStreaming {
                 this.programId,
                 initializer,
                 stream,
-                Constants.MSP_OPS
+                this.mspOps
             )
         );
 
@@ -371,7 +376,7 @@ export class MoneyStreaming {
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
         // Get the money streaming program operations token account or create a new one
-        const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, beneficiaryMintKey);
+        const mspOpsTokenKey = await Utils.findATokenAddress(this.mspOps, beneficiaryMintKey);
 
         tx.add(
             // Close stream
@@ -384,7 +389,7 @@ export class MoneyStreaming {
                 treasuryKey,
                 treasuryTokenKey,
                 streamKey,
-                Constants.MSP_OPS,
+                this.mspOps,
                 mspOpsTokenKey
             )
         );
@@ -451,7 +456,7 @@ export class MoneyStreaming {
                 streamTermsAccount.publicKey,
                 initializer,
                 counterparty as PublicKey,
-                Constants.MSP_OPS,
+                this.mspOps,
                 streamName,
                 associatedToken,
                 rateAmount,
@@ -510,7 +515,7 @@ export class MoneyStreaming {
                 streamTerms as StreamTermsInfo,
                 initializer,
                 counterparty as PublicKey,
-                Constants.MSP_OPS,
+                this.mspOps,
                 approve
             )
         );
@@ -625,7 +630,7 @@ export class MoneyStreaming {
             throw Error(Errors.AccountNotFound);
         }
 
-        const mspOpsKey = Constants.MSP_OPS;
+        const mspOpsKey = this.mspOps;
 
         if (start <= now) {
             // Just create the beneficiary token account and transfer since the payment is not scheduled
@@ -709,7 +714,7 @@ export class MoneyStreaming {
 
             if (amount && amount > 0) {
                 // Get the money streaming program operations token account or create a new one
-                const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, beneficiaryMint);
+                const mspOpsTokenKey = await Utils.findATokenAddress(this.mspOps, beneficiaryMint);
 
                 ixs.push(
                     await Instructions.addFundsInstruction(
@@ -722,7 +727,7 @@ export class MoneyStreaming {
                         treasuryTokenKey,
                         PublicKey.default,
                         streamAccount.publicKey,
-                        Constants.MSP_OPS,
+                        this.mspOps,
                         mspOpsTokenKey,
                         amount,
                         true
@@ -783,7 +788,7 @@ export class MoneyStreaming {
                     treasuryToken,
                     beneficiaryMint,
                     treasuryMint,
-                    Constants.MSP_OPS,
+                    this.mspOps,
                     blockHeight
                 )
             );
@@ -802,7 +807,7 @@ export class MoneyStreaming {
                 beneficiary,
                 beneficiaryMint,
                 streamAccount.publicKey,
-                Constants.MSP_OPS,
+                this.mspOps,
                 streamName || "",
                 rateAmount || 0.0,
                 rateIntervalInSeconds || 0,
@@ -819,7 +824,7 @@ export class MoneyStreaming {
             const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
             const treasurerTreasuryTokenKey = await Utils.findATokenAddress(treasurer, treasuryMint);
             // Get the money streaming program operations token account
-            const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, beneficiaryMint);
+            const mspOpsTokenKey = await Utils.findATokenAddress(this.mspOps, beneficiaryMint);
 
             if (treasuryToken === PublicKey.default) {
                 treasuryToken = await Utils.findATokenAddress(treasury, beneficiaryMint);
@@ -836,7 +841,7 @@ export class MoneyStreaming {
                     treasuryToken,
                     treasuryMint,
                     streamAccount.publicKey,
-                    Constants.MSP_OPS,
+                    this.mspOps,
                     mspOpsTokenKey,
                     fundingAmount,
                     true
@@ -873,7 +878,7 @@ export class MoneyStreaming {
 
         // Get the money streaming program operations token account or create a new one
         const contributorTreasuryTokenKey = await Utils.findATokenAddress(contributor, treasuryMint);
-        const mspOpsTokenKey = await Utils.findATokenAddress(Constants.MSP_OPS, contributorMint);
+        const mspOpsTokenKey = await Utils.findATokenAddress(this.mspOps, contributorMint);
 
         ixs.push(
             await Instructions.addFundsInstruction(
@@ -886,7 +891,7 @@ export class MoneyStreaming {
                 treasuryToken,
                 treasuryMint,
                 stream,
-                Constants.MSP_OPS,
+                this.mspOps,
                 mspOpsTokenKey,
                 amount,
                 resume
