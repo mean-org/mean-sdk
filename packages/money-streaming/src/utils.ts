@@ -228,7 +228,7 @@ const parseStreamTermsData = (
             return elem !== 0;
         });
 
-    const termsId = friendly !== undefined ? id.toBase58() : id;
+    const termsId = friendly === true ? id.toBase58() : id;
     const treasurerAddress = new PublicKey(decodedData.treasurer_address);
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
 
@@ -351,30 +351,30 @@ export const getStream = async (
 
     if (accountInfo?.data !== undefined && accountInfo?.data.length === Layout.streamLayout.span) {
 
+        let slot = await connection.getSlot(commitment);
+        let currentBlockTime = await connection.getBlockTime(slot);
+
+        stream = Object.assign({}, parseStreamData(
+            id,
+            accountInfo?.data,
+            currentBlockTime as number,
+            friendly
+        ));
+
+        let terms = await getStreamTerms(
+            accountInfo.owner,
+            connection,
+            stream.id as PublicKey,
+            friendly
+        );
+
+        stream.isUpdatePending = terms !== undefined && terms.streamId === stream.id;
+
         let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, 'confirmed');
 
         if (signatures.length > 0) {
-
-            let slot = await connection.getSlot(commitment);
-            let currentBlockTime = await connection.getBlockTime(slot);
-
-            stream = Object.assign({}, parseStreamData(
-                id,
-                accountInfo?.data,
-                currentBlockTime as number,
-                friendly
-            ));
-
             stream.transactionSignature = signatures[0].signature;
             stream.blockTime = signatures[0].blockTime as number;
-
-            let terms = await getStreamTerms(
-                accountInfo.owner,
-                connection,
-                stream.id as PublicKey
-            );
-
-            stream.isUpdatePending = terms !== undefined && terms.streamId === stream.id;
         }
     }
 

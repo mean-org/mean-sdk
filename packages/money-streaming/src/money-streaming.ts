@@ -23,9 +23,7 @@ import * as Instructions from './instructions';
 import * as Utils from './utils';
 import * as Layout from './layout';
 import { u64Number } from './u64n';
-import { WalletAdapter } from './wallet-adapter';
 import { StreamInfo, StreamTermsInfo, TreasuryInfo } from './types';
-import { Constants } from './constants';
 import { Errors } from './errors';
 
 /**
@@ -137,22 +135,16 @@ export class MoneyStreaming {
         startUtc?: Date,
         streamName?: String
 
-    ): Promise<Transaction[]> {
+    ): Promise<Transaction> {
 
-        let txs: Transaction[] = [];
-
-        txs.push(
-            await this.oneTimePaymentTransaction(
-                treasurer,
-                beneficiary,
-                beneficiaryMint,
-                amount || 0,
-                startUtc,
-                streamName
-            )
+        return await this.oneTimePaymentTransaction(
+            treasurer,
+            beneficiary,
+            beneficiaryMint,
+            amount || 0,
+            startUtc,
+            streamName
         );
-
-        return txs;
     }
 
     public async createStream(
@@ -170,29 +162,23 @@ export class MoneyStreaming {
         cliffVestPercent?: number,
         autoPauseInSeconds?: number
 
-    ): Promise<Transaction[]> {
+    ): Promise<Transaction> {
 
-        let txs: Transaction[] = [];
-
-        txs.push(
-            await this.createStreamTransaction(
-                treasurer,
-                treasury,
-                beneficiary,
-                beneficiaryMint,
-                fundingAmount,
-                rateAmount,
-                rateIntervalInSeconds,
-                startUtc,
-                streamName,
-                rateCliffInSeconds,
-                cliffVestAmount,
-                cliffVestPercent,
-                autoPauseInSeconds
-            )
+        return await this.createStreamTransaction(
+            treasurer,
+            treasury,
+            beneficiary,
+            beneficiaryMint,
+            fundingAmount,
+            rateAmount,
+            rateIntervalInSeconds,
+            startUtc,
+            streamName,
+            rateCliffInSeconds,
+            cliffVestAmount,
+            cliffVestPercent,
+            autoPauseInSeconds
         );
-
-        return txs;
     }
 
     public async addFunds(
@@ -202,12 +188,11 @@ export class MoneyStreaming {
         amount: number,
         resume = false
 
-    ): Promise<Transaction[]> {
+    ): Promise<Transaction> {
 
-        let txs: Transaction[] = [];
         let streamInfo = await Utils.getStream(this.connection, stream, this.commitment);
 
-        if (streamInfo === null) {
+        if (!streamInfo) {
             throw Error(Errors.AccountNotFound);
         }
 
@@ -223,21 +208,17 @@ export class MoneyStreaming {
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, contributorMint);
         const treasuryMint = new PublicKey(treasuryInfo.treasuryMintAddress as string);
 
-        txs.push(
-            await this.addFundsTransaction(
-                contributor,
-                contributorTokenKey,
-                beneficiaryMintKey,
-                treasuryKey,
-                treasuryTokenKey,
-                treasuryMint,
-                stream,
-                amount,
-                resume
-            )
+        return await this.addFundsTransaction(
+            contributor,
+            contributorTokenKey,
+            beneficiaryMintKey,
+            treasuryKey,
+            treasuryTokenKey,
+            treasuryMint,
+            stream,
+            amount,
+            resume
         );
-
-        return txs;
     }
 
     public async withdraw(
@@ -250,7 +231,7 @@ export class MoneyStreaming {
         let ixs: TransactionInstruction[] = [];
         let streamInfo = await Utils.getStream(this.connection, stream, this.commitment);
 
-        if (!streamInfo || !beneficiary.equals(streamInfo.beneficiaryAddress as PublicKey)) {
+        if (!streamInfo || !beneficiary.equals(new PublicKey(streamInfo.beneficiaryAddress as string))) {
             throw Error(Errors.AccountNotFound);
         }
 
@@ -371,7 +352,7 @@ export class MoneyStreaming {
             );
         }
 
-        const treasurerKey = new PublicKey(streamInfo.treasuryAddress as string);
+        const treasurerKey = new PublicKey(streamInfo.treasurerAddress as string);
         const treasurerTokenKey = await Utils.findATokenAddress(treasurerKey, beneficiaryMintKey);
         const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
         const treasuryTokenKey = await Utils.findATokenAddress(treasuryKey, beneficiaryMintKey);
@@ -418,7 +399,8 @@ export class MoneyStreaming {
         let ixs: TransactionInstruction[] = [];
         // Create stream terms account
         const streamTermsAccount = Keypair.generate();
-        const streamTermsMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(Layout.streamTermsLayout.span);
+        const streamTermsMinimumBalance = 
+            await this.connection.getMinimumBalanceForRentExemption(Layout.streamTermsLayout.span);
 
         ixs.push(
             SystemProgram.createAccount({
@@ -430,21 +412,16 @@ export class MoneyStreaming {
             })
         );
 
-        let streamInfo = await Utils.getStream(
-            this.connection,
-            stream,
-            this.commitment
-        );
-
+        let streamInfo = await Utils.getStream(this.connection, stream, this.commitment);
         let initializer: PublicKey = proposedBy,
             counterparty: string | PublicKey | undefined;
 
-        if (initializer === streamInfo.treasurerAddress) {
-            initializer = streamInfo.treasurerAddress;
-            counterparty = streamInfo.beneficiaryAddress;
-        } else if (initializer === streamInfo.beneficiaryAddress) {
-            initializer = streamInfo.beneficiaryAddress;
-            counterparty = streamInfo.treasurerAddress;
+        if (initializer.toBase58() === streamInfo.treasurerAddress) {
+            initializer = new PublicKey(streamInfo.treasurerAddress as string);
+            counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
+        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress) {
+            initializer = new PublicKey(streamInfo.beneficiaryAddress as string);
+            counterparty = new PublicKey(streamInfo.treasurerAddress as string);
         } else {
             throw Error(Errors.InvalidInitializer);
         }
@@ -455,7 +432,7 @@ export class MoneyStreaming {
                 streamInfo,
                 streamTermsAccount.publicKey,
                 initializer,
-                counterparty as PublicKey,
+                counterparty,
                 this.mspOps,
                 streamName,
                 associatedToken,
@@ -484,29 +461,24 @@ export class MoneyStreaming {
 
     ): Promise<Transaction> {
 
-        const streamInfo = await Utils.getStream(
-            this.connection,
-            stream,
-            this.commitment
-        );
-
+        const streamInfo = await Utils.getStream(this.connection, stream, this.commitment);
         const streamTerms = await Utils.getStreamTerms(
-            this.programId,
-            this.connection,
-            streamInfo.id as PublicKey
+            this.programId, 
+            this.connection, 
+            new PublicKey(streamInfo.id as string)
         );
 
         let initializer: PublicKey = answeredBy,
             counterparty: string | PublicKey | undefined;
 
-        if (initializer === streamInfo.treasurerAddress) {
-            initializer = streamInfo.treasurerAddress;
-            counterparty = streamInfo.beneficiaryAddress;
-        } else if (initializer === streamInfo.beneficiaryAddress) {
-            initializer = streamInfo.beneficiaryAddress;
-            counterparty = streamInfo.treasurerAddress;
+        if (initializer.toBase58() === streamInfo.treasurerAddress) {
+            initializer = new PublicKey(streamInfo.treasurerAddress as string);
+            counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
+        } else if (initializer.toBase58() === streamInfo.beneficiaryAddress) {
+            initializer = new PublicKey(streamInfo.beneficiaryAddress as string);
+            counterparty = new PublicKey(streamInfo.treasurerAddress as string);
         } else {
-            throw Error(Errors.InvalidInitializer);
+            throw new Error(Errors.InvalidInitializer);
         }
 
         let tx = new Transaction().add(
@@ -514,7 +486,7 @@ export class MoneyStreaming {
                 this.programId,
                 streamTerms as StreamTermsInfo,
                 initializer,
-                counterparty as PublicKey,
+                counterparty,
                 this.mspOps,
                 approve
             )
@@ -525,87 +497,6 @@ export class MoneyStreaming {
         tx.recentBlockhash = hash.blockhash;
 
         return tx;
-    }
-
-    public async signTransactions(
-        adapter: WalletAdapter,
-        transactions: Transaction[],
-        friendly: boolean = false
-
-    ): Promise<Transaction[]> {
-
-        try {
-
-            if (transactions.length === 0) {
-                throw Error(`${Errors.InvalidParameters}: Transactions amount can not be zero`);
-            }
-
-            let txText = transactions.length === 1 ? 'transaction' : 'transactions';
-            console.log(`Sending ${txText} for wallet for approval`);
-
-            // if (friendly && friendly === true) {
-            //     return await this.signTransactionsWithMessage(adapter, transactions);
-            // }
-
-            let sinedTxs: Array<Transaction> = new Array<Transaction>();
-
-            for (let tx of transactions) {
-                let sTx = await adapter.signTransaction(tx);
-                sinedTxs.push(sTx);
-            }
-
-            return sinedTxs;
-
-        } catch (error) {
-            console.log("signTransaction failed!");
-            console.log(error);
-            throw error;
-        }
-    }
-
-    public async sendSignedTransactions(...signedTrans: Transaction[]): Promise<string[]> {
-        try {
-
-            let signatures: string[] = [];
-            let index = 0;
-
-            for (let tx of signedTrans) {
-
-                let options = { preflightCommitment: this.commitment as Commitment };
-                let result = await this.connection.sendRawTransaction(tx.serialize(), options);
-                let status = await this.connection.getSignatureStatus(result);
-
-                while ((status.value === null || status.value.confirmationStatus !== 'finalized') &&
-                    (status.value === null || index !== signedTrans.length - 1)) {
-                    status = await this.connection.getSignatureStatus(result);
-                }
-
-                console.log(`Transaction ${result} ${status.value.confirmationStatus}`);
-                signatures.push(result);
-                index++;
-            }
-
-            return signatures;
-
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    public async confirmTransactions(...signatures: string[]): Promise<any[]> {
-        try {
-            let results: any[] = [];
-
-            for (const signature of signatures) {
-                const result = await this.connection.confirmTransaction(signature, 'confirmed');
-                results.push(result);
-            }
-
-            return results;
-
-        } catch (error) {
-            throw error;
-        }
     }
 
     private async oneTimePaymentTransaction(
