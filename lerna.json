@@ -1,16 +1,12 @@
 {
-    "packages": [
-        "packages/ddca/*",
-        "packages/hybrid-liquidity-ag/*",
-        "packages/money-streaming/*"
-    ],
-    "version": "1.0.0",
-    "npmClient": "npm",
-    "useWorkspaces": true,
-    "command": {
-        "publish": {
-            "conventionalCommits": true,
-            "yes": true
-        }
+  "packages": ["packages/*"],
+  "version": "1.0.0",
+  "npmClient": "npm",
+  "useWorkspaces": true,
+  "command": {
+    "publish": {
+      "conventionalCommits": true,
+      "yes": true
     }
+  }
 }

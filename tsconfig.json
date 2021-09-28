@@ -4,9 +4,9 @@
         "outDir": "./lib",
         "baseUrl": "./",
         "paths": {
-            "@mean/ddca": ["./packages/ddca/src"],
-            "@mean/hybrid-liquidity-ag": ["./packages/hybrid-liquidity-ag/src"],
-            "@mean/money-streaming": ["./packages/money-streaming/src"]
+            "@mean-dao/ddca": ["./packages/ddca/lib"],
+            "@mean-dao/hybrid-liquidity-ag": ["./packages/hybrid-liquidity-ag/lib"],
+            "@mean-dao/money-streaming": ["./packages/money-streaming/lib"]
         },
         "declaration": true,
         "target": "es6",
@@ -25,5 +25,6 @@
         "forceConsistentCasingInFileNames": true   
     },
     "$schema": "https://json.schemastore.org/tsconfig",
-    "display": "Recommended"
+    "display": "Recommended",
+    "exclude": ["./packages/**/src/*.*"]
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@mean/ddca",
+  "name": "@mean-dao/ddca",
   "version": "1.0.0",
   "description": "Typescript package to interact with DDCA program",
   "directories": {

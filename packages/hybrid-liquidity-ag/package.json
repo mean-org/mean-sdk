@@ -1,5 +1,5 @@
 {
-  "name": "@mean/hybrid-liquidity-ag",
+  "name": "@mean-dao/hybrid-liquidity-ag",
   "version": "1.0.0",
   "description": "Typescript package to interact with the Hybrid Liquidity Aggregator program",
   "directories": {
@@ -24,5 +24,8 @@
   "license": "ISC",
   "engines": {
     "node": ">=12.x"
+  },
+  "dependencies": {
+    "@mean-dao/ddca": "^1.0.0"
   }
 }
