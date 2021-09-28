@@ -2,6 +2,7 @@
   "name": "@mean-dao/ddca",
   "version": "1.0.0",
   "description": "Typescript package to interact with DDCA program",
+  "private": false,
   "directories": {
     "test": "tests"
   },

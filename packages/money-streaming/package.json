@@ -1,7 +1,8 @@
 {
   "name": "@mean-dao/money-streaming",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Typescript package to interact with the Money Streaming program",
+  "private": false,
   "directories": {
     "test": "tests"
   },

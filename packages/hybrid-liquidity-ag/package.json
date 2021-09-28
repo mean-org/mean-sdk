@@ -2,6 +2,7 @@
   "name": "@mean-dao/hybrid-liquidity-ag",
   "version": "1.0.0",
   "description": "Typescript package to interact with the Hybrid Liquidity Aggregator program",
+  "private": false,
   "directories": {
     "test": "tests"
   },
