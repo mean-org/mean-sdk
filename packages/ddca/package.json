@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/ddca",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "Typescript package to interact with DDCA program",
   "private": false,
   "directories": {
