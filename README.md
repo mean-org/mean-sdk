@@ -16,5 +16,5 @@ npm i money-streaming
 
 To install the SDK that only contains the Distributed DCA client, run:
 ```
-npm i ddca
+npm i mean-ddca
 ```
