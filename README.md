@@ -13,8 +13,12 @@ To install the SDK that only contains the Money Streaming client, run:
 npm i @mean/money-streaming
 ```
 
-
 To install the SDK that only contains the Distributed DCA client, run:
 ```
 npm i @mean/ddca
+```
+
+To install the SDK that only contains the hybrid Liquidity Aggregator client, run:
+```
+npm i @mean/hybrid-liquidity-ag
 ```

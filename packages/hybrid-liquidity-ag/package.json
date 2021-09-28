@@ -1,0 +1,28 @@
+{
+  "name": "@mean/hybrid-liquidity-ag",
+  "version": "1.0.0",
+  "description": "Typescript package to interact with the Hybrid Liquidity Aggregator program",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "mean-dao",
+    "mean-sdk",
+    "mean-protocol",
+    "hybrid-liquidity-aggregator",
+    "liquidity-aggregator"
+  ],
+  "type": "commonjs",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/*.*"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=12.x"
+  }
+}

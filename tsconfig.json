@@ -2,6 +2,12 @@
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
         "outDir": "./lib",
+        "baseUrl": "./",
+        "paths": {
+            "@mean/ddca": ["./packages/ddca/src"],
+            "@mean/hybrid-liquidity-ag": ["./packages/hybrid-liquidity-ag/src"],
+            "@mean/money-streaming": ["./packages/money-streaming/src"]
+        },
         "declaration": true,
         "target": "es6",
         "lib": [
@@ -16,7 +22,7 @@
         "sourceMap": false,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
+        "forceConsistentCasingInFileNames": true   
     },
     "$schema": "https://json.schemastore.org/tsconfig",
     "display": "Recommended"
