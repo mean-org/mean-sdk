@@ -1,3 +1,8 @@
+ddca/**/*
+hybrid-liquidity-ag/**/*
+money-streaming/**/*
+node_modules/
+node_modules/**/*
 packages/*/lib/
 packages/*/lib/**/*
 packages/*/node_modules

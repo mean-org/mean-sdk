@@ -5,16 +5,20 @@ You can install the full Mean Protocol SDK, which will install all interoperable
 
 To install the SDK that has all the programs run:
 ```
-npm i @mean/mean-protocol
+npm i @mean-dao/mean-protocol
 ```
 
 To install the SDK that only contains the Money Streaming client, run:
 ```
-npm i @mean/money-streaming
+npm i @mean-dao/money-streaming
 ```
-
 
 To install the SDK that only contains the Distributed DCA client, run:
 ```
-npm i @mean/ddca
+npm i @mean-dao/ddca
+```
+
+To install the SDK that only contains the Hybrid Liquidity Aggregator client, run:
+```
+npm i @mean-dao/hybrid-liquidity-ag
 ```

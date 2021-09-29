@@ -1,0 +1,36 @@
+{
+  "name": "@mean-dao/hybrid-liquidity-ag",
+  "version": "1.0.0",
+  "description": "Typescript library to interact with the Hybrid Liquidity Aggregator program",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mean-dao/mean-sdk.git"
+  },
+  "keywords": [
+    "mean-dao",
+    "mean-protocol",
+    "hybrid-liquidity-aggregator",
+    "liquidity-aggregator"
+  ],
+  "bugs": {
+    "url": "https://github.com/mean-dao/mean-sdk/issues"
+  },
+  "homepage": "https://github.com/mean-dao/mean-sdk#readme",
+  "type": "commonjs",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/*.*"
+  ],
+  "author": "",
+  "license": "ISC",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -R ./lib",
+    "publish": "npm publish --access public"
+  },
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.1",
+    "typescript": "^4.4.2"
+  }
+}

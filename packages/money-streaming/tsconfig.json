@@ -2,6 +2,11 @@
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
         "outDir": "./lib",
+        "rootDir": "./src",
+        "baseUrl": "./",
+        "paths": {
+            "@mean-dao/money-streaming": ["./src"]
+        },
         "declaration": true,
         "target": "es6",
         "lib": [
@@ -19,6 +24,5 @@
         "forceConsistentCasingInFileNames": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
-    "display": "Recommended",
-    "exclude": ["main.ts", "main-utils.ts"]
-}
+    "display": "Recommended"
+  }
