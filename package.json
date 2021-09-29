@@ -1,0 +1,34 @@
+{
+  "name": "@mean-dao/mean-protocol",
+  "version": "1.0.0",
+  "description": "Typescript SDKs for the Mean Protocol",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mean-dao/mean-sdk.git"
+  },
+  "keywords": [
+    "mean-dao",
+    "mean-protocol"
+  ],
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mean-dao/mean-sdk/issues"
+  },
+  "homepage": "https://github.com/mean-dao/mean-sdk#readme",
+  "devDependencies": {
+    "@tsconfig/recommended": "^1.0.1",
+    "typescript": "^4.4.2"
+  },
+  "include": [
+    "./ddca/lib",
+    "./hybrid-liquidity-ag/lib",
+    "./money-streaming/lib"
+  ],
+  "exclude": ["./packages"],
+  "scripts": {
+    "build": "tsc -b ./packages/**/tsconfig.json && tsc -b",
+    "clean": "rm -R ./packages/**/lib && rm -R ./ddca ./hybrid-liquidity-ag ./money-streaming",
+    "publish": "npm publish --access public"
+  }
+}
