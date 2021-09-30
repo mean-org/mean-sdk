@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/hybrid-liquidity-ag",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Typescript library to interact with the Hybrid Liquidity Aggregator program",
   "private": false,
   "repository": {
@@ -24,9 +24,11 @@
     "@tsconfig/recommended": "^1.0.1",
     "typescript": "^4.4.2"
   },
-  "types": "./lib/index.d.ts",
-  "main": "./lib/index.js",
-  "files": ["./lib"],
+  "types": "lib/index.d.ts",
+  "main": "lib/index.js",
+  "files": [
+    "lib/*.*"
+  ],
   "scripts": {
     "build": "tsc",
     "clean": "rm -R ./lib",
