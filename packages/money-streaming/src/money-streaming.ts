@@ -12,7 +12,8 @@
     Signer,
     TransactionInstruction,
     Cluster,
-    clusterApiUrl
+    clusterApiUrl,
+    Finality
 
 } from '@solana/web3.js';
 
@@ -114,15 +115,15 @@ export class MoneyStreaming {
 
     public async listStreamActivity(
         id: PublicKey,
-        commitment?: Commitment | undefined,
+        commitment?: Finality | undefined,
         friendly: boolean = true
 
     ): Promise<any[]> {
 
         return await Utils.listStreamActivity(
             this.connection,
-            this.cluster,
             id,
+            commitment,
             friendly
         );
     }
