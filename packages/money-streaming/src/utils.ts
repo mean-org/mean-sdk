@@ -5,7 +5,7 @@ import base64 from "base64-js";
  * Solana
  */
 import { Token, AccountInfo, MintInfo, AccountLayout, MintLayout, TOKEN_PROGRAM_ID, u64 } from '@solana/spl-token';
-import { TokenInfo } from "@solana/spl-token-registry";
+import { TokenInfo, TokenListProvider } from "@solana/spl-token-registry";
 import {
     Commitment,
     Connection,
@@ -26,7 +26,6 @@ import {
  */
 import * as Layout from "./layout";
 import { Constants } from "./constants";
-import { MEAN_TOKEN_LIST } from "./token-list";
 import { u64Number } from "./u64n";
 import {
     MSP_ACTIONS,
@@ -252,7 +251,6 @@ const parseStreamTermsData = (
 const parseActivityData = (
     signature: string,
     tx: ParsedConfirmedTransaction,
-    tokens: TokenInfo[],
     friendly: boolean = true
 
 ): StreamActivity => {
@@ -295,8 +293,6 @@ const parseActivityData = (
             mint = 'Unknown Token';
         }
 
-        let tokenInfo = tokens.find((t) => t.address === mint);
-
         Object.assign(streamActivity, {
             signature: signature,
             initializer: (friendly === true ? signer.pubkey.toBase58() : signer.pubkey),
@@ -304,7 +300,7 @@ const parseActivityData = (
             utcDate: new Date(blockTime).toUTCString(),
             action: action,
             amount: amount,
-            mint: !tokenInfo ? mint : tokenInfo.address
+            mint
         });
     }
 
@@ -513,24 +509,23 @@ export async function getStreamContributors(
 
 export async function listStreamActivity(
     connection: Connection,
-    cluster: string | number,
     streamId: PublicKey,
+    commitment?: Finality | undefined,
     friendly: boolean = true
 
 ): Promise<any[]> {
 
     let activity: any = [];
-    let signatures = await connection.getConfirmedSignaturesForAddress2(streamId, {}, 'finalized');
-    let tokenList = await getTokenList(cluster);
+    let finality = commitment !== undefined ? commitment : 'confirmed';
+    let signatures = await connection.getConfirmedSignaturesForAddress2(streamId, {}, finality);
 
     for (let sign of signatures) {
-        let tx = await connection.getParsedConfirmedTransaction(sign.signature, 'finalized');
+        let tx = await connection.getParsedConfirmedTransaction(sign.signature, finality);
 
         if (tx !== null) {
             activity.push(Object.assign({}, parseActivityData(
                 sign.signature,
                 tx,
-                tokenList,
                 friendly
             )));
         }
@@ -732,7 +727,10 @@ export async function getTokenList(
 
     if (chainId === 0) return [] as Array<TokenInfo>;
 
-    return MEAN_TOKEN_LIST.filter((t) => t.chainId === chainId);
+    const tokenListContainer = await new TokenListProvider().resolve();
+    const tokenList = tokenListContainer.filterByChainId(chainId).getList();
+
+    return tokenList;
 }
 
 export const calculateActionFees = async (
