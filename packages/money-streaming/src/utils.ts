@@ -36,6 +36,7 @@ import {
     TreasuryInfo
 
 } from './types';
+import { STREAM_STATE } from ".";
 
 String.prototype.toPublicKey = function (): PublicKey {
     return new PublicKey(this.toString());
@@ -83,10 +84,10 @@ let defaultStreamInfo: StreamInfo = {
     streamResumedBlockHeight: 0,
     streamResumedBlockTime: 0,
     autoPauseInSeconds: 0,
-    isStreaming: false,
     isUpdatePending: false,
     transactionSignature: undefined,
-    blockTime: 0
+    blockTime: 0,
+    state: STREAM_STATE.Schedule
 }
 
 let defaultTreasuryInfo: TreasuryInfo = {
@@ -172,6 +173,20 @@ const parseStreamData = (
     const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
     const treasuryAddress = new PublicKey(decodedData.treasury_address);
 
+    let state: STREAM_STATE | undefined;
+    const threeDays = (3 * 24 * 3600);
+    const nowUtc = Date.parse(new Date().toUTCString());
+
+    if (startDateUtc.getTime() > nowUtc) {
+        state = STREAM_STATE.Schedule;
+    } else if (isStreaming && escrowVestedAmount < (decodedData.total_deposits - decodedData.total_withdrawals)) {
+        state = STREAM_STATE.Running;
+    } else if (escrowVestedAmount >= (decodedData.total_deposits - decodedData.total_withdrawals) && fundedOnUtc.getTime() < nowUtc) {
+        state = STREAM_STATE.Paused;
+    } else if (elapsedTime > threeDays) {
+        state = STREAM_STATE.Ended;
+    }
+
     Object.assign(stream, { id: id }, {
         initialized: decodedData.initialized ? true : false,
         memo: new TextDecoder().decode(nameBuffer),
@@ -197,10 +212,10 @@ const parseStreamData = (
         streamResumedBlockHeight: streamResumedBlockHeight,
         streamResumedBlockTime: streamResumedBlockTime,
         autoPauseInSeconds: autoPauseInSeconds,
-        isStreaming: (isStreaming === 1 && escrowVestedAmount < (decodedData.total_deposits - decodedData.total_withdrawals)) ? true : false,
         isUpdatePending: false,
         transactionSignature: '',
-        blockTime: 0
+        blockTime: 0,
+        state
     });
 
     return stream;

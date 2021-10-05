@@ -19,5 +19,6 @@
         "forceConsistentCasingInFileNames": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
-    "display": "Recommended"
+    "display": "Recommended",
+    "exclude": ["main.ts"]
   }

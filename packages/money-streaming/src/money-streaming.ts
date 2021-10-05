@@ -13,7 +13,8 @@
     TransactionInstruction,
     Cluster,
     clusterApiUrl,
-    Finality
+    Finality,
+    Account
 
 } from '@solana/web3.js';
 
@@ -26,6 +27,7 @@ import * as Layout from './layout';
 import { u64Number } from './u64n';
 import { StreamInfo, StreamTermsInfo, TreasuryInfo } from './types';
 import { Errors } from './errors';
+import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API 
@@ -669,7 +671,15 @@ export class MoneyStreaming {
             treasury = (await PublicKey.findProgramAddress(treasurySeeds, this.programId))[0];
             const treasuryMintSeeds = [treasurer.toBuffer(), treasury.toBuffer(), blockHeightBuffer];
             treasuryMint = (await PublicKey.findProgramAddress(treasuryMintSeeds, this.programId))[0];
-            treasuryToken = await Utils.findATokenAddress(treasury, beneficiaryMint);
+            
+            // Get the treasury token account
+            treasuryToken = await Token.getAssociatedTokenAddress(
+                ASSOCIATED_TOKEN_PROGRAM_ID,
+                TOKEN_PROGRAM_ID,
+                beneficiaryMint,
+                treasury,
+                true
+            );
 
             // Create treasury
             ixs.push(
@@ -712,15 +722,33 @@ export class MoneyStreaming {
         );
 
         if (fundingAmount && fundingAmount > 0) {
-            // Get the treasurer and treasury treasury token account
-            const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
-            const treasurerTreasuryTokenKey = await Utils.findATokenAddress(treasurer, treasuryMint);
-            // Get the money streaming program operations token account
-            const mspOpsTokenKey = await Utils.findATokenAddress(this.mspOps, beneficiaryMint);
 
-            if (treasuryToken === PublicKey.default) {
-                treasuryToken = await Utils.findATokenAddress(treasury, beneficiaryMint);
-            }
+            // Get the treasurer token account
+            const treasurerTokenKey = await Token.getAssociatedTokenAddress(
+                ASSOCIATED_TOKEN_PROGRAM_ID,
+                TOKEN_PROGRAM_ID,
+                beneficiaryMint,
+                treasurer,
+                true
+            );
+
+            // Get the treasurer treasury token account
+            const treasurerTreasuryTokenKey = await Token.getAssociatedTokenAddress(
+                ASSOCIATED_TOKEN_PROGRAM_ID,
+                TOKEN_PROGRAM_ID,
+                treasuryMint,
+                treasurer,
+                true
+            );
+
+            // Get the money streaming program operations token account
+            const mspOpsTokenKey = await Token.getAssociatedTokenAddress(
+                ASSOCIATED_TOKEN_PROGRAM_ID,
+                TOKEN_PROGRAM_ID,
+                beneficiaryMint,
+                this.mspOps,
+                true
+            );
 
             ixs.push(
                 await Instructions.addFundsInstruction(
