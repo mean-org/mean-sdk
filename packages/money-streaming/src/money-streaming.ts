@@ -28,6 +28,7 @@ import { u64Number } from './u64n';
 import { StreamInfo, StreamTermsInfo, TreasuryInfo } from './types';
 import { Errors } from './errors';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { Constants } from './constants';
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API 
@@ -35,7 +36,6 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/sp
 export class MoneyStreaming {
 
     private connection: Connection;
-    private cluster: Cluster | string;
     private programId: PublicKey;
     private commitment: Commitment | ConnectionConfig | undefined;
     private mspOps: PublicKey;
@@ -48,14 +48,12 @@ export class MoneyStreaming {
      * @param cluster The solana cluster endpoint used for the connecton
      */
     constructor(
-        cluster: Cluster | string,
+        rpcUrl: string,
         programId: PublicKey | string,
         commitment: Commitment | string = 'confirmed'
     ) {
-        this.cluster = cluster;
-        let networkUrl = clusterApiUrl(this.cluster as Cluster);    
         this.commitment = commitment as Commitment;
-        this.connection = new Connection(networkUrl, this.commitment);
+        this.connection = new Connection(rpcUrl, this.commitment);
 
         if (typeof programId === 'string') {
             this.programId = new PublicKey(programId);
@@ -63,7 +61,18 @@ export class MoneyStreaming {
             this.programId = programId;
         }
 
-        this.mspOps = this.cluster === 'mainnet-beta' ? this.mspOpsAddress: this.mspOpsDevAddress;
+        if (typeof programId === 'string') {
+
+            this.mspOps = programId === Constants.MSP_PROGRAM.toBase58() 
+                ? this.mspOpsAddress
+                : this.mspOpsDevAddress;
+
+        } else {
+
+            this.mspOps = programId === Constants.MSP_PROGRAM 
+                ? this.mspOpsAddress
+                : this.mspOpsDevAddress;
+        }   
     }
 
     public async getStream(

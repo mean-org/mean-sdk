@@ -127,29 +127,21 @@ const parseStreamData = (
     let autoPauseInSeconds = parseFloat(u64Number.fromBuffer(decodedData.auto_pause_in_seconds).toString());
     let rateIntervalInSeconds = parseFloat(u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString());
     let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
-    let lastTimeSnap = isStreaming === 1 ? streamResumedBlockTime : escrowVestedAmountSnapBlockTime;
+    let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
     let escrowVestedAmount = 0.0;
     let rateAmount = decodedData.rate_amount;
-
-    if (rateIntervalInSeconds === 0) {
-        rateIntervalInSeconds = 1;
-    }
-
-    let rate = rateAmount && rateIntervalInSeconds ? (rateAmount / rateIntervalInSeconds * isStreaming) : 0;
-
-    if (rateAmount === 0) {
-        rateAmount = decodedData.total_deposits - decodedData.total_withdrawals;
-        rate = rateAmount && rateIntervalInSeconds ? (rateAmount / rateIntervalInSeconds) : 0;
-    }
-
-    const elapsedTime = currentBlockTime - lastTimeSnap;
+    const rate = rateIntervalInSeconds > 0 ? (rateAmount / rateIntervalInSeconds * isStreaming) : 0;
+    const elapsedTime = currentBlockTime - lastTimeSnap;     
     const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
     const associatedToken = (friendly === true ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
+    const escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap
+        ? decodedData.escrow_vested_amount_snap
+        : decodedData.total_deposits;
 
     if (currentBlockTime >= lastTimeSnap) {
-        escrowVestedAmount = decodedData.escrow_vested_amount_snap + rate * elapsedTime;
+        escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
 
-        if (escrowVestedAmount >= decodedData.total_deposits - decodedData.total_withdrawals) {
+        if (escrowVestedAmount > decodedData.total_deposits - decodedData.total_withdrawals) {
             escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
         }
     }
@@ -179,11 +171,11 @@ const parseStreamData = (
 
     if (startDateUtc.getTime() > nowUtc) {
         state = STREAM_STATE.Schedule;
-    } else if (isStreaming && escrowVestedAmount < (decodedData.total_deposits - decodedData.total_withdrawals)) {
+    } else if (escrowVestedAmount < (decodedData.total_deposits - decodedData.total_withdrawals)) {
         state = STREAM_STATE.Running;
-    } else if (escrowVestedAmount >= (decodedData.total_deposits - decodedData.total_withdrawals) && fundedOnUtc.getTime() < nowUtc) {
+    } else if (escrowVestedAmount >= (decodedData.total_deposits - decodedData.total_withdrawals) && elapsedTime < threeDays) {
         state = STREAM_STATE.Paused;
-    } else if (elapsedTime > threeDays) {
+    } else if (escrowVestedAmount >= (decodedData.total_deposits - decodedData.total_withdrawals) && elapsedTime >= threeDays) {
         state = STREAM_STATE.Ended;
     }
 
@@ -206,7 +198,7 @@ const parseStreamData = (
         escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
         totalDeposits: decodedData.total_deposits,
         totalWithdrawals: decodedData.total_withdrawals,
-        escrowVestedAmountSnap: decodedData.escrow_vested_amount_snap,
+        escrowVestedAmountSnap: escrowVestedAmountSnap,
         escrowVestedAmountSnapBlockHeight: escrowVestedAmountSnapBlockHeight,
         escrowVestedAmountSnapBlockTime: escrowVestedAmountSnapBlockTime,
         streamResumedBlockHeight: streamResumedBlockHeight,
@@ -806,10 +798,10 @@ export const calculateActionFees = async (
             break;
         }
         case MSP_ACTIONS.wrap: {
-            let maxAccountsSize = (3 * AccountLayout.span);
-            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 3;
+            let maxAccountsSize = (2 * AccountLayout.span);
+            lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
-            txFees.mspPercentFee = 0.05;
+            txFees.mspPercentFee = 0.00;
             break;
         }
         case MSP_ACTIONS.swap: {
