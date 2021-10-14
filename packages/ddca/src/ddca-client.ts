@@ -73,13 +73,10 @@ export class DdcaClient {
         ownerAccountAddress: PublicKey,
         fromMint: PublicKey,
         toMint: PublicKey,
-        fromDepositAmount: number,
-        fromAmountPerSwap: number,
-        intervalInSeconds: number,
-        ddcaName?: String,
+        depositAmount: number,
+        amountPerSwap: number,
+        intervalInSeconds: number
     ): Promise<[PublicKey, Transaction]> {
-
-        console.log("ownerAccountAddress received by createDdcaTx: %s", ownerAccountAddress.toBase58())
 
         const blockHeight = await this.connection.getSlot('confirmed');
         const blockHeightBn = new anchor.BN(blockHeight);
@@ -190,7 +187,7 @@ export class DdcaClient {
         console.log();  
 
         const createTx = await this.program.transaction.create(new anchor.BN(blockHeight), ddcaAccountPdaBump,
-            new anchor.BN(fromDepositAmount), new anchor.BN(fromAmountPerSwap), new anchor.BN(intervalInSeconds),
+            new anchor.BN(depositAmount), new anchor.BN(amountPerSwap), new anchor.BN(intervalInSeconds),
             {
                 accounts: {
                     // owner
