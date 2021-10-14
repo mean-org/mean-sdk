@@ -46,8 +46,8 @@ export class DdcaClient {
         // } as anchor.web3.ConfirmOptions;
         // const provider = this.getAnchorProvider(rpcUrl, anchorWallet, confirmationOptions as anchor.web3.Connection);
         const provider = this.getAnchorProvider(rpcUrl, anchorWallet, confirmOptions);
-        this.connection = provider.connection;
         this.provider = provider;
+        this.connection = provider.connection;
         anchor.setProvider(provider);
 
         const programId = new anchor.web3.PublicKey(idl.metadata.address);
@@ -62,7 +62,6 @@ export class DdcaClient {
 
         opts = opts ?? anchor.Provider.defaultOptions();
         const connection = new Connection(rpcUrl, opts.preflightCommitment);
-
         const provider = new anchor.Provider(
             connection, anchorWallet, opts,
         );
@@ -221,14 +220,14 @@ export class DdcaClient {
         return [ddcaAccountPda, createTx];
     }
 
-    public async wakeAndSwap(
+    public async createWakeAndSwapTx(
         ddcaAccountPda: PublicKey,
         fromMint: PublicKey,
         toMint: PublicKey,
         hlaAmmAccounts: Array<AccountMeta>,
         swapMinimumOutAmount: number,
         swapSlippage: number,
-    ): Promise<string> {
+    ): Promise<Transaction> {
 
         console.log("ddcaAccountPda: %s", ddcaAccountPda.toBase58())
 
@@ -284,11 +283,9 @@ export class DdcaClient {
         console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
         console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
         console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
-        console.log();  
+        console.log();
 
-        console.log("Before wakeAndSwapTx");
-
-        const wakeAndSwapTxSignature = await this.program.rpc.wakeAndSwap(
+        const wakeAndSwapTx = await this.program.transaction.wakeAndSwap(
             new anchor.BN(swapMinimumOutAmount), swapSlippage,
             {
                 accounts: {
@@ -309,28 +306,25 @@ export class DdcaClient {
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
                 },
+                // signers: [ddcaAccountPda],
                 // hybrid liquidity aggregator specific amm pool accounts
                 remainingAccounts: hlaAmmAccounts,
             }
         );
         
-        console.log("After wakeAndSwapTx");
-        console.log("wakeAndSwapTxSignature %s", wakeAndSwapTxSignature);
-        
-        // wakeAndSwapTx.feePayer = ddcaAccountPda;
-        // let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
-        // wakeAndSwapTx.recentBlockhash = hash.blockhash;
+        wakeAndSwapTx.feePayer = ddcaAccountPda;
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        wakeAndSwapTx.recentBlockhash = hash.blockhash;
 
-        // // console.log("wakeAndSwapTx %s", wakeAndSwapTx);
-        return wakeAndSwapTxSignature;
+        return wakeAndSwapTx;
     }
 
-    public async close(
+    public async createCloseTx(
         ownerAccountAddress: PublicKey,
         ddcaAccountPda: PublicKey,
         fromMint: PublicKey,
         toMint: PublicKey,
-    ): Promise<string> {
+    ): Promise<Transaction> {
 
         //owner token account (from)
         const ownerFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
@@ -447,7 +441,7 @@ export class DdcaClient {
         console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
         console.log();  
 
-        const closeTxSignature = await this.program.rpc.close(
+        const closeTx = await this.program.transaction.close(
             {
                 accounts: {
                     // owner
@@ -468,17 +462,15 @@ export class DdcaClient {
                     // systemProgram: SYSTEM_PROGRAM_ID,
                     tokenProgram: TOKEN_PROGRAM_ID,
                 },
-                // signers: [ownerAccountAddress],
                 instructions: ixs,
             }
         );
         
-        // createTx.feePayer = ownerAccountAddress;
-        // let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
-        // createTx.recentBlockhash = hash.blockhash;
+        closeTx.feePayer = ownerAccountAddress;
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        closeTx.recentBlockhash = hash.blockhash;
 
-        // console.log("createTx", createTx);
-        return closeTxSignature;
+        return closeTx;
     }
 }
 
