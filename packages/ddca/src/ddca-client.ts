@@ -11,7 +11,6 @@ import {
 } from '@solana/web3.js';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import * as anchor from "@project-serum/anchor";
-// const { SystemProgram, PublicKey, Connection, Transaction } = anchor.web3; // taking all of this directly from solana above
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
 const idl = require('./idl.json');
@@ -19,8 +18,6 @@ const idl = require('./idl.json');
 // CONSTANTS
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const LAMPORTS_PER_SOL = anchor.web3.LAMPORTS_PER_SOL;
-const FAILED_TO_FIND_ACCOUNT = 'Failed to find account';
-const INVALID_ACCOUNT_OWNER = 'Invalid account owner';
 const DDCA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("3oSfkjQZKCneYvsCTZc9HViGAPqR8pYr4h9YeGB5ZxHf");
 const HLA_PROGRAM_ADDRESS = new PublicKey("EPa4WdYPcGGdwEbq425DMZukU2wDUE1RWAGrPbRYSLRE");
 const HLA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("FZMd4pn9FsvMC55D4XQfaexJvKBtQpVuqMk5zuonLRDX");
@@ -32,7 +29,7 @@ export class DdcaClient {
 
     public connection: Connection;
     public provider: anchor.Provider;
-    private program: anchor.Program;
+    public program: anchor.Program;
 
     /**
      * Create a DDCA client
@@ -74,17 +71,13 @@ export class DdcaClient {
 
     public async createDdcaTx(
         ownerAccountAddress: PublicKey,
-        // treasury: PublicKey | undefined,
         fromMint: PublicKey,
         toMint: PublicKey,
         fromDepositAmount: number,
         fromAmountPerSwap: number,
         intervalInSeconds: number,
-        hlaAmmAccounts: Array<AccountMeta>,
-        firstSwapMinimumOutAmount: number,
-        firstSwapSlippage: number,
         ddcaName?: String,
-    ): Promise<Transaction> {
+    ): Promise<[PublicKey, Transaction]> {
 
         console.log("ownerAccountAddress received by createDdcaTx: %s", ownerAccountAddress.toBase58())
 
@@ -147,7 +140,6 @@ export class DdcaClient {
 
         // Instructions
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
-        let txSigners: Array<Signer> = new Array<Signer>();
 
         let ddcaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
             ddcaOperatingFromTokenAccountAddress,
@@ -199,7 +191,6 @@ export class DdcaClient {
 
         const createTx = await this.program.transaction.create(new anchor.BN(blockHeight), ddcaAccountPdaBump,
             new anchor.BN(fromDepositAmount), new anchor.BN(fromAmountPerSwap), new anchor.BN(intervalInSeconds),
-            new anchor.BN(firstSwapMinimumOutAmount), firstSwapSlippage,
             {
                 accounts: {
                     // owner
@@ -213,6 +204,103 @@ export class DdcaClient {
                     toTokenAccount: ddcaToTokenAccountAddress,
                     operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
                     operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
+                    // system accounts
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+                    systemProgram: SYSTEM_PROGRAM_ID,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
+                },
+                // signers: [ownerAccountAddress],
+                instructions: ixs,
+            }
+        );
+        
+        createTx.feePayer = ownerAccountAddress;
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        createTx.recentBlockhash = hash.blockhash;
+
+        console.log("createTx", createTx);
+        return [ddcaAccountPda, createTx];
+    }
+
+    public async wakeAndSwap(
+        ddcaAccountPda: PublicKey,
+        fromMint: PublicKey,
+        toMint: PublicKey,
+        hlaAmmAccounts: Array<AccountMeta>,
+        swapMinimumOutAmount: number,
+        swapSlippage: number,
+    ): Promise<string> {
+
+        console.log("ddcaAccountPda: %s", ddcaAccountPda.toBase58())
+
+        //ddca associated token account (from)
+        const ddcaFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            ddcaAccountPda,
+            true,
+        );
+        //ddca associated token account (to)
+        const ddcaToTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            toMint,
+            ddcaAccountPda,
+            true,
+        );
+
+        //ddca operating token account (from)
+        const ddcaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            DDCA_OPERATING_ACCOUNT_ADDRESS,
+        );
+
+        //hla operating token account (from)
+        const hlaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            HLA_OPERATING_ACCOUNT_ADDRESS,
+        );
+
+        console.log("TEST PARAMETERS:")
+        console.log("  Program ID:                           " + this.program.programId);
+        console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
+        console.log("  fromMint:                             " + fromMint);
+        console.log("  toMint:                               " + toMint);
+        console.log();
+        console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
+        console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
+        console.log();
+        console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
+        console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
+        console.log();
+        console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
+        console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
+        console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
+        console.log();
+        console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
+        console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
+        console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
+        console.log();  
+
+        console.log("Before wakeAndSwapTx");
+
+        const wakeAndSwapTxSignature = await this.program.rpc.wakeAndSwap(
+            new anchor.BN(swapMinimumOutAmount), swapSlippage,
+            {
+                accounts: {
+                    // ddca
+                    ddcaAccount: ddcaAccountPda,
+                    fromMint: fromMint,
+                    fromTokenAccount: ddcaFromTokenAccountAddress,
+                    toMint: toMint,
+                    toTokenAccount: ddcaToTokenAccountAddress,
                     // hybrid liquidity aggregator accounts
                     hlaProgram: HLA_PROGRAM_ADDRESS,
                     hlaOperatingAccount: HLA_OPERATING_ACCOUNT_ADDRESS,
@@ -224,19 +312,176 @@ export class DdcaClient {
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
                 },
-                // signers: [ownerAccountAddress],
-                instructions: ixs,
                 // hybrid liquidity aggregator specific amm pool accounts
                 remainingAccounts: hlaAmmAccounts,
             }
         );
         
-        createTx.feePayer = ownerAccountAddress;
-        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
-        createTx.recentBlockhash = hash.blockhash;
+        console.log("After wakeAndSwapTx");
+        console.log("wakeAndSwapTxSignature %s", wakeAndSwapTxSignature);
+        
+        // wakeAndSwapTx.feePayer = ddcaAccountPda;
+        // let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        // wakeAndSwapTx.recentBlockhash = hash.blockhash;
 
-        console.log("createTx", createTx);
-        return createTx;
+        // // console.log("wakeAndSwapTx %s", wakeAndSwapTx);
+        return wakeAndSwapTxSignature;
+    }
+
+    public async close(
+        ownerAccountAddress: PublicKey,
+        ddcaAccountPda: PublicKey,
+        fromMint: PublicKey,
+        toMint: PublicKey,
+    ): Promise<string> {
+
+        //owner token account (from)
+        const ownerFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            ownerAccountAddress,
+        );
+
+        //owner token account (from)
+        const ownerToTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            toMint,
+            ownerAccountAddress,
+        );
+
+        //ddca associated token account (from)
+        const ddcaFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            ddcaAccountPda,
+            true,
+        );
+        //ddca associated token account (to)
+        const ddcaToTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            toMint,
+            ddcaAccountPda,
+            true,
+        );
+
+        //ddca operating token account (from)
+        const ddcaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            DDCA_OPERATING_ACCOUNT_ADDRESS,
+        );
+
+        //ddca operating token account (from)
+        const ddcaOperatingToTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            toMint,
+            DDCA_OPERATING_ACCOUNT_ADDRESS,
+        );
+
+        // Instructions
+        let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
+
+        let ownerFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            ownerFromTokenAccountAddress,
+            fromMint,
+            ownerAccountAddress,
+            ownerAccountAddress,
+            this.connection);
+        if (ownerFromAtaCreateInstruction !== null)
+            ixs.push(ownerFromAtaCreateInstruction);
+
+        let ownerToAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            ownerToTokenAccountAddress,
+            toMint,
+            ownerAccountAddress,
+            ownerAccountAddress,
+            this.connection);
+        if (ownerToAtaCreateInstruction !== null)
+            ixs.push(ownerToAtaCreateInstruction);
+
+        let ddcaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            ddcaOperatingFromTokenAccountAddress,
+            fromMint,
+            DDCA_OPERATING_ACCOUNT_ADDRESS,
+            ownerAccountAddress,
+            this.connection);
+        if (ddcaOperatingFromAtaCreateInstruction !== null)
+            ixs.push(ddcaOperatingFromAtaCreateInstruction);
+
+        let ddcaOperatingToAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            ddcaOperatingToTokenAccountAddress,
+            toMint,
+            DDCA_OPERATING_ACCOUNT_ADDRESS,
+            ownerAccountAddress,
+            this.connection);
+        if (ddcaOperatingToAtaCreateInstruction !== null)
+            ixs.push(ddcaOperatingToAtaCreateInstruction);
+
+        if(ixs.length === 0)
+            ixs = undefined;
+
+        console.log("TEST PARAMETERS:")
+        console.log("  Program ID:                           " + this.program.programId);
+        console.log("  payer.address:                        " + ownerAccountAddress);
+        console.log("  fromMint:                             " + fromMint);
+        console.log("  toMint:                               " + toMint);
+        console.log();
+        console.log("  ownerAccountAddress:                  " + ownerAccountAddress);
+        console.log("  ownerFromTokenAccountAddress:         " + ownerFromTokenAccountAddress);
+        console.log();
+        console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
+        console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
+        console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
+        console.log();
+        console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
+        console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
+        console.log();
+        console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
+        console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
+        console.log();
+        console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
+        console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
+        console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
+        console.log();  
+
+        const closeTxSignature = await this.program.rpc.close(
+            {
+                accounts: {
+                    // owner
+                    ownerAccount: ownerAccountAddress,
+                    ownerFromTokenAccount: ownerFromTokenAccountAddress,
+                    ownerToTokenAccount: ownerToTokenAccountAddress,
+                    // ddca
+                    ddcaAccount: ddcaAccountPda,
+                    // fromMint: fromMint,
+                    ddcaFromTokenAccount: ddcaFromTokenAccountAddress,
+                    // toMint: toMint,
+                    ddcaToTokenAccount: ddcaToTokenAccountAddress,
+                    operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
+                    operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
+                    operatingToTokenAccount: ddcaOperatingToTokenAccountAddress,
+                    // system accounts
+                    // rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    // systemProgram: SYSTEM_PROGRAM_ID,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                },
+                // signers: [ownerAccountAddress],
+                instructions: ixs,
+            }
+        );
+        
+        // createTx.feePayer = ownerAccountAddress;
+        // let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        // createTx.recentBlockhash = hash.blockhash;
+
+        // console.log("createTx", createTx);
+        return closeTxSignature;
     }
 }
 
