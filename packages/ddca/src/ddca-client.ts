@@ -14,6 +14,7 @@ import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
 import { ProgramAccount } from '@project-serum/anchor';
+import { DdcaAccount } from '.';
 const idl = require('./idl.json');
 
 // CONSTANTS
@@ -480,19 +481,20 @@ export class DdcaClient {
         
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.wallet.publicKey.toBuffer());
         return ddcaAccounts.map(x => {
-            return {
+            const values: DdcaAccount = {
                 id: x.publicKey.toBase58(),
                 fromMint: x.account.fromMint.toBase58(),
                 toMint: x.account.toMint.toBase58(),
                 amountPerSwap: x.account.amountPerSwap.toNumber(),
                 totalDepositsAmount: x.account.totalDepositsAmount.toNumber(),
                 startTs: x.account.startTs.toNumber(),
-                startedUtc: tsToUtc(x.account.startTs.toNumber()),
+                startUtc: tsToUtc(x.account.startTs.toNumber())?.toUTCString(),
                 intervalInSeconds: x.account.intervalInSeconds.toNumber(),
                 lastCompletedSwapTs: x.account.lastCompletedSwapTs.toNumber(),
-                lastCompletedSwapUtc: tsToUtc(x.account.lastCompletedSwapTs.toNumber()),
-                isPaused: x.account.isPaused,
+                lastCompletedSwapUtc: tsToUtc(x.account.lastCompletedSwapTs.toNumber())?.toUTCString(),
+                isPaused: x.account.isPaused
             };
+            return values;
         });
     }
 
