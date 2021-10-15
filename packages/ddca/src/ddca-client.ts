@@ -13,6 +13,7 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/sp
 import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
+import { ProgramAccount } from '@project-serum/anchor';
 const idl = require('./idl.json');
 
 // CONSTANTS
@@ -30,6 +31,7 @@ export class DdcaClient {
     public connection: Connection;
     public provider: anchor.Provider;
     public program: anchor.Program;
+    private wallet: anchor.Wallet;
 
     /**
      * Create a DDCA client
@@ -45,6 +47,7 @@ export class DdcaClient {
         //     commitment: commitment
         // } as anchor.web3.ConfirmOptions;
         // const provider = this.getAnchorProvider(rpcUrl, anchorWallet, confirmationOptions as anchor.web3.Connection);
+        this.wallet = anchorWallet;
         const provider = this.getAnchorProvider(rpcUrl, anchorWallet, confirmOptions);
         this.provider = provider;
         this.connection = provider.connection;
@@ -472,6 +475,30 @@ export class DdcaClient {
 
         return closeTx;
     }
+
+    public async ListDdcas() {
+        
+        const ddcaAccounts = await this.program.account.ddcaAccount.all(this.wallet.publicKey.toBuffer());
+        return ddcaAccounts.map(x => {
+            return{
+                id: x.publicKey.toBase58(),
+                fromMint: x.account.fromMint.toBase58(),
+                toMint: x.account.toMint.toBase58(),
+                amountPerSwap: x.account.amountPerSwap.toNumber(),
+                totalDepositsAmount: x.account.totalDepositsAmount.toNumber(),
+                startTs: x.account.startTs.toNumber(),
+                startedUtc: tsToUtc(x.account.startTs.toNumber()),
+                intervalInSeconds: x.account.intervalInSeconds.toNumber(),
+                lastCompletedSwapTs: x.account.lastCompletedSwapTs.toNumber(),
+                lastCompletedSwapUtc: tsToUtc(x.account.lastCompletedSwapTs.toNumber()),
+                isPaused: x.account.isPaused,
+            }
+        });
+    }
+}
+
+function tsToUtc(ts: number): Date | null {
+    return ts === 0 ? null : new Date(ts * 1000);
 }
 
 async function createAtaCreateInstructionIfNotExists(
