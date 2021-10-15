@@ -480,7 +480,7 @@ export class DdcaClient {
         
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.wallet.publicKey.toBuffer());
         return ddcaAccounts.map(x => {
-            return{
+            return {
                 id: x.publicKey.toBase58(),
                 fromMint: x.account.fromMint.toBase58(),
                 toMint: x.account.toMint.toBase58(),
@@ -492,8 +492,30 @@ export class DdcaClient {
                 lastCompletedSwapTs: x.account.lastCompletedSwapTs.toNumber(),
                 lastCompletedSwapUtc: tsToUtc(x.account.lastCompletedSwapTs.toNumber()),
                 isPaused: x.account.isPaused,
-            }
+            };
         });
+    }
+
+    public async GetDdca(ddcaAddress: PublicKey){
+        // return await this.program.account.ddcaAccount.fetch("BUmUYjAZ5GDp5HqtLcJCj4k2Sd7iLSrNQbP9c55Tvmvp");
+        const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAddress);
+
+        if(ddcaAccount === null)
+            return null;
+
+        return {
+            id: ddcaAddress.toBase58(),
+            fromMint: ddcaAccount.fromMint.toBase58(),
+            toMint: ddcaAccount.toMint.toBase58(),
+            amountPerSwap: ddcaAccount.amountPerSwap.toNumber(),
+            totalDepositsAmount: ddcaAccount.totalDepositsAmount.toNumber(),
+            startTs: ddcaAccount.startTs.toNumber(),
+            startedUtc: tsToUtc(ddcaAccount.startTs.toNumber()),
+            intervalInSeconds: ddcaAccount.intervalInSeconds.toNumber(),
+            lastCompletedSwapTs: ddcaAccount.lastCompletedSwapTs.toNumber(),
+            lastCompletedSwapUtc: tsToUtc(ddcaAccount.lastCompletedSwapTs.toNumber()),
+            isPaused: ddcaAccount.isPaused,
+        };
     }
 }
 
