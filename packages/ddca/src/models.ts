@@ -6,8 +6,17 @@ export interface DdcaAccount {
     startTs?: number;
     amountPerSwap: number;
     intervalInSeconds: number;
-    startUtc: string | undefined;
+    startUtc: string;
     lastCompletedSwapTs?: number;
-    lastCompletedSwapUtc: string | undefined;
+    lastCompletedSwapUtc: string;
     isPaused: boolean;
+}
+
+export interface DdcaDetails extends DdcaAccount{
+    fromBalance: number;
+    toBalance: number;
+    fromBalanceWillRunOutByUtc: string
+    exchangedForAmount: number,
+    exchangedRateAverage: number,
+    nextScheduledSwapUtc: string
 }

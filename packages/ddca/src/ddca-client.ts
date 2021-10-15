@@ -14,13 +14,13 @@ import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
 import { ProgramAccount } from '@project-serum/anchor';
-import { DdcaAccount } from '.';
+import { DdcaAccount, DdcaDetails } from '.';
 const idl = require('./idl.json');
 
 // CONSTANTS
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const LAMPORTS_PER_SOL = anchor.web3.LAMPORTS_PER_SOL;
-const DDCA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("3oSfkjQZKCneYvsCTZc9HViGAPqR8pYr4h9YeGB5ZxHf");
+const DDCA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("6u1Hc9AqC6AvpYDQcFjhMVqAwcQ83Kn5TVm6oWMjDDf1");
 const HLA_PROGRAM_ADDRESS = new PublicKey("EPa4WdYPcGGdwEbq425DMZukU2wDUE1RWAGrPbRYSLRE");
 const HLA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("FZMd4pn9FsvMC55D4XQfaexJvKBtQpVuqMk5zuonLRDX");
 
@@ -488,43 +488,99 @@ export class DdcaClient {
                 amountPerSwap: x.account.amountPerSwap.toNumber(),
                 totalDepositsAmount: x.account.totalDepositsAmount.toNumber(),
                 startTs: x.account.startTs.toNumber(),
-                startUtc: tsToUtc(x.account.startTs.toNumber())?.toUTCString(),
+                startUtc: tsToUTCString(x.account.startTs.toNumber()),
                 intervalInSeconds: x.account.intervalInSeconds.toNumber(),
                 lastCompletedSwapTs: x.account.lastCompletedSwapTs.toNumber(),
-                lastCompletedSwapUtc: tsToUtc(x.account.lastCompletedSwapTs.toNumber())?.toUTCString(),
+                lastCompletedSwapUtc: tsToUTCString(x.account.lastCompletedSwapTs.toNumber()),
                 isPaused: x.account.isPaused
             };
             return values;
         });
     }
 
-    public async GetDdca(ddcaAddress: PublicKey): Promise<DdcaAccount | null> {
-        // return await this.program.account.ddcaAccount.fetch("BUmUYjAZ5GDp5HqtLcJCj4k2Sd7iLSrNQbP9c55Tvmvp");
+    public async GetDdca(ddcaAddress: PublicKey): Promise<DdcaDetails | null> {
+
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAddress);
+        console.log("ddca fetch");
+        console.log(ddcaAccount);
 
         if(ddcaAccount === null)
             return null;
 
-        const value: DdcaAccount = {
+        const fromTokenResponse = await this.connection.getTokenAccountBalance(ddcaAccount.fromTaccAddr);
+        const fromTokenBalance = fromTokenResponse.value.uiAmount ?? 0;
+        const toTokenResponse = await this.connection.getTokenAccountBalance(ddcaAccount.toTaccAddr);
+        const toTokenBalance = toTokenResponse.value.uiAmount ?? 0;
+
+        let startTs = ddcaAccount.startTs.toNumber();
+        let interval = ddcaAccount.intervalInSeconds.toNumber();
+        let lastCompletedSwapTs = ddcaAccount.lastCompletedSwapTs.toNumber();
+        let nowTs = Math.floor(Date.now() / 1000);
+        let maxDiffInSecs = Math.min(Math.floor(interval / 100), 3600); // +/-1% up to 3600 sec (ok for min interval = 5 min)
+        let prevCheckpoint = Math.floor((nowTs - startTs) / interval);
+        let prevTs = startTs + prevCheckpoint * interval;
+        let nextCheckpoint = prevCheckpoint + 1;
+        let nextTs = startTs + nextCheckpoint * interval;
+        let nextScheduledTs: number;
+
+        console.log("DDCA schedule: { start_ts: %s, interval:%s, last_completed_ts: %s, now_ts: %s, max_diff_in_secs: %s, low: %s, high: %s, low_ts: %s, high_ts: %s }",
+        startTs, interval, lastCompletedSwapTs, nowTs, maxDiffInSecs, prevCheckpoint, nextCheckpoint, prevTs, nextTs);
+
+        if(nowTs <= prevTs + maxDiffInSecs) { // we are in the prevTs swap window
+            if(lastCompletedSwapTs != prevTs) // we are in the prevTs swap window and we haven't consumed the swap yet
+                nextScheduledTs = prevTs;
+            else // we are in the prevTs swap window but we already consumed the swap
+                nextScheduledTs = nextTs;
+        }
+        else if(nowTs >= nextTs - maxDiffInSecs) { // we are in the nextTs swap window
+            if(lastCompletedSwapTs != nextTs) // we are in the nextTs swap window and we haven't consumed the swap yet
+                nextScheduledTs = nextTs;
+            else // we are in the nextTs swap window but we already consumed the swap, so next in schedule will be nextCheckpoint + 1
+                nextScheduledTs = startTs + (nextCheckpoint + 1) * interval
+        }
+        else { // we are in between prevTs and nextTs but no close ennough to any
+            nextScheduledTs = nextTs;
+        }
+        console.log("nextTs: %s", nextTs);
+
+        const amountPerSwap = ddcaAccount.amountPerSwap.toNumber();
+        const remainingSwapsCount = Math.floor(fromTokenBalance / amountPerSwap);
+        let fromBalanceWillRunOutByUtc = '';
+        if(remainingSwapsCount > 0){
+            fromBalanceWillRunOutByUtc = tsToUTCString(nextScheduledTs + (remainingSwapsCount - 1) * interval);
+        }
+
+        // const ddcaTxsSignature = this.connection.getConfirmedSignaturesForAddress2(ddcaAddress, commitment: "confirmed");
+        // const parsedTxs = this.connection.getParsedConfirmedTransactions((await ddcaTxsSignature).map(x => x.signature));
+        // console.log(parsedTxs);
+
+        const ddca: DdcaDetails = {
             id: ddcaAddress.toBase58(),
             fromMint: ddcaAccount.fromMint.toBase58(),
             toMint: ddcaAccount.toMint.toBase58(),
-            amountPerSwap: ddcaAccount.amountPerSwap.toNumber(),
+            amountPerSwap: amountPerSwap,
             totalDepositsAmount: ddcaAccount.totalDepositsAmount.toNumber(),
-            startTs: ddcaAccount.startTs.toNumber(),
-            startUtc: tsToUtc(ddcaAccount.startTs.toNumber())?.toUTCString(),
-            intervalInSeconds: ddcaAccount.intervalInSeconds.toNumber(),
-            lastCompletedSwapTs: ddcaAccount.lastCompletedSwapTs.toNumber(),
-            lastCompletedSwapUtc: tsToUtc(ddcaAccount.lastCompletedSwapTs.toNumber())?.toUTCString(),
+            startTs: startTs,
+            startUtc: tsToUTCString(startTs),
+            intervalInSeconds: interval,
+            lastCompletedSwapTs: lastCompletedSwapTs,
+            lastCompletedSwapUtc: tsToUTCString(lastCompletedSwapTs),
             isPaused: ddcaAccount.isPaused,
+
+            fromBalance: fromTokenBalance,
+            toBalance: toTokenBalance,
+            fromBalanceWillRunOutByUtc: fromBalanceWillRunOutByUtc,
+            exchangedForAmount: 0, // TODO
+            exchangedRateAverage: 0, // TODO
+            nextScheduledSwapUtc: tsToUTCString(nextScheduledTs)
         };
 
-        return value;
+        return ddca;
     }
 }
 
-function tsToUtc(ts: number): Date | null {
-    return ts === 0 ? null : new Date(ts * 1000);
+function tsToUTCString(ts: number): string {
+    return ts === 0 ? '' : new Date(ts * 1000).toUTCString();
 }
 
 async function createAtaCreateInstructionIfNotExists(
