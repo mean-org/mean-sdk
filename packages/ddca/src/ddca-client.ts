@@ -150,14 +150,14 @@ export class DdcaClient {
         if (ddcaOperatingFromAtaCreateInstruction !== null)
             ixs.push(ddcaOperatingFromAtaCreateInstruction);
 
-        let hlaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
-            hlaOperatingFromTokenAccountAddress,
+        let ownerFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            ownerFromTokenAccountAddress,
             fromMint,
-            HLA_OPERATING_ACCOUNT_ADDRESS,
+            ownerAccountAddress,
             ownerAccountAddress,
             this.connection);
-        if (hlaOperatingFromAtaCreateInstruction !== null)
-            ixs.push(hlaOperatingFromAtaCreateInstruction);
+        if (ownerFromAtaCreateInstruction !== null)
+            ixs.push(ownerFromAtaCreateInstruction);
 
         if(ixs.length === 0)
             ixs = undefined;
@@ -479,7 +479,13 @@ export class DdcaClient {
 
     public async ListDdcas() {
         
+        console.log("before buffer");
+        // console.log(this.wallet.publicKey.toBuffer());
+        console.log("after buffer");
+        console.log("before ddcaAccounts");
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.wallet.publicKey.toBuffer());
+        // const ddcaAccounts = await this.program.account.ddcaAccount.all(anchor.web3.Keypair.generate().publicKey.toBuffer());
+        console.log("after ddcaAccounts");
         return ddcaAccounts.map(x => {
             const values: DdcaAccount = {
                 id: x.publicKey.toBase58(),
