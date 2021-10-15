@@ -498,26 +498,28 @@ export class DdcaClient {
         });
     }
 
-    public async GetDdca(ddcaAddress: PublicKey){
+    public async GetDdca(ddcaAddress: PublicKey): Promise<DdcaAccount | null> {
         // return await this.program.account.ddcaAccount.fetch("BUmUYjAZ5GDp5HqtLcJCj4k2Sd7iLSrNQbP9c55Tvmvp");
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAddress);
 
         if(ddcaAccount === null)
             return null;
 
-        return {
+        const value: DdcaAccount = {
             id: ddcaAddress.toBase58(),
             fromMint: ddcaAccount.fromMint.toBase58(),
             toMint: ddcaAccount.toMint.toBase58(),
             amountPerSwap: ddcaAccount.amountPerSwap.toNumber(),
             totalDepositsAmount: ddcaAccount.totalDepositsAmount.toNumber(),
             startTs: ddcaAccount.startTs.toNumber(),
-            startedUtc: tsToUtc(ddcaAccount.startTs.toNumber()),
+            startUtc: tsToUtc(ddcaAccount.startTs.toNumber())?.toUTCString(),
             intervalInSeconds: ddcaAccount.intervalInSeconds.toNumber(),
             lastCompletedSwapTs: ddcaAccount.lastCompletedSwapTs.toNumber(),
-            lastCompletedSwapUtc: tsToUtc(ddcaAccount.lastCompletedSwapTs.toNumber()),
+            lastCompletedSwapUtc: tsToUtc(ddcaAccount.lastCompletedSwapTs.toNumber())?.toUTCString(),
             isPaused: ddcaAccount.isPaused,
         };
+
+        return value;
     }
 }
 
