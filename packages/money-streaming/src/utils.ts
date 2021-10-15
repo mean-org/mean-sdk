@@ -131,13 +131,11 @@ const parseStreamData = (
     let escrowVestedAmount = 0.0;
     let rateAmount = decodedData.rate_amount;
     const rate = rateIntervalInSeconds > 0 ? (rateAmount / rateIntervalInSeconds * isStreaming) : 0;
-    const elapsedTime = currentBlockTime - lastTimeSnap;     
+    const elapsedTime = currentBlockTime - lastTimeSnap;    
     const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
     const associatedToken = (friendly === true ? beneficiaryAssociatedToken.toBase58() : beneficiaryAssociatedToken);
-    const escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap
-        ? decodedData.escrow_vested_amount_snap
-        : decodedData.total_deposits;
-
+    const escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
+    
     if (currentBlockTime >= lastTimeSnap) {
         escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
 
@@ -206,7 +204,7 @@ const parseStreamData = (
         autoPauseInSeconds: autoPauseInSeconds,
         isUpdatePending: false,
         transactionSignature: '',
-        blockTime: 0,
+        blockTime: currentBlockTime,
         state
     });
 

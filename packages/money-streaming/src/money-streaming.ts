@@ -707,7 +707,10 @@ export class MoneyStreaming {
 
         const streamAccount = Keypair.generate();
         txSigners.push(streamAccount);
-        const startTimeUtc = startUtc ? startUtc.getTime() : Date.parse(new Date().toUTCString());
+        const start = startUtc ? new Date(startUtc.toLocaleString()) : new Date();
+        const startTimeUtc = !startUtc || start < new Date()
+            ? Date.parse(new Date().toUTCString())
+            : startUtc.getTime();
 
         // Create stream contract
         ixs.push(
