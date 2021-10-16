@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/ddca",
-  "version": "1.1.0",
+  "version": "1.2.2",
   "description": "Typescript library to interact with the Decentralized DCA program",
   "private": false,
   "repository": {
@@ -16,9 +16,12 @@
     "url": "https://github.com/mean-dao/mean-sdk/issues"
   },
   "homepage": "https://github.com/mean-dao/mean-sdk#readme",
-  "type": "commonjs",
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "@project-serum/anchor": "^0.17.0",
+    "@solana/spl-token": "^0.1.8"
+  },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.1",
     "typescript": "^4.4.2"

@@ -103,6 +103,16 @@ export type StreamTermsInfo = {
 }
 
 /**
+ * Stream states
+ */
+ export enum STREAM_STATE {
+    Schedule = 1,
+    Running = 2,
+    Paused = 3,
+    Ended = 4
+}
+
+/**
  * Stream info
  */
 export type StreamInfo = {
@@ -131,8 +141,8 @@ export type StreamInfo = {
     streamResumedBlockHeight: number,
     streamResumedBlockTime: number,
     autoPauseInSeconds: number,
-    isStreaming: boolean,
     isUpdatePending: boolean,
     transactionSignature: string | undefined,
     blockTime: number,
+    state: STREAM_STATE
 }

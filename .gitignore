@@ -2,3 +2,4 @@ packages/*/lib/
 packages/*/lib/**/*
 packages/*/node_modules
 packages/*/node_modules/**/*
+packages/money-streaming/main.ts

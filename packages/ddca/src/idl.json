@@ -1,0 +1,331 @@
+{
+  "version": "0.0.0",
+  "name": "ddca",
+  "instructions": [
+    {
+      "name": "create",
+      "accounts": [
+        {
+          "name": "ownerAccount",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ownerFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fromMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "fromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "toTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "operatingAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "operatingFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "blockHeight",
+          "type": "u64"
+        },
+        {
+          "name": "pdaBump",
+          "type": "u8"
+        },
+        {
+          "name": "depositAmount",
+          "type": "u64"
+        },
+        {
+          "name": "amountPerSwap",
+          "type": "u64"
+        },
+        {
+          "name": "intervalInSeconds",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "wakeAndSwap",
+      "accounts": [
+        {
+          "name": "ddcaAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fromMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "fromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "toTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "hlaProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "hlaOperatingAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "hlaOperatingFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "swapMinOutAmount",
+          "type": "u64"
+        },
+        {
+          "name": "swapSlippage",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "close",
+      "accounts": [
+        {
+          "name": "ownerAccount",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ownerFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ownerToTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaToTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "operatingAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "operatingFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "operatingToTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "DdcaAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ownerAccAddr",
+            "type": "publicKey"
+          },
+          {
+            "name": "fromMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "fromTaccAddr",
+            "type": "publicKey"
+          },
+          {
+            "name": "toMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "toTaccAddr",
+            "type": "publicKey"
+          },
+          {
+            "name": "blockHeight",
+            "type": "u64"
+          },
+          {
+            "name": "pdaBump",
+            "type": "u8"
+          },
+          {
+            "name": "totalDepositsAmount",
+            "type": "u64"
+          },
+          {
+            "name": "amountPerSwap",
+            "type": "u64"
+          },
+          {
+            "name": "startTs",
+            "type": "u64"
+          },
+          {
+            "name": "intervalInSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "lastCompletedSwapTs",
+            "type": "u64"
+          },
+          {
+            "name": "isPaused",
+            "type": "bool"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 300,
+      "name": "InvalidAmounts",
+      "msg": "Deposit amount must be a multiple of the amount per swap"
+    },
+    {
+      "code": 301,
+      "name": "InvalidSwapsCount",
+      "msg": "The number of recurring swaps must be greater than 1"
+    },
+    {
+      "code": 302,
+      "name": "DdcaIsPaused",
+      "msg": "This DDCA is paused"
+    },
+    {
+      "code": 303,
+      "name": "InsufficientBalanceForSwap",
+      "msg": "Insufficient balance for swap"
+    },
+    {
+      "code": 304,
+      "name": "InvalidSwapSchedule",
+      "msg": "This DDCA is not schedule for the provided time"
+    }
+  ],
+  "metadata": {
+    "address": "3nmm1awnyhABJdoA25MYVksxz1xnpUFeepJJyRTZfsyD"
+  }
+}
