@@ -251,12 +251,20 @@
             "type": "publicKey"
           },
           {
+            "name": "fromMintDecimals",
+            "type": "u8"
+          },
+          {
             "name": "fromTaccAddr",
             "type": "publicKey"
           },
           {
             "name": "toMint",
             "type": "publicKey"
+          },
+          {
+            "name": "toMintDecimals",
+            "type": "u8"
           },
           {
             "name": "toTaccAddr",

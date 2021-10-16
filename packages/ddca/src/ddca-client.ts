@@ -187,10 +187,17 @@ export class DdcaClient {
         console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
         console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
         console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
-        console.log();  
+        console.log();
+
+        const fromMintDecimals = (await this.connection.getTokenSupply(fromMint)).value.decimals;
+        console.log("fromMintDecimals: %s", fromMintDecimals);
+        const depositAmountBn =  new anchor.BN(depositAmount * 10 ** fromMintDecimals);
+        console.log("depositAmountBn: %s", depositAmountBn.toNumber());
+        const amountPerSwapBn =  new anchor.BN(amountPerSwap * 10 ** fromMintDecimals);
+        console.log("amountPerSwapBn: %s", amountPerSwapBn.toNumber());
 
         const createTx = await this.program.transaction.create(new anchor.BN(blockHeight), ddcaAccountPdaBump,
-            new anchor.BN(depositAmount), new anchor.BN(amountPerSwap), new anchor.BN(intervalInSeconds),
+            depositAmountBn, amountPerSwapBn, new anchor.BN(intervalInSeconds),
             {
                 accounts: {
                     // owner
@@ -289,8 +296,11 @@ export class DdcaClient {
         console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
         console.log();
 
+        const toMintDecimals = (await this.connection.getTokenSupply(toMint)).value.decimals;
+        const swapMinimumOutAmountBn =  new anchor.BN(swapMinimumOutAmount * 10 ** toMintDecimals);
+
         const wakeAndSwapTx = await this.program.transaction.wakeAndSwap(
-            new anchor.BN(swapMinimumOutAmount), swapSlippage,
+            swapMinimumOutAmountBn, swapSlippage * 100,
             {
                 accounts: {
                     // ddca
@@ -478,21 +488,14 @@ export class DdcaClient {
     }
 
     public async ListDdcas() {
-        
-        console.log("before buffer");
-        // console.log(this.wallet.publicKey.toBuffer());
-        console.log("after buffer");
-        console.log("before ddcaAccounts");
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.wallet.publicKey.toBuffer());
-        // const ddcaAccounts = await this.program.account.ddcaAccount.all(anchor.web3.Keypair.generate().publicKey.toBuffer());
-        console.log("after ddcaAccounts");
         return ddcaAccounts.map(x => {
             const values: DdcaAccount = {
                 id: x.publicKey.toBase58(),
                 fromMint: x.account.fromMint.toBase58(),
                 toMint: x.account.toMint.toBase58(),
-                amountPerSwap: x.account.amountPerSwap.toNumber(),
-                totalDepositsAmount: x.account.totalDepositsAmount.toNumber(),
+                amountPerSwap: x.account.amountPerSwap.toNumber() / (10 ** x.account.fromMintDecimals),
+                totalDepositsAmount: x.account.totalDepositsAmount.toNumber() / (10 ** x.account.fromMintDecimals),
                 startTs: x.account.startTs.toNumber(),
                 startUtc: tsToUTCString(x.account.startTs.toNumber()),
                 intervalInSeconds: x.account.intervalInSeconds.toNumber(),
@@ -549,14 +552,14 @@ export class DdcaClient {
         }
         console.log("nextTs: %s", nextTs);
 
-        const amountPerSwap = ddcaAccount.amountPerSwap.toNumber();
+        const amountPerSwap = ddcaAccount.amountPerSwap.toNumber() / (10 ** ddcaAccount.fromMintDecimals);
         const remainingSwapsCount = Math.floor(fromTokenBalance / amountPerSwap);
         let fromBalanceWillRunOutByUtc = '';
         if(remainingSwapsCount > 0){
             fromBalanceWillRunOutByUtc = tsToUTCString(nextScheduledTs + (remainingSwapsCount - 1) * interval);
         }
 
-        // const ddcaTxsSignature = this.connection.getConfirmedSignaturesForAddress2(ddcaAddress, commitment: "confirmed");
+        // const ddcaTxsSignature = this.connection.getConfirmedSignaturesForAddress2(ddcaAddress, "confirmed");
         // const parsedTxs = this.connection.getParsedConfirmedTransactions((await ddcaTxsSignature).map(x => x.signature));
         // console.log(parsedTxs);
 
@@ -565,7 +568,7 @@ export class DdcaClient {
             fromMint: ddcaAccount.fromMint.toBase58(),
             toMint: ddcaAccount.toMint.toBase58(),
             amountPerSwap: amountPerSwap,
-            totalDepositsAmount: ddcaAccount.totalDepositsAmount.toNumber(),
+            totalDepositsAmount: ddcaAccount.totalDepositsAmount.toNumber() / (10 ** ddcaAccount.fromMintDecimals),
             startTs: startTs,
             startUtc: tsToUTCString(startTs),
             intervalInSeconds: interval,
