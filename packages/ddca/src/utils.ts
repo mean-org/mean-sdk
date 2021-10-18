@@ -4,7 +4,7 @@ import {
     LAMPORTS_PER_SOL,
 
 } from "@solana/web3.js";
-import { DDCA_ACTIONS, TransactionFees } from ".";
+import { DDCA_ACTIONS, MAX_FEE_PER_SWAP, TransactionFees } from ".";
 
 export const calculateActionFees = async (
     connection: Connection,
@@ -43,6 +43,14 @@ export const calculateActionFees = async (
             percentFee = 0;
             break;
         }
+        case DDCA_ACTIONS.addFunds: {
+            signaturesCount = 1;
+            maxTotalRentExcemptInLamports = 0;
+            totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
+            flatFeeInLamports = 0;
+            percentFee = 0;
+            break;
+        }
         case DDCA_ACTIONS.withdraw: {
             signaturesCount = 1;
             maxTotalRentExcemptInLamports = 
@@ -67,9 +75,10 @@ export const calculateActionFees = async (
     }
 
     return {
-        blockchainFee: (maxTotalRentExcemptInLamports + lamportsPerSignatureFee * signaturesCount) / LAMPORTS_PER_SOL,
+        maxBlockchainFee: (maxTotalRentExcemptInLamports + lamportsPerSignatureFee * signaturesCount) / LAMPORTS_PER_SOL,
         scheduledSwapsFees: totalAmountNeededForsSwapsInLamports / LAMPORTS_PER_SOL,
         flatFee: flatFeeInLamports,
-        percentFee: percentFee
+        percentFee: percentFee,
+        maxFeePerSwap: MAX_FEE_PER_SWAP
     };
 }

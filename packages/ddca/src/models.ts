@@ -1,3 +1,5 @@
+export const MAX_FEE_PER_SWAP: number = 20000000;
+
 export interface DdcaAccount {
     id: string;
     fromMint: string;
@@ -36,13 +38,15 @@ export interface DdcaDetails extends DdcaAccount{
  */
 export type TransactionFees = {
     /* Solana fees (SOL) calculated based on the tx signatures and cluster*/
-    blockchainFee: number;
+    maxBlockchainFee: number;
     /* Amount (SOL) that will be transferred into the DDCA account to pay tx + protocol fees when executing scheduled swaps */
     scheduledSwapsFees: number;
     /* Flat fee amount (SOL) depending of the instruction that is being executed */
     flatFee: number;
     /* Fee in percent of token amount depending of the instruction that is being executed */
     percentFee: number;
+
+    maxFeePerSwap: number;
 }
 
 /**
