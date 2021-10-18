@@ -83,7 +83,6 @@ export class DdcaClient {
 
         const blockHeight = await this.connection.getSlot('confirmed');
         const blockHeightBn = new anchor.BN(blockHeight);
-        console.log("blockHeightBn", blockHeightBn);
         // const blockHeightBytes = blockHeightBn.toBuffer('be', 8);
         const blockHeightBytes = blockHeightBn.toArrayLike(Buffer, 'be', 8);
 
@@ -122,33 +121,33 @@ export class DdcaClient {
             true,
         );
 
-        //ddca operating token account (from)
-        const ddcaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            fromMint,
-            DDCA_OPERATING_ACCOUNT_ADDRESS,
-        );
+        // //ddca operating token account (from)
+        // const ddcaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+        //     ASSOCIATED_TOKEN_PROGRAM_ID,
+        //     TOKEN_PROGRAM_ID,
+        //     fromMint,
+        //     DDCA_OPERATING_ACCOUNT_ADDRESS,
+        // );
 
-        //hla operating token account (from)
-        const hlaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            fromMint,
-            HLA_OPERATING_ACCOUNT_ADDRESS,
-        );
+        // //hla operating token account (from)
+        // const hlaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+        //     ASSOCIATED_TOKEN_PROGRAM_ID,
+        //     TOKEN_PROGRAM_ID,
+        //     fromMint,
+        //     HLA_OPERATING_ACCOUNT_ADDRESS,
+        // );
 
         // Instructions
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
 
-        let ddcaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
-            ddcaOperatingFromTokenAccountAddress,
-            fromMint,
-            DDCA_OPERATING_ACCOUNT_ADDRESS,
-            ownerAccountAddress,
-            this.connection);
-        if (ddcaOperatingFromAtaCreateInstruction !== null)
-            ixs.push(ddcaOperatingFromAtaCreateInstruction);
+        // let ddcaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+        //     ddcaOperatingFromTokenAccountAddress,
+        //     fromMint,
+        //     DDCA_OPERATING_ACCOUNT_ADDRESS,
+        //     ownerAccountAddress,
+        //     this.connection);
+        // if (ddcaOperatingFromAtaCreateInstruction !== null)
+        //     ixs.push(ddcaOperatingFromAtaCreateInstruction);
 
         let ownerFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
             ownerFromTokenAccountAddress,
@@ -176,13 +175,13 @@ export class DdcaClient {
         console.log("  ddcaAccountPdaBump:                   " + ddcaAccountPdaBump);
         console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
         console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
-        console.log();
-        console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
-        console.log();
-        console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
-        console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
+        // console.log();
+        // console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
+        // console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
+        // console.log();
+        // console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
+        // console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
+        // console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
         console.log();
         console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
         console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
@@ -209,8 +208,8 @@ export class DdcaClient {
                     fromTokenAccount: ddcaFromTokenAccountAddress,
                     toMint: toMint,
                     toTokenAccount: ddcaToTokenAccountAddress,
-                    operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
-                    operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
+                    // operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
+                    // operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
                     // system accounts
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                     clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
@@ -510,8 +509,6 @@ export class DdcaClient {
     public async GetDdca(ddcaAddress: PublicKey): Promise<DdcaDetails | null> {
 
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAddress);
-        console.log("ddca fetch");
-        console.log(ddcaAccount);
 
         if(ddcaAccount === null)
             return null;
@@ -532,8 +529,8 @@ export class DdcaClient {
         let nextTs = startTs + nextCheckpoint * interval;
         let nextScheduledTs: number;
 
-        console.log("DDCA schedule: { start_ts: %s, interval:%s, last_completed_ts: %s, now_ts: %s, max_diff_in_secs: %s, low: %s, high: %s, low_ts: %s, high_ts: %s }",
-        startTs, interval, lastCompletedSwapTs, nowTs, maxDiffInSecs, prevCheckpoint, nextCheckpoint, prevTs, nextTs);
+        // console.log("DDCA schedule: { start_ts: %s, interval:%s, last_completed_ts: %s, now_ts: %s, max_diff_in_secs: %s, low: %s, high: %s, low_ts: %s, high_ts: %s }",
+        // startTs, interval, lastCompletedSwapTs, nowTs, maxDiffInSecs, prevCheckpoint, nextCheckpoint, prevTs, nextTs);
 
         if(nowTs <= prevTs + maxDiffInSecs) { // we are in the prevTs swap window
             if(lastCompletedSwapTs != prevTs) // we are in the prevTs swap window and we haven't consumed the swap yet
@@ -550,7 +547,7 @@ export class DdcaClient {
         else { // we are in between prevTs and nextTs but no close ennough to any
             nextScheduledTs = nextTs;
         }
-        console.log("nextTs: %s", nextTs);
+        // console.log("nextTs: %s", nextTs);
 
         const amountPerSwap = ddcaAccount.amountPerSwap.toNumber() / (10 ** ddcaAccount.fromMintDecimals);
         const remainingSwapsCount = Math.floor(fromTokenBalance / amountPerSwap);

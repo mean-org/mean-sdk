@@ -37,7 +37,7 @@ export const calculateActionFees = async (
         case DDCA_ACTIONS.create: {
             signaturesCount = 1;
             maxTotalRentExcemptInLamports = 
-                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 5 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes));
+                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 2 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 1 account + 2 token accounts
             totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
             flatFeeInLamports = 0;
             percentFee = 0;
@@ -46,7 +46,7 @@ export const calculateActionFees = async (
         case DDCA_ACTIONS.withdraw: {
             signaturesCount = 1;
             maxTotalRentExcemptInLamports = 
-                await connection.getMinimumBalanceForRentExemption(tokenAccountSizeInBytes + (tokenAccountSizeInBytes + minimumAccountSizeInBytes));
+                await connection.getMinimumBalanceForRentExemption(tokenAccountSizeInBytes + 3 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 4 token accounts
             flatFeeInLamports = 0;
             totalAmountNeededForsSwapsInLamports = 0;
             percentFee = 0.5;
@@ -55,7 +55,7 @@ export const calculateActionFees = async (
         case DDCA_ACTIONS.close: {
             signaturesCount = 1;
             maxTotalRentExcemptInLamports = 
-                await connection.getMinimumBalanceForRentExemption(tokenAccountSizeInBytes + (tokenAccountSizeInBytes + minimumAccountSizeInBytes));
+                await connection.getMinimumBalanceForRentExemption(tokenAccountSizeInBytes + 3 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 4 token accounts
             flatFeeInLamports = 0;
             totalAmountNeededForsSwapsInLamports = 0;
             percentFee = 0.5;
