@@ -13,7 +13,6 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/sp
 import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
-import { ProgramAccount } from '@project-serum/anchor';
 import { DdcaAccount, DdcaDetails } from '.';
 const idl = require('./idl.json');
 
@@ -21,7 +20,7 @@ const idl = require('./idl.json');
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const LAMPORTS_PER_SOL = anchor.web3.LAMPORTS_PER_SOL;
 const DDCA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("6u1Hc9AqC6AvpYDQcFjhMVqAwcQ83Kn5TVm6oWMjDDf1");
-const HLA_PROGRAM_ADDRESS = new PublicKey("EPa4WdYPcGGdwEbq425DMZukU2wDUE1RWAGrPbRYSLRE");
+const HLA_PROGRAM_ADDRESS = new PublicKey("B6gLd2uyVQLZMdC1s9C4WR7ZP9fMhJNh7WZYcsibuzN3");
 const HLA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("FZMd4pn9FsvMC55D4XQfaexJvKBtQpVuqMk5zuonLRDX");
 
 /**
@@ -33,6 +32,7 @@ export class DdcaClient {
     public provider: anchor.Provider;
     public program: anchor.Program;
     private wallet: anchor.Wallet;
+    private verbose: boolean;
 
     /**
      * Create a DDCA client
@@ -41,7 +41,8 @@ export class DdcaClient {
         rpcUrl: string,
         anchorWallet: any,
         // commitment: Commitment | string = 'confirmed' as Commitment
-        confirmOptions?: anchor.web3.ConfirmOptions
+        confirmOptions?: anchor.web3.ConfirmOptions,
+        verbose = false
     ) {
         // const confirmationOptions = {
         //     preflightCommitment: commitment, 
@@ -56,6 +57,7 @@ export class DdcaClient {
 
         const programId = new anchor.web3.PublicKey(idl.metadata.address);
         this.program = new anchor.Program(idl, programId, provider); 
+        this.verbose = verbose;
     }
 
     private getAnchorProvider(
@@ -83,7 +85,6 @@ export class DdcaClient {
 
         const blockHeight = await this.connection.getSlot('confirmed');
         const blockHeightBn = new anchor.BN(blockHeight);
-        console.log("blockHeightBn", blockHeightBn);
         // const blockHeightBytes = blockHeightBn.toBuffer('be', 8);
         const blockHeightBytes = blockHeightBn.toArrayLike(Buffer, 'be', 8);
 
@@ -122,33 +123,8 @@ export class DdcaClient {
             true,
         );
 
-        //ddca operating token account (from)
-        const ddcaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            fromMint,
-            DDCA_OPERATING_ACCOUNT_ADDRESS,
-        );
-
-        //hla operating token account (from)
-        const hlaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            fromMint,
-            HLA_OPERATING_ACCOUNT_ADDRESS,
-        );
-
         // Instructions
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
-
-        let ddcaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
-            ddcaOperatingFromTokenAccountAddress,
-            fromMint,
-            DDCA_OPERATING_ACCOUNT_ADDRESS,
-            ownerAccountAddress,
-            this.connection);
-        if (ddcaOperatingFromAtaCreateInstruction !== null)
-            ixs.push(ddcaOperatingFromAtaCreateInstruction);
 
         let ownerFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
             ownerFromTokenAccountAddress,
@@ -162,39 +138,31 @@ export class DdcaClient {
         if(ixs.length === 0)
             ixs = undefined;
 
-        console.log("TEST PARAMETERS:")
-        console.log("  Program ID:                           " + this.program.programId);
-        console.log("  payer.address:                        " + ownerAccountAddress);
-        console.log("  fromMint:                             " + fromMint);
-        console.log("  toMint:                               " + toMint);
-        console.log("  blockHeight:                          " + blockHeight);
-        console.log();
-        console.log("  ownerAccountAddress:                  " + ownerAccountAddress);
-        console.log("  ownerFromTokenAccountAddress:         " + ownerFromTokenAccountAddress);
-        console.log();
-        console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
-        console.log("  ddcaAccountPdaBump:                   " + ddcaAccountPdaBump);
-        console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
-        console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
-        console.log();
-        console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
-        console.log();
-        console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
-        console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
-        console.log();
-        console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
-        console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
-        console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
-        console.log();
+        if(this.verbose){
+            console.log("TEST PARAMETERS:")
+            console.log("  Program ID:                           " + this.program.programId);
+            console.log("  payer.address:                        " + ownerAccountAddress);
+            console.log("  fromMint:                             " + fromMint);
+            console.log("  toMint:                               " + toMint);
+            console.log("  blockHeight:                          " + blockHeight);
+            console.log();
+            console.log("  ownerAccountAddress:                  " + ownerAccountAddress);
+            console.log("  ownerFromTokenAccountAddress:         " + ownerFromTokenAccountAddress);
+            console.log();
+            console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
+            console.log("  ddcaAccountPdaBump:                   " + ddcaAccountPdaBump);
+            console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
+            console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
+            console.log();
+            console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
+            console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
+            console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
+            console.log();
+        }
 
         const fromMintDecimals = (await this.connection.getTokenSupply(fromMint)).value.decimals;
-        console.log("fromMintDecimals: %s", fromMintDecimals);
         const depositAmountBn =  new anchor.BN(depositAmount * 10 ** fromMintDecimals);
-        console.log("depositAmountBn: %s", depositAmountBn.toNumber());
         const amountPerSwapBn =  new anchor.BN(amountPerSwap * 10 ** fromMintDecimals);
-        console.log("amountPerSwapBn: %s", amountPerSwapBn.toNumber());
 
         const createTx = await this.program.transaction.create(new anchor.BN(blockHeight), ddcaAccountPdaBump,
             depositAmountBn, amountPerSwapBn, new anchor.BN(intervalInSeconds),
@@ -209,8 +177,6 @@ export class DdcaClient {
                     fromTokenAccount: ddcaFromTokenAccountAddress,
                     toMint: toMint,
                     toTokenAccount: ddcaToTokenAccountAddress,
-                    operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
-                    operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
                     // system accounts
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                     clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
@@ -218,7 +184,6 @@ export class DdcaClient {
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
                 },
-                // signers: [ownerAccountAddress],
                 instructions: ixs,
             }
         );
@@ -227,7 +192,6 @@ export class DdcaClient {
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         createTx.recentBlockhash = hash.blockhash;
 
-        console.log("createTx", createTx);
         return [ddcaAccountPda, createTx];
     }
 
@@ -239,8 +203,6 @@ export class DdcaClient {
         swapMinimumOutAmount: number,
         swapSlippage: number,
     ): Promise<Transaction> {
-
-        console.log("ddcaAccountPda: %s", ddcaAccountPda.toBase58())
 
         //ddca associated token account (from)
         const ddcaFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
@@ -275,26 +237,28 @@ export class DdcaClient {
             HLA_OPERATING_ACCOUNT_ADDRESS,
         );
 
-        console.log("TEST PARAMETERS:")
-        console.log("  Program ID:                           " + this.program.programId);
-        console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
-        console.log("  fromMint:                             " + fromMint);
-        console.log("  toMint:                               " + toMint);
-        console.log();
-        console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
-        console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
-        console.log();
-        console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
-        console.log();
-        console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
-        console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
-        console.log();
-        console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
-        console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
-        console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
-        console.log();
+        if(this.verbose){
+            console.log("TEST PARAMETERS:")
+            console.log("  Program ID:                           " + this.program.programId);
+            console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
+            console.log("  fromMint:                             " + fromMint);
+            console.log("  toMint:                               " + toMint);
+            console.log();
+            console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
+            console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
+            console.log();
+            console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
+            console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
+            console.log();
+            console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
+            console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
+            console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
+            console.log();
+            console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
+            console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
+            console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
+            console.log();
+        }
 
         const toMintDecimals = (await this.connection.getTokenSupply(toMint)).value.decimals;
         const swapMinimumOutAmountBn =  new anchor.BN(swapMinimumOutAmount * 10 ** toMintDecimals);
@@ -320,17 +284,100 @@ export class DdcaClient {
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
                 },
-                // signers: [ddcaAccountPda],
-                // hybrid liquidity aggregator specific amm pool accounts
-                remainingAccounts: hlaAmmAccounts,
+                remainingAccounts: hlaAmmAccounts, // hla specific amm pool accounts
             }
         );
         
-        wakeAndSwapTx.feePayer = ddcaAccountPda;
+        wakeAndSwapTx.feePayer = this.wallet.publicKey;
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         wakeAndSwapTx.recentBlockhash = hash.blockhash;
 
         return wakeAndSwapTx;
+    }
+
+    public async createAddFundsTx(
+        // ownerAccountAddress: PublicKey,
+        ddcaAccountPda: PublicKey,
+        depositAmount: number,
+    ): Promise<Transaction | null> {
+
+        const ownerAccountAddress = this.wallet.publicKey;
+        const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountPda);
+
+        if(ddcaAccount === null){
+            return null;
+        }
+
+        if(ddcaAccount.ownerAccAddr.toBase58() !== ownerAccountAddress.toBase58()){
+            return null;
+        }
+
+        //owner token account (from)
+        const ownerFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            ddcaAccount.fromMint,
+            ownerAccountAddress,
+        );
+
+        // Instructions
+        let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
+
+        let ownerFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            ownerFromTokenAccountAddress,
+            ddcaAccount.fromMint,
+            ownerAccountAddress,
+            ownerAccountAddress,
+            this.connection);
+        if (ownerFromAtaCreateInstruction !== null)
+            ixs.push(ownerFromAtaCreateInstruction);
+
+        if(ixs.length === 0)
+            ixs = undefined;
+        
+
+        if(this.verbose){
+            console.log("TEST PARAMETERS:")
+            console.log("  Program ID:                           " + this.program.programId);
+            console.log("  payer.address:                        " + ownerAccountAddress);
+            console.log();
+            console.log("  ownerAccountAddress:                  " + this.wallet.publicKey);
+            console.log("  ownerFromTokenAccountAddress:         " + ownerFromTokenAccountAddress);
+            console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
+            console.log("  fromMint:                             " + ddcaAccount.fromMint);
+            console.log("  fromMintDecimals:                     " + ddcaAccount.fromMintDecimals);
+            console.log();
+        }
+
+        const depositAmountBn =  new anchor.BN(depositAmount * 10 ** ddcaAccount.fromMintDecimals);
+
+        const addFundsTx = await this.program.transaction.addFunds(
+            depositAmountBn,
+            {
+                accounts: {
+                    // owner
+                    ownerAccount: ownerAccountAddress,
+                    ownerFromTokenAccount: ownerFromTokenAccountAddress,
+                    // ddca
+                    ddcaAccount: ddcaAccountPda,
+                    fromMint: ddcaAccount.fromMint,
+                    fromTokenAccount: ddcaAccount.fromTaccAddr,
+                    // system accounts
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    systemProgram: SYSTEM_PROGRAM_ID,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
+                },
+                instructions: ixs,
+                seeds: []
+            }
+        );
+        
+        addFundsTx.feePayer = ownerAccountAddress;
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        addFundsTx.recentBlockhash = hash.blockhash;
+
+        return addFundsTx;
     }
 
     public async createCloseTx(
@@ -431,29 +478,33 @@ export class DdcaClient {
         if(ixs.length === 0)
             ixs = undefined;
 
-        console.log("TEST PARAMETERS:")
-        console.log("  Program ID:                           " + this.program.programId);
-        console.log("  payer.address:                        " + ownerAccountAddress);
-        console.log("  fromMint:                             " + fromMint);
-        console.log("  toMint:                               " + toMint);
-        console.log();
-        console.log("  ownerAccountAddress:                  " + ownerAccountAddress);
-        console.log("  ownerFromTokenAccountAddress:         " + ownerFromTokenAccountAddress);
-        console.log();
-        console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
-        console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
-        console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
-        console.log();
-        console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
-        console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
-        console.log();
-        console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
-        console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
-        console.log();
-        console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
-        console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
-        console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
-        console.log();  
+            
+
+        if(this.verbose){
+            console.log("TEST PARAMETERS:")
+            console.log("  Program ID:                           " + this.program.programId);
+            console.log("  payer.address:                        " + ownerAccountAddress);
+            console.log("  fromMint:                             " + fromMint);
+            console.log("  toMint:                               " + toMint);
+            console.log();
+            console.log("  ownerAccountAddress:                  " + ownerAccountAddress);
+            console.log("  ownerFromTokenAccountAddress:         " + ownerFromTokenAccountAddress);
+            console.log();
+            console.log("  ddcaAccountPda:                       " + ddcaAccountPda);
+            console.log("  ddcaFromTokenAccountAddress:          " + ddcaFromTokenAccountAddress);
+            console.log("  ddcaToTokenAccountAddress:            " + ddcaToTokenAccountAddress);
+            console.log();
+            console.log("  DDCA_OPERATING_ACCOUNT_ADDRESS:       " + DDCA_OPERATING_ACCOUNT_ADDRESS);
+            console.log("  ddcaOperatingFromTokenAccountAddress: " + ddcaOperatingFromTokenAccountAddress);
+            console.log();
+            console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
+            console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
+            console.log();
+            console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
+            console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
+            console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
+            console.log();
+        }
 
         const closeTx = await this.program.transaction.close(
             {
@@ -464,16 +515,13 @@ export class DdcaClient {
                     ownerToTokenAccount: ownerToTokenAccountAddress,
                     // ddca
                     ddcaAccount: ddcaAccountPda,
-                    // fromMint: fromMint,
                     ddcaFromTokenAccount: ddcaFromTokenAccountAddress,
-                    // toMint: toMint,
                     ddcaToTokenAccount: ddcaToTokenAccountAddress,
+                    // operating
                     operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
                     operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
                     operatingToTokenAccount: ddcaOperatingToTokenAccountAddress,
                     // system accounts
-                    // rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-                    // systemProgram: SYSTEM_PROGRAM_ID,
                     tokenProgram: TOKEN_PROGRAM_ID,
                 },
                 instructions: ixs,
@@ -510,8 +558,6 @@ export class DdcaClient {
     public async GetDdca(ddcaAddress: PublicKey): Promise<DdcaDetails | null> {
 
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAddress);
-        console.log("ddca fetch");
-        console.log(ddcaAccount);
 
         if(ddcaAccount === null)
             return null;
@@ -532,8 +578,8 @@ export class DdcaClient {
         let nextTs = startTs + nextCheckpoint * interval;
         let nextScheduledTs: number;
 
-        console.log("DDCA schedule: { start_ts: %s, interval:%s, last_completed_ts: %s, now_ts: %s, max_diff_in_secs: %s, low: %s, high: %s, low_ts: %s, high_ts: %s }",
-        startTs, interval, lastCompletedSwapTs, nowTs, maxDiffInSecs, prevCheckpoint, nextCheckpoint, prevTs, nextTs);
+        // console.log("DDCA schedule: { start_ts: %s, interval:%s, last_completed_ts: %s, now_ts: %s, max_diff_in_secs: %s, low: %s, high: %s, low_ts: %s, high_ts: %s }",
+        // startTs, interval, lastCompletedSwapTs, nowTs, maxDiffInSecs, prevCheckpoint, nextCheckpoint, prevTs, nextTs);
 
         if(nowTs <= prevTs + maxDiffInSecs) { // we are in the prevTs swap window
             if(lastCompletedSwapTs != prevTs) // we are in the prevTs swap window and we haven't consumed the swap yet
@@ -550,7 +596,6 @@ export class DdcaClient {
         else { // we are in between prevTs and nextTs but no close ennough to any
             nextScheduledTs = nextTs;
         }
-        console.log("nextTs: %s", nextTs);
 
         const amountPerSwap = ddcaAccount.amountPerSwap.toNumber() / (10 ** ddcaAccount.fromMintDecimals);
         const remainingSwapsCount = Math.floor(fromTokenBalance / amountPerSwap);
@@ -558,10 +603,6 @@ export class DdcaClient {
         if(remainingSwapsCount > 0){
             fromBalanceWillRunOutByUtc = tsToUTCString(nextScheduledTs + (remainingSwapsCount - 1) * interval);
         }
-
-        // const ddcaTxsSignature = this.connection.getConfirmedSignaturesForAddress2(ddcaAddress, "confirmed");
-        // const parsedTxs = this.connection.getParsedConfirmedTransactions((await ddcaTxsSignature).map(x => x.signature));
-        // console.log(parsedTxs);
 
         const ddca: DdcaDetails = {
             id: ddcaAddress.toBase58(),
@@ -597,18 +638,17 @@ async function createAtaCreateInstructionIfNotExists(
     mintAddress: PublicKey, 
     ownerAccountAddress: PublicKey, 
     payerAddress: PublicKey, 
-    // tokenClient: Token,
     connection: Connection
     ): Promise<TransactionInstruction | null> {
   try{
     const ata = await connection.getAccountInfo(ataAddress);
     if(!ata){
-        console.log("ATA: %s for mint: %s was not found. Generating 'create' instruction...", ataAddress.toBase58(), mintAddress.toBase58());
+        // console.log("ATA: %s for mint: %s was not found. Generating 'create' instruction...", ataAddress.toBase58(), mintAddress.toBase58());
         let [_, createIx] = await createAtaCreateInstruction(ataAddress, mintAddress, ownerAccountAddress, payerAddress);
         return createIx;
     }
     
-    console.log("ATA: %s for mint: %s already exists", ataAddress.toBase58(), mintAddress.toBase58());
+    // console.log("ATA: %s for mint: %s already exists", ataAddress.toBase58(), mintAddress.toBase58());
     return null;
   } catch (err) {
       console.log("Unable to find associated account: %s", err);

@@ -41,16 +41,6 @@
           "isSigner": false
         },
         {
-          "name": "operatingAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "operatingFromTokenAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
@@ -176,6 +166,52 @@
         {
           "name": "swapSlippage",
           "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "addFunds",
+      "accounts": [
+        {
+          "name": "ownerAccount",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ownerFromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "depositAmount",
+          "type": "u64"
         }
       ]
     },
