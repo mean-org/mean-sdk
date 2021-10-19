@@ -4,7 +4,7 @@ import {
     LAMPORTS_PER_SOL,
 
 } from "@solana/web3.js";
-import { DDCA_ACTIONS, MAX_FEE_PER_SWAP, TransactionFees } from ".";
+import { DDCA_ACTIONS, MAX_FEE_PER_SWAP_IN_LAMPORTS, TransactionFees } from ".";
 
 export const calculateActionFees = async (
     connection: Connection,
@@ -79,6 +79,6 @@ export const calculateActionFees = async (
         scheduledSwapsFees: totalAmountNeededForsSwapsInLamports / LAMPORTS_PER_SOL,
         flatFee: flatFeeInLamports,
         percentFee: percentFee,
-        maxFeePerSwap: MAX_FEE_PER_SWAP
+        maxFeePerSwap: MAX_FEE_PER_SWAP_IN_LAMPORTS / LAMPORTS_PER_SOL
     };
 }
