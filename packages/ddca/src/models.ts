@@ -40,7 +40,7 @@ export type TransactionFees = {
     /* Solana fees (SOL) calculated based on the tx signatures and cluster*/
     maxBlockchainFee: number;
     /* Amount (SOL) that will be transferred into the DDCA account to pay tx + protocol fees when executing scheduled swaps */
-    scheduledSwapsFees: number;
+    totalScheduledSwapsFees: number;
     /* Flat fee amount (SOL) depending of the instruction that is being executed */
     flatFee: number;
     /* Fee in percent of token amount depending of the instruction that is being executed */

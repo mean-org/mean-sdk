@@ -76,7 +76,7 @@ export const calculateActionFees = async (
 
     return {
         maxBlockchainFee: (maxTotalRentExcemptInLamports + lamportsPerSignatureFee * signaturesCount) / LAMPORTS_PER_SOL,
-        scheduledSwapsFees: totalAmountNeededForsSwapsInLamports / LAMPORTS_PER_SOL,
+        totalScheduledSwapsFees: totalAmountNeededForsSwapsInLamports / LAMPORTS_PER_SOL,
         flatFee: flatFeeInLamports,
         percentFee: percentFee,
         maxFeePerSwap: MAX_FEE_PER_SWAP_IN_LAMPORTS / LAMPORTS_PER_SOL
