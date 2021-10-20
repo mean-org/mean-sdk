@@ -27,6 +27,7 @@ const HLA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("FZMd4pn9FsvMC55D4XQfaexJvKB
  */
 export class DdcaClient {
 
+    private rpcUrl: string;
     public connection: Connection;
     public provider: anchor.Provider;
     public program: anchor.Program;
@@ -43,19 +44,26 @@ export class DdcaClient {
         confirmOptions?: anchor.web3.ConfirmOptions,
         verbose = false
     ) {
+        if(!rpcUrl)
+            throw new Error("wallet cannot be null or undefined");
+
+        if(!anchorWallet || !anchorWallet.publicKey)
+            throw new Error("wallet's public key cannot be null or undefined");
+
         // const confirmationOptions = {
         //     preflightCommitment: commitment, 
         //     commitment: commitment
         // } as anchor.web3.ConfirmOptions;
         // const provider = this.getAnchorProvider(rpcUrl, anchorWallet, confirmationOptions as anchor.web3.Connection);
         this.ownerAccountAddress = anchorWallet.publicKey;
+        this.rpcUrl = rpcUrl;
         const provider = this.getAnchorProvider(rpcUrl, anchorWallet, confirmOptions);
         this.provider = provider;
         this.connection = provider.connection;
         anchor.setProvider(provider);
 
         const programId = new anchor.web3.PublicKey(idl.metadata.address);
-        this.program = new anchor.Program(idl, programId, provider); 
+        this.program = new anchor.Program(idl, programId, provider);
         this.verbose = verbose;
     }
 
@@ -121,6 +129,14 @@ export class DdcaClient {
             true,
         );
 
+        //hla operating token account (from)
+        const hlaOperatingFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            fromMint,
+            HLA_OPERATING_ACCOUNT_ADDRESS,
+        );
+
         // Instructions
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
 
@@ -132,6 +148,15 @@ export class DdcaClient {
             this.connection);
         if (ownerFromAtaCreateInstruction !== null)
             ixs.push(ownerFromAtaCreateInstruction);
+
+        let hlaOperatingFromAtaCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            hlaOperatingFromTokenAccountAddress,
+            fromMint,
+            HLA_OPERATING_ACCOUNT_ADDRESS,
+            this.ownerAccountAddress,
+            this.connection);
+        if (hlaOperatingFromAtaCreateInstruction !== null)
+            ixs.push(hlaOperatingFromAtaCreateInstruction);
 
         if(ixs.length === 0)
             ixs = undefined;
@@ -538,7 +563,8 @@ export class DdcaClient {
         return closeTx;
     }
 
-    public async ListDdcas() {
+    public async listDdcas() {
+
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.ownerAccountAddress.toBuffer());
         return ddcaAccounts.map(x => {
             const values: DdcaAccount = {
@@ -558,7 +584,7 @@ export class DdcaClient {
         });
     }
 
-    public async GetDdca(ddcaAccountAddress: PublicKey): Promise<DdcaDetails | null> {
+    public async getDdca(ddcaAccountAddress: PublicKey): Promise<DdcaDetails | null> {
 
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
 
@@ -629,6 +655,13 @@ export class DdcaClient {
         };
 
         return ddca;
+    }
+
+    /**
+     * ToString
+     */
+    public toString(): string {
+        return `{ rpcUrl: ${this.rpcUrl}, ownerAccountAddress: ${this.ownerAccountAddress?.toBase58()}, commitment: ${this.provider?.opts?.commitment}, preflightCommitment: ${this.provider?.opts?.preflightCommitment}, skipPreflight: ${this.provider?.opts?.skipPreflight} }`;
     }
 }
 
