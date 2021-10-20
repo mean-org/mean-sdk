@@ -1,7 +1,7 @@
 export const MAX_FEE_PER_SWAP_IN_LAMPORTS: number = 20000000;
 
 export interface DdcaAccount {
-    id: string;
+    ddcaAccountAddress: string;
     fromMint: string;
     toMint: string;
     totalDepositsAmount: number;
