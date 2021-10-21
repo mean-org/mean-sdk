@@ -1,3 +1,7 @@
+import {
+    AccountMeta,
+} from '@solana/web3.js';
+
 export const MAX_FEE_PER_SWAP_IN_LAMPORTS: number = 20000000;
 
 export interface DdcaAccount {
@@ -57,3 +61,10 @@ export type TransactionFeesParams = {
     swapsCount: number;
     signaturesAmount: number;
 }
+
+export type HlaInfo = {
+    exchangeRate: number,
+    protocolFees: number,
+    aggregatorPercentFees: number,
+    remainingAccounts: AccountMeta[]
+  }

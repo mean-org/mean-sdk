@@ -165,7 +165,7 @@
         },
         {
           "name": "swapSlippage",
-          "type": "u8"
+          "type": "u64"
         }
       ]
     },

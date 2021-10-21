@@ -13,7 +13,7 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/sp
 import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
-import { DdcaAccount, DdcaDetails } from '.';
+import { DdcaAccount, DdcaDetails, HlaInfo } from '.';
 const idl = require('./idl.json');
 
 // CONSTANTS
@@ -21,6 +21,7 @@ const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const DDCA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("6u1Hc9AqC6AvpYDQcFjhMVqAwcQ83Kn5TVm6oWMjDDf1");
 const HLA_PROGRAM_ADDRESS = new PublicKey("B6gLd2uyVQLZMdC1s9C4WR7ZP9fMhJNh7WZYcsibuzN3");
 const HLA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("FZMd4pn9FsvMC55D4XQfaexJvKBtQpVuqMk5zuonLRDX");
+const DDCA_SWAP_PERCENT_SLIPPAGE = 1.0; // 1 %
 
 /**
  * Anchor based client for the DDCA program
@@ -220,12 +221,17 @@ export class DdcaClient {
 
     public async createWakeAndSwapTx(
         ddcaAccountAddress: PublicKey,
-        fromMint: PublicKey,
-        toMint: PublicKey,
-        hlaAmmAccounts: Array<AccountMeta>,
-        swapMinimumOutAmount: number,
-        swapSlippage: number,
+        // hlaAmmAccounts: Array<AccountMeta>,
+        hlaInfo: HlaInfo
     ): Promise<Transaction> {
+
+        const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
+        if(ddcaAccount === null){
+            throw new Error(`No DDCA account was found for address: ${ddcaAccountAddress}`);
+        }
+
+        const fromMint = ddcaAccount.fromMint;
+        const toMint = ddcaAccount.toMint;
 
         //ddca associated token account (from)
         const ddcaFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
@@ -260,6 +266,17 @@ export class DdcaClient {
             HLA_OPERATING_ACCOUNT_ADDRESS,
         );
 
+        const hlaSwapPctFee = hlaInfo.aggregatorPercentFees;
+        const exchangeRate = hlaInfo.exchangeRate; // out price 
+        const inAmount = ddcaAccount.amountPerSwap / (10 ** ddcaAccount.fromMintDecimals); // in amount
+        const inAmountWithFee = inAmount * (1 - hlaSwapPctFee / 100); // in amount with fee deducted 
+        const outAmount = inAmountWithFee * exchangeRate;
+        const minOutAmount = outAmount * (1 - DDCA_SWAP_PERCENT_SLIPPAGE / 100);
+
+        const toMintDecimals = (await this.connection.getTokenSupply(toMint)).value.decimals;
+        const swapMinimumOutAmountBn =  new anchor.BN(minOutAmount * 10 ** toMintDecimals);
+        const swapSlippageBn =  new anchor.BN(DDCA_SWAP_PERCENT_SLIPPAGE * 100);
+
         if(this.verbose){
             console.log("TEST PARAMETERS:")
             console.log("  Program ID:                           " + this.program.programId);
@@ -276,6 +293,12 @@ export class DdcaClient {
             console.log("  HLA_PROGRAM_ADDRESS:                  " + HLA_PROGRAM_ADDRESS);
             console.log("  HLA_OPERATING_ACCOUNT_ADDRESS:        " + HLA_OPERATING_ACCOUNT_ADDRESS);
             console.log("  hlaOperatingFromTokenAccountAddress:  " + hlaOperatingFromTokenAccountAddress);
+            console.log("  exchangeRate:                         " + exchangeRate);
+            console.log("  inAmount:                             " + inAmount);
+            console.log("  inAmountWithFee:                      " + inAmountWithFee);
+            console.log("  outAmount:                            " + outAmount);
+            console.log("  minOutAmount:                         " + minOutAmount);
+            console.log("  DDCA_SWAP_PERCENT_SLIPPAGE:           " + DDCA_SWAP_PERCENT_SLIPPAGE);
             console.log();
             console.log("  SYSTEM_PROGRAM_ID:                    " + SYSTEM_PROGRAM_ID);
             console.log("  TOKEN_PROGRAM_ID:                     " + TOKEN_PROGRAM_ID);
@@ -283,11 +306,8 @@ export class DdcaClient {
             console.log();
         }
 
-        const toMintDecimals = (await this.connection.getTokenSupply(toMint)).value.decimals;
-        const swapMinimumOutAmountBn =  new anchor.BN(swapMinimumOutAmount * 10 ** toMintDecimals);
-
         const wakeAndSwapTx = await this.program.transaction.wakeAndSwap(
-            swapMinimumOutAmountBn, swapSlippage * 100,
+            swapMinimumOutAmountBn, swapSlippageBn,
             {
                 accounts: {
                     // ddca
@@ -307,7 +327,7 @@ export class DdcaClient {
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
                 },
-                remainingAccounts: hlaAmmAccounts, // hla specific amm pool accounts
+                remainingAccounts: hlaInfo.remainingAccounts, // hla specific amm pool accounts
             }
         );
         
