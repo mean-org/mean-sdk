@@ -8,16 +8,18 @@ import {
     Transaction,
     TransactionInstruction,
     AccountMeta,
+    LAMPORTS_PER_SOL
 } from '@solana/web3.js';
-import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID, NATIVE_MINT as WRAPPED_SOL_MINT, AccountLayout } from '@solana/spl-token';
 import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
-import { DdcaAccount, DdcaDetails, HlaInfo } from '.';
+import { DdcaAccount, DdcaDetails, HlaInfo, SOL_MINT } from '.';
 const idl = require('./idl.json');
 
 // CONSTANTS
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
+
 const DDCA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("6u1Hc9AqC6AvpYDQcFjhMVqAwcQ83Kn5TVm6oWMjDDf1");
 const HLA_PROGRAM_ADDRESS = new PublicKey("B6gLd2uyVQLZMdC1s9C4WR7ZP9fMhJNh7WZYcsibuzN3");
 const HLA_OPERATING_ACCOUNT_ADDRESS = new PublicKey("FZMd4pn9FsvMC55D4XQfaexJvKBtQpVuqMk5zuonLRDX");
@@ -82,6 +84,51 @@ export class DdcaClient {
         return provider;
     }
 
+    private async createWrapNativeMintInstructions(amountOfSolToWrap: number, ownerWrapTokenAccountAddress: PublicKey)
+    {   
+        // Allocate memory for the account
+        const minimumAccountBalance = await Token.getMinBalanceRentForExemptAccount(
+            this.connection,
+        );
+        const newWrapAccount = Keypair.generate();
+        const transaction = new Transaction();
+        const amountOfLamportsToTransfer = amountOfSolToWrap * LAMPORTS_PER_SOL;
+
+        let wrapIxs: Array<TransactionInstruction> = 
+        [
+            SystemProgram.createAccount({
+                fromPubkey: this.ownerAccountAddress,
+                newAccountPubkey: newWrapAccount.publicKey,
+                lamports: minimumAccountBalance + amountOfLamportsToTransfer,
+                space: AccountLayout.span,
+                programId: TOKEN_PROGRAM_ID,
+            }),
+            Token.createInitAccountInstruction(
+                TOKEN_PROGRAM_ID,
+                WRAPPED_SOL_MINT,
+                newWrapAccount.publicKey,
+                this.ownerAccountAddress
+            ),
+            Token.createTransferInstruction(
+                TOKEN_PROGRAM_ID,
+                newWrapAccount.publicKey,
+                ownerWrapTokenAccountAddress,
+                this.ownerAccountAddress,
+                [],
+                amountOfLamportsToTransfer // BN to number
+            ),
+            Token.createCloseAccountInstruction(
+                TOKEN_PROGRAM_ID,
+                newWrapAccount.publicKey,
+                this.ownerAccountAddress,
+                this.ownerAccountAddress,
+                []
+            )
+        ];
+
+        return wrapIxs;
+    }
+
     public async createDdcaTx(
         fromMint: PublicKey,
         toMint: PublicKey,
@@ -89,6 +136,19 @@ export class DdcaClient {
         amountPerSwap: number,
         intervalInSeconds: number
     ): Promise<[PublicKey, Transaction]> {
+
+        if(fromMint.equals(toMint))
+            throw Error("Cannot create DDCA with same 'from' and 'to' mints");
+
+        let wrapIxs = null;
+        let changedFromMintTowSol = false;
+        if(fromMint.equals(SOL_MINT)){
+            fromMint = WRAPPED_SOL_MINT;
+            changedFromMintTowSol = true;
+        }
+        else if(toMint.equals(SOL_MINT)){
+            toMint = WRAPPED_SOL_MINT;
+        }
 
         const blockHeight = await this.connection.getSlot('confirmed');
         const blockHeightBn = new anchor.BN(blockHeight);
@@ -158,6 +218,11 @@ export class DdcaClient {
             this.connection);
         if (hlaOperatingFromAtaCreateInstruction !== null)
             ixs.push(hlaOperatingFromAtaCreateInstruction);
+
+        if(changedFromMintTowSol){
+            const wrapIxs = await this.createWrapNativeMintInstructions(depositAmount, ownerFromTokenAccountAddress);
+            ixs.push(...wrapIxs);
+        }
 
         if(ixs.length === 0)
             ixs = undefined;
