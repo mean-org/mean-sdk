@@ -310,6 +310,8 @@ export class DdcaClient {
             swapMinimumOutAmountBn, swapSlippageBn,
             {
                 accounts: {
+                    // owner
+                    ownerAccount: this.ownerAccountAddress,
                     // ddca
                     ddcaAccount: ddcaAccountAddress,
                     fromMint: fromMint,

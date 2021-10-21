@@ -93,6 +93,11 @@
       "name": "wakeAndSwap",
       "accounts": [
         {
+          "name": "ownerAccount",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "ddcaAccount",
           "isMut": true,
           "isSigner": false
@@ -367,6 +372,11 @@
       "code": 304,
       "name": "InvalidSwapSchedule",
       "msg": "This DDCA is not schedule for the provided time"
+    },
+    {
+      "code": 305,
+      "name": "InvalidSwapSlippage",
+      "msg": "Invalid swap slippage"
     }
   ],
   "metadata": {
