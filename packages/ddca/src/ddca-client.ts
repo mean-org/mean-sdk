@@ -84,14 +84,13 @@ export class DdcaClient {
         return provider;
     }
 
-    private async createWrapNativeMintInstructions(amountOfSolToWrap: number, ownerWrapTokenAccountAddress: PublicKey)
+    private async createWrapSolInstructions(amountOfSolToWrap: number, ownerWrapTokenAccountAddress: PublicKey): Promise<[TransactionInstruction[], Keypair]>
     {   
         // Allocate memory for the account
         const minimumAccountBalance = await Token.getMinBalanceRentForExemptAccount(
             this.connection,
         );
         const newWrapAccount = Keypair.generate();
-        const transaction = new Transaction();
         const amountOfLamportsToTransfer = amountOfSolToWrap * LAMPORTS_PER_SOL;
 
         let wrapIxs: Array<TransactionInstruction> = 
@@ -126,7 +125,7 @@ export class DdcaClient {
             )
         ];
 
-        return wrapIxs;
+        return [wrapIxs, newWrapAccount];
     }
 
     public async createDdcaTx(
@@ -140,7 +139,6 @@ export class DdcaClient {
         if(fromMint.equals(toMint))
             throw Error("Cannot create DDCA with same 'from' and 'to' mints");
 
-        let wrapIxs = null;
         let changedFromMintTowSol = false;
         if(fromMint.equals(SOL_MINT)){
             fromMint = WRAPPED_SOL_MINT;
@@ -219,13 +217,18 @@ export class DdcaClient {
         if (hlaOperatingFromAtaCreateInstruction !== null)
             ixs.push(hlaOperatingFromAtaCreateInstruction);
 
+        let signers: Array<Signer> | undefined = new Array<Signer>();
         if(changedFromMintTowSol){
-            const wrapIxs = await this.createWrapNativeMintInstructions(depositAmount, ownerFromTokenAccountAddress);
+            const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(depositAmount, ownerFromTokenAccountAddress);
             ixs.push(...wrapIxs);
+            signers.push(newWrapAccount);
         }
 
         if(ixs.length === 0)
             ixs = undefined;
+
+        if(signers.length === 0)
+            signers = undefined;
 
         if(this.verbose){
             console.log("TEST PARAMETERS:")
@@ -280,6 +283,9 @@ export class DdcaClient {
         createTx.feePayer = this.ownerAccountAddress;
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         createTx.recentBlockhash = hash.blockhash;
+        
+        if(signers)
+            createTx.partialSign(...signers);
 
         return [ddcaAccountPda, createTx];
     }
