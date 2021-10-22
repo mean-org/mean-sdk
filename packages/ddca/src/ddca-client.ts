@@ -759,9 +759,18 @@ export class DdcaClient {
     }
 
     /**
-     * Attempts to parse an rpc error
+     * Attempts to parse an rpc error. Experimental
      */
     public TryParseRpcError(rawError: any): ProgramError | null {
+
+        const errorLogs = rawError?.logs as Array<string> | undefined;
+        if(errorLogs){
+            for (let i = 0; i < errorLogs.length; i++) {
+                const logEntry = errorLogs[i];
+                if(logEntry.startsWith(`Program ${HLA_PROGRAM_ADDRESS} failed:`))
+                    return null;
+            }
+        }
 
         const idlErrors = parseIdlErrors(this.program.idl);
         const parsedError = ProgramError.parse(rawError, idlErrors);
