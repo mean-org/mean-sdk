@@ -15,6 +15,7 @@ import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
 import { DdcaAccount, DdcaDetails, HlaInfo, SOL_MINT } from '.';
+import { parseIdlErrors, ProgramError } from '@project-serum/anchor';
 const idl = require('./idl.json');
 
 // CONSTANTS
@@ -755,6 +756,16 @@ export class DdcaClient {
      */
     public toString(): string {
         return `{ rpcUrl: ${this.rpcUrl}, ownerAccountAddress: ${this.ownerAccountAddress?.toBase58()}, commitment: ${this.provider?.opts?.commitment}, preflightCommitment: ${this.provider?.opts?.preflightCommitment}, skipPreflight: ${this.provider?.opts?.skipPreflight} }`;
+    }
+
+    /**
+     * Attempts to parse an rpc error
+     */
+    public TryParseRpcError(rawError: any): ProgramError | null {
+
+        const idlErrors = parseIdlErrors(this.program.idl);
+        const parsedError = ProgramError.parse(rawError, idlErrors);
+        return parsedError;
     }
 }
 
