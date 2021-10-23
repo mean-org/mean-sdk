@@ -481,6 +481,7 @@ export class DdcaClient {
                     fromTokenAccount: ddcaAccount.fromTaccAddr,
                     // system accounts
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+                    clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
                     systemProgram: SYSTEM_PROGRAM_ID,
                     tokenProgram: TOKEN_PROGRAM_ID,
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID
@@ -766,7 +767,7 @@ export class DdcaClient {
     /**
      * Attempts to parse an rpc error. Experimental
      */
-    public TryParseRpcError(rawError: any): ProgramError | null {
+    public tryParseRpcError(rawError: any): ProgramError | null {
 
         const errorLogs = rawError?.logs as Array<string> | undefined;
         if(errorLogs){
