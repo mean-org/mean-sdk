@@ -24,8 +24,6 @@ export interface DdcaDetails extends DdcaAccount{
     fromBalance: number;
     toBalance: number;
     fromBalanceWillRunOutByUtc: string
-    exchangedForAmount: number,
-    exchangedRateAverage: number,
     nextScheduledSwapUtc: string
     swapCount: number;
     swapAvgRate: number;

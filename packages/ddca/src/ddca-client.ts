@@ -746,8 +746,6 @@ export class DdcaClient {
             fromBalance: fromTokenBalance,
             toBalance: toTokenBalance,
             fromBalanceWillRunOutByUtc: fromBalanceWillRunOutByUtc,
-            exchangedForAmount: 0, // TODO
-            exchangedRateAverage: 0, // TODO
             nextScheduledSwapUtc: tsToUTCString(nextScheduledTs),
             swapCount: ddcaAccount.swapCount,
             swapAvgRate: ddcaAccount.swapAvgRate.toNumber() / (10 ** ddcaAccount.toMintDecimals),
