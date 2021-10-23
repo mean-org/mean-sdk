@@ -20,7 +20,7 @@ export const calculateActionFees = async (
     let totalAmountNeededForsSwapsInLamports = 0;
     let flatFeeInLamports = 0;
     let percentFee = 0;
-    const ddcaAccountSizeInBytes = 220; //TODO: calculate dynamically
+    const ddcaAccountSizeInBytes = 500; //TODO: calculate dynamically
     const tokenAccountSizeInBytes = 165; //TODO: calculate dynamically
     const minimumAccountSizeInBytes = 128; //Solana min account size (aka metadata)
 

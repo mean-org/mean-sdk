@@ -27,6 +27,10 @@ export interface DdcaDetails extends DdcaAccount{
     exchangedForAmount: number,
     exchangedRateAverage: number,
     nextScheduledSwapUtc: string
+    swapCount: number;
+    swapAvgRate: number;
+    lastDepositTs?: number;
+    lastDepositedtUtc: string;
 }
 
 /**

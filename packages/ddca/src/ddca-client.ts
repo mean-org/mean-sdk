@@ -672,7 +672,7 @@ export class DdcaClient {
                 intervalInSeconds: x.account.intervalInSeconds.toNumber(),
                 lastCompletedSwapTs: x.account.lastCompletedSwapTs.toNumber(),
                 lastCompletedSwapUtc: tsToUTCString(x.account.lastCompletedSwapTs.toNumber()),
-                isPaused: x.account.isPaused
+                isPaused: x.account.isPaused,
             };
             return values;
         });
@@ -727,6 +727,9 @@ export class DdcaClient {
             fromBalanceWillRunOutByUtc = tsToUTCString(nextScheduledTs + (remainingSwapsCount - 1) * interval);
         }
 
+        // calculate activity
+        
+
         const ddca: DdcaDetails = {
             ddcaAccountAddress: ddcaAccountAddress.toBase58(),
             fromMint: ddcaAccount.fromMint.toBase58(),
@@ -745,7 +748,11 @@ export class DdcaClient {
             fromBalanceWillRunOutByUtc: fromBalanceWillRunOutByUtc,
             exchangedForAmount: 0, // TODO
             exchangedRateAverage: 0, // TODO
-            nextScheduledSwapUtc: tsToUTCString(nextScheduledTs)
+            nextScheduledSwapUtc: tsToUTCString(nextScheduledTs),
+            swapCount: ddcaAccount.swapCount,
+            swapAvgRate: ddcaAccount.swapAvgRate.toNumber() / (10 ** ddcaAccount.toMintDecimals),
+            lastDepositTs: ddcaAccount.lastDepositTs,
+            lastDepositedtUtc: tsToUTCString(ddcaAccount.lastDepositTs),
         };
 
         return ddca;

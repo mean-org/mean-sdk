@@ -342,6 +342,18 @@
           {
             "name": "isPaused",
             "type": "bool"
+          },
+          {
+            "name": "swapCount",
+            "type": "u64"
+          },
+          {
+            "name": "swapAvgRate",
+            "type": "u64"
+          },
+          {
+            "name": "lastDepositTs",
+            "type": "u64"
           }
         ]
       }
