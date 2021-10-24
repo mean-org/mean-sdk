@@ -72,3 +72,24 @@ export type HlaInfo = {
     aggregatorPercentFees: number,
     remainingAccounts: AccountMeta[]
   }
+
+  export type DdcaAction =
+  | 'created'
+  | 'exchanged'
+  | 'deposited'
+  | 'withdrew'
+  | 'unknown'
+
+  /**
+   * DDCA activity
+   */
+  export type DdcaActivity = {
+      txSignature: string,
+      action: DdcaAction;
+      fromMint: string | null;
+      fromAmount: number;
+      toMint: string | null;
+      toAmount: number;
+      networkFeeInLamports?: number;
+      utc: string;
+  }

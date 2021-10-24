@@ -14,8 +14,9 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID, NATIVE_MINT as WR
 import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
-import { DdcaAccount, DdcaDetails, HlaInfo, SOL_MINT } from '.';
+import { DdcaAccount, DdcaAction, DdcaActivity, DdcaDetails, HlaInfo, SOL_MINT } from '.';
 import { parseIdlErrors, ProgramError } from '@project-serum/anchor';
+import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 const idl = require('./idl.json');
 
 // CONSTANTS
@@ -37,6 +38,7 @@ export class DdcaClient {
     public program: anchor.Program;
     private ownerAccountAddress: PublicKey;
     private verbose: boolean;
+    private rpcVersion: anchor.web3.Version | null = null;
 
     /**
      * Create a DDCA client
@@ -682,7 +684,6 @@ export class DdcaClient {
     public async getDdca(ddcaAccountAddress: PublicKey): Promise<DdcaDetails | null> {
 
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
-
         if(ddcaAccount === null)
             return null;
 
@@ -781,6 +782,143 @@ export class DdcaClient {
         const idlErrors = parseIdlErrors(this.program.idl);
         const parsedError = ProgramError.parse(rawError, idlErrors);
         return parsedError;
+    }
+
+    private async getRpcVersion(): Promise<anchor.web3.Version> {
+        if(!this.rpcVersion)
+            this.rpcVersion = await this.connection.getVersion();
+
+        return this.rpcVersion;
+    }
+
+    public async getActivity(ddcaAccountAddress: PublicKey | string): Promise<DdcaActivity[]> {
+        const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
+        if(ddcaAccount === null)
+            return [];
+
+        if (typeof ddcaAccountAddress === "string") {
+            ddcaAccountAddress = new PublicKey(ddcaAccountAddress);
+        }
+        const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: 5 }, 'finalized');
+
+        // const rpcVersion = await this.getRpcVersion();
+        // if(rpcVersion['solana-core']){
+        //     //TODO
+        // }
+
+        let confirmedTxs: Array<anchor.web3.ParsedConfirmedTransaction | null> | null = null;
+        try {
+            confirmedTxs = await this.connection.getParsedConfirmedTransactions(confirmedSignatures.map(tx => tx.signature), 'finalized');
+        } catch (error) { }
+
+        if(!confirmedTxs || confirmedTxs.length === 0){
+            confirmedTxs = []
+            for(let sigInfo of confirmedSignatures){
+                const tx = await this.connection.getParsedConfirmedTransaction(sigInfo.signature);
+                confirmedTxs.push(tx);
+            }
+        }
+        
+        let ddcaActivities = Array<DdcaActivity>();
+        for (let tx of confirmedTxs) {
+            if(!tx){
+                continue;
+            } 
+            let ddcaActivity = this.ParseTransaction(tx, ddcaAccount);
+            if(ddcaActivity){
+                ddcaActivities.push(ddcaActivity);
+            }
+        }
+
+        return ddcaActivities;
+    }
+
+    private ParseTransaction(tx: anchor.web3.ParsedConfirmedTransaction, rawDdcaAccount: any): DdcaActivity | null {
+        for (let ix of tx.transaction.message.instructions) {
+            ix = ix as anchor.web3.PartiallyDecodedInstruction;
+            if (!ix) {
+                continue;
+            }
+            let sighash = bs58.encode(
+                bs58.decode(ix.data).slice(0, 8)
+            );
+
+            const sighashLayouts = this.program.coder.instruction["sighashLayouts"];
+            const decoder = sighashLayouts.get(sighash);
+            if (!decoder) {
+                return null;
+            }
+
+            // let buffer = bs58.decode(ix.data);
+            // const decodedTxData = decoder.layout.decode(buffer);
+            
+            let fromMint: string | null = null;
+            let fromAmount = 0;
+            let toMint: string | null = null;
+            let toAmount = 0;
+            let action: DdcaAction = "unknown";
+
+            const txAccountAddresses = tx.transaction.message.accountKeys.map(x => x.pubkey.toBase58());
+            console.log("txAccountAddresses:", txAccountAddresses);
+
+            let fromTokenAccountAddress = new PublicKey(rawDdcaAccount.fromTaccAddr).toBase58();
+            let fromTokenAccountIndex: number;
+            let toTokenAccountAddress = new PublicKey(rawDdcaAccount.toTaccAddr).toBase58();
+            let toTokenAccountIndex: number;
+
+            switch (decoder.name) {
+                case "create":
+                    action = "deposited";
+                    fromTokenAccountIndex = txAccountAddresses.lastIndexOf(fromTokenAccountAddress);
+                    const createFromPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === fromTokenAccountIndex);
+                    fromMint = createFromPostBalance?.mint ?? null;
+                    fromAmount = createFromPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    break;
+                case "wakeAndSwap":
+                    action = "exchanged";
+
+                    fromTokenAccountIndex = txAccountAddresses.lastIndexOf(fromTokenAccountAddress);
+                    const swapFromPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === fromTokenAccountIndex);
+                    fromMint = swapFromPostBalance?.mint ?? null;
+                    fromAmount = swapFromPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    
+                    toTokenAccountIndex = txAccountAddresses.lastIndexOf(toTokenAccountAddress);
+                    const swapToPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === toTokenAccountIndex);
+                    toMint = swapToPostBalance?.mint ?? null;
+                    toAmount = swapToPostBalance?.uiTokenAmount.uiAmount ?? 0;
+
+                    break;
+                case "addFunds":
+                    action = "deposited";
+                    fromTokenAccountIndex = txAccountAddresses.lastIndexOf(fromTokenAccountAddress);
+                    const depositFromPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === fromTokenAccountIndex);
+                    fromMint = depositFromPostBalance?.mint ?? null;
+                    fromAmount = depositFromPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    break;
+                case "withdraw":
+                    action = "withdrew";
+                    toTokenAccountIndex = txAccountAddresses.lastIndexOf(toTokenAccountAddress);
+                    const withdrewToPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === toTokenAccountIndex);
+                    toMint = withdrewToPostBalance?.mint ?? null;
+                    toAmount = withdrewToPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    break;
+                default:
+                    action = "unknown"
+                    break;
+            }
+
+            return {
+                action: action,
+                fromMint: fromMint,
+                fromAmount: fromAmount,
+                toMint: toMint,
+                toAmount: toAmount,
+                txSignature: tx.transaction.signatures[0],
+                networkFeeInLamports: tx.meta?.fee,
+                utc: tx.blockTime ? tsToUTCString(tx.blockTime) : ""
+            };
+        }
+        return null;
     }
 }
 
