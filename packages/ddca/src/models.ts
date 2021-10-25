@@ -74,7 +74,6 @@ export type HlaInfo = {
   }
 
   export type DdcaAction =
-  | 'created'
   | 'exchanged'
   | 'deposited'
   | 'withdrew'

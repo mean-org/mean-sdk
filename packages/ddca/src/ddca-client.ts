@@ -823,10 +823,14 @@ export class DdcaClient {
         for (let tx of confirmedTxs) {
             if(!tx){
                 continue;
-            } 
-            let ddcaActivity = this.ParseTransaction(tx, ddcaAccount);
-            if(ddcaActivity){
-                ddcaActivities.push(ddcaActivity);
+            }
+            try {
+                let ddcaActivity = this.ParseTransaction(tx, ddcaAccount);
+                if(ddcaActivity){
+                    ddcaActivities.push(ddcaActivity);
+                }
+            } catch (error) {
+                console.log(error);
             }
         }
 
@@ -836,7 +840,7 @@ export class DdcaClient {
     private ParseTransaction(tx: anchor.web3.ParsedConfirmedTransaction, rawDdcaAccount: any): DdcaActivity | null {
         for (let ix of tx.transaction.message.instructions) {
             ix = ix as anchor.web3.PartiallyDecodedInstruction;
-            if (!ix) {
+            if (!ix?.data) {
                 continue;
             }
             let sighash = bs58.encode(
