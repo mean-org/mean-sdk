@@ -203,6 +203,11 @@
           "isSigner": false
         },
         {
+          "name": "clock",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -211,11 +216,77 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
         {
           "name": "depositAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "accounts": [
+        {
+          "name": "ownerAccount",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ownerToTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ddcaToTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "operatingAccount",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "operatingToTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "withdrawAmount",
           "type": "u64"
         }
       ]
