@@ -846,61 +846,58 @@ export class DdcaClient {
             const sighashLayouts = this.program.coder.instruction["sighashLayouts"];
             const decoder = sighashLayouts.get(sighash);
             if (!decoder) {
+                console.log("No decoder found for sighash:", sighash);
                 return null;
             }
 
             // let buffer = bs58.decode(ix.data);
             // const decodedTxData = decoder.layout.decode(buffer);
-            
+
             let fromMint: string | null = null;
-            let fromAmount = 0;
+            let fromUiAmountDelta: number | null = 0;
             let toMint: string | null = null;
-            let toAmount = 0;
+            let toUiAmountDelta: number | null = 0;
             let action: DdcaAction = "unknown";
 
             const txAccountAddresses = tx.transaction.message.accountKeys.map(x => x.pubkey.toBase58());
-            console.log("txAccountAddresses:", txAccountAddresses);
-
             let fromTokenAccountAddress = new PublicKey(rawDdcaAccount.fromTaccAddr).toBase58();
-            let fromTokenAccountIndex: number;
             let toTokenAccountAddress = new PublicKey(rawDdcaAccount.toTaccAddr).toBase58();
-            let toTokenAccountIndex: number;
 
             switch (decoder.name) {
                 case "create":
                     action = "deposited";
-                    fromTokenAccountIndex = txAccountAddresses.lastIndexOf(fromTokenAccountAddress);
-                    const createFromPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === fromTokenAccountIndex);
-                    fromMint = createFromPostBalance?.mint ?? null;
-                    fromAmount = createFromPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    [fromMint, fromUiAmountDelta] = 
+                        calculateTokenBlanaceDelta(fromTokenAccountAddress, 
+                            txAccountAddresses, tx.meta?.preTokenBalances, 
+                            tx.meta?.postTokenBalances);
                     break;
                 case "wakeAndSwap":
                     action = "exchanged";
-
-                    fromTokenAccountIndex = txAccountAddresses.lastIndexOf(fromTokenAccountAddress);
-                    const swapFromPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === fromTokenAccountIndex);
-                    fromMint = swapFromPostBalance?.mint ?? null;
-                    fromAmount = swapFromPostBalance?.uiTokenAmount.uiAmount ?? 0;
                     
-                    toTokenAccountIndex = txAccountAddresses.lastIndexOf(toTokenAccountAddress);
-                    const swapToPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === toTokenAccountIndex);
-                    toMint = swapToPostBalance?.mint ?? null;
-                    toAmount = swapToPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    [fromMint, fromUiAmountDelta] = 
+                        calculateTokenBlanaceDelta(fromTokenAccountAddress, 
+                            txAccountAddresses, tx.meta?.preTokenBalances, 
+                            tx.meta?.postTokenBalances);
+
+                    [toMint, toUiAmountDelta] = 
+                        calculateTokenBlanaceDelta(toTokenAccountAddress, 
+                            txAccountAddresses, tx.meta?.preTokenBalances, 
+                            tx.meta?.postTokenBalances);
 
                     break;
                 case "addFunds":
                     action = "deposited";
-                    fromTokenAccountIndex = txAccountAddresses.lastIndexOf(fromTokenAccountAddress);
-                    const depositFromPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === fromTokenAccountIndex);
-                    fromMint = depositFromPostBalance?.mint ?? null;
-                    fromAmount = depositFromPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    [fromMint, fromUiAmountDelta] = 
+                        calculateTokenBlanaceDelta(fromTokenAccountAddress, 
+                            txAccountAddresses, tx.meta?.preTokenBalances, 
+                            tx.meta?.postTokenBalances);
                     break;
                 case "withdraw":
                     action = "withdrew";
-                    toTokenAccountIndex = txAccountAddresses.lastIndexOf(toTokenAccountAddress);
-                    const withdrewToPostBalance = tx.meta?.postTokenBalances?.find(x => x.accountIndex === toTokenAccountIndex);
-                    toMint = withdrewToPostBalance?.mint ?? null;
-                    toAmount = withdrewToPostBalance?.uiTokenAmount.uiAmount ?? 0;
+                    [toMint, toUiAmountDelta] = 
+                        calculateTokenBlanaceDelta(toTokenAccountAddress, 
+                            txAccountAddresses, tx.meta?.preTokenBalances, 
+                            tx.meta?.postTokenBalances);
                     break;
                 default:
                     action = "unknown"
@@ -910,12 +907,12 @@ export class DdcaClient {
             return {
                 action: action,
                 fromMint: fromMint,
-                fromAmount: fromAmount,
+                fromAmount: fromUiAmountDelta ? Math.abs(fromUiAmountDelta): fromUiAmountDelta,
                 toMint: toMint,
-                toAmount: toAmount,
-                txSignature: tx.transaction.signatures[0],
+                toAmount: toUiAmountDelta ? Math.abs(toUiAmountDelta): toUiAmountDelta,
+                transactionSignature: tx.transaction.signatures[0],
                 networkFeeInLamports: tx.meta?.fee,
-                utc: tx.blockTime ? tsToUTCString(tx.blockTime) : ""
+                dateUtc: tx.blockTime ? tsToUTCString(tx.blockTime) : ""
             };
         }
         return null;
@@ -973,4 +970,32 @@ async function createAtaCreateInstruction(
     payerAddress,
   );
   return [ataAddress, ataCreateInstruction];
+}
+
+function calculateTokenBlanaceDelta(
+    tokenAccountAddressB58: string,
+    txAccountAddressesB58: string[],
+    preTokenBalances?: anchor.web3.TokenBalance[] | null,
+    postTokenBalances?: anchor.web3.TokenBalance[] | null
+): [string | null, number | null] {
+
+    if (!preTokenBalances || !postTokenBalances)
+        return [null, null];
+
+    const tokenAccountIndex = txAccountAddressesB58.lastIndexOf(tokenAccountAddressB58);
+    const preTokenBalance = preTokenBalances?.find(x => x.accountIndex === tokenAccountIndex);
+    const postTokenBalance = postTokenBalances?.find(x => x.accountIndex === tokenAccountIndex);
+
+    if (!preTokenBalance?.uiTokenAmount?.uiAmount && !postTokenBalance?.uiTokenAmount?.uiAmount)
+        return [null, null];
+
+    const preMint = preTokenBalance?.mint;
+    const preUiTokenAmount = preTokenBalance?.uiTokenAmount.uiAmount;
+
+    const postMint = postTokenBalance?.mint;
+    const postUiTokenAmount = postTokenBalance?.uiTokenAmount.uiAmount;
+
+    const uiTokenAmountDelta = (postUiTokenAmount ?? 0) - (preUiTokenAmount ?? 0);
+
+    return [preMint ?? postMint ?? null, uiTokenAmountDelta];
 }

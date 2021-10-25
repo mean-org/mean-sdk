@@ -84,12 +84,12 @@ export type HlaInfo = {
    * DDCA activity
    */
   export type DdcaActivity = {
-      txSignature: string,
+      transactionSignature: string,
       action: DdcaAction;
       fromMint: string | null;
-      fromAmount: number;
+      fromAmount: number | null;
       toMint: string | null;
-      toAmount: number;
+      toAmount: number | null;
       networkFeeInLamports?: number;
-      utc: string;
+      dateUtc: string;
   }
