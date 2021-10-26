@@ -20,7 +20,7 @@ export const calculateActionFees = async (
     let totalAmountNeededForsSwapsInLamports = 0;
     let flatFeeInLamports = 0;
     let percentFee = 0;
-    const ddcaAccountSizeInBytes = 220; //TODO: calculate dynamically
+    const ddcaAccountSizeInBytes = 500; //TODO: calculate dynamically
     const tokenAccountSizeInBytes = 165; //TODO: calculate dynamically
     const minimumAccountSizeInBytes = 128; //Solana min account size (aka metadata)
 
@@ -35,9 +35,9 @@ export const calculateActionFees = async (
 
     switch (action) {
         case DDCA_ACTIONS.create: {
-            signaturesCount = 1;
+            signaturesCount = 2; // owner + temp wrap account
             maxTotalRentExcemptInLamports = 
-                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 2 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 1 account + 2 token accounts
+                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 3 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 1 account + 3 token accounts
             totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
             flatFeeInLamports = 0;
             percentFee = 0;

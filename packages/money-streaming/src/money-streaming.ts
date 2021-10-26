@@ -525,7 +525,7 @@ export class MoneyStreaming {
         let txSigners: Array<Signer> = new Array<Signer>();
 
         const now = new Date();
-        const start = startUtc ? new Date(startUtc.toLocaleString()) : now;
+        const start = !startUtc ? now : new Date(startUtc.toLocaleString());
         const treasurerTokenKey = await Utils.findATokenAddress(treasurer, beneficiaryMint);
         const treasurerTokenAccountInfo = await this.connection.getAccountInfo(treasurerTokenKey);
 
@@ -535,7 +535,7 @@ export class MoneyStreaming {
 
         const mspOpsKey = this.mspOps;
 
-        if (start <= now) {
+        if (start.getTime() <= now.getTime()) {
             // Just create the beneficiary token account and transfer since the payment is not scheduled
             const beneficiaryTokenKey = await Utils.findATokenAddress(beneficiary, beneficiaryMint);
             const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryTokenKey);

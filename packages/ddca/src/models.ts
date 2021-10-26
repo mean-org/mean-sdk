@@ -1,7 +1,13 @@
+import {
+    AccountMeta,
+    PublicKey
+} from '@solana/web3.js';
+
+export const SOL_MINT = new PublicKey("11111111111111111111111111111111");
 export const MAX_FEE_PER_SWAP_IN_LAMPORTS: number = 20000000;
 
 export interface DdcaAccount {
-    id: string;
+    ddcaAccountAddress: string;
     fromMint: string;
     toMint: string;
     totalDepositsAmount: number;
@@ -18,9 +24,11 @@ export interface DdcaDetails extends DdcaAccount{
     fromBalance: number;
     toBalance: number;
     fromBalanceWillRunOutByUtc: string
-    exchangedForAmount: number,
-    exchangedRateAverage: number,
     nextScheduledSwapUtc: string
+    swapCount: number;
+    swapAvgRate: number;
+    lastDepositTs?: number;
+    lastDepositedtUtc: string;
 }
 
 /**
@@ -57,3 +65,30 @@ export type TransactionFeesParams = {
     swapsCount: number;
     signaturesAmount: number;
 }
+
+export type HlaInfo = {
+    exchangeRate: number,
+    protocolFees: number,
+    aggregatorPercentFees: number,
+    remainingAccounts: AccountMeta[]
+  }
+
+  export type DdcaAction =
+  | 'exchanged'
+  | 'deposited'
+  | 'withdrew'
+  | 'unknown'
+
+  /**
+   * DDCA activity
+   */
+  export type DdcaActivity = {
+      transactionSignature: string,
+      action: DdcaAction;
+      fromMint: string | null;
+      fromAmount: number | null;
+      toMint: string | null;
+      toAmount: number | null;
+      networkFeeInLamports?: number;
+      dateUtc: string;
+  }
