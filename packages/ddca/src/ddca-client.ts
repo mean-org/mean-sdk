@@ -418,7 +418,7 @@ export class DdcaClient {
     public async createAddFundsTx(
         ddcaAccountAddress: PublicKey,
         depositAmount: number,
-    ): Promise<Transaction | null> {
+    ): Promise<Transaction> {
 
         if(!ddcaAccountAddress) throw new Error("Invalid param 'ddcaAccountAddress'");
         if(!depositAmount || depositAmount <= 0) throw new Error("Invalid param 'depositAmount'");
@@ -937,7 +937,7 @@ export class DdcaClient {
                 continue;
             }
             try {
-                let ddcaActivity = this.ParseTransaction(tx, ddcaAccount);
+                let ddcaActivity = this.parseTransaction(tx, ddcaAccount);
                 if(ddcaActivity){
                     ddcaActivities.push(ddcaActivity);
                 }
@@ -949,7 +949,7 @@ export class DdcaClient {
         return ddcaActivities;
     }
 
-    private ParseTransaction(tx: anchor.web3.ParsedConfirmedTransaction, rawDdcaAccount: any): DdcaActivity | null {
+    private parseTransaction(tx: anchor.web3.ParsedConfirmedTransaction, rawDdcaAccount: any): DdcaActivity | null {
         for (let ix of tx.transaction.message.instructions) {
             ix = ix as anchor.web3.PartiallyDecodedInstruction;
             if (!ix?.data) {
