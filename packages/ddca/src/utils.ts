@@ -4,7 +4,7 @@ import {
     LAMPORTS_PER_SOL,
 
 } from "@solana/web3.js";
-import { DDCA_ACTIONS, TransactionFees } from ".";
+import { DDCA_ACTIONS, MAX_FEE_PER_SWAP_IN_LAMPORTS, TransactionFees } from ".";
 
 export const calculateActionFees = async (
     connection: Connection,
@@ -20,7 +20,7 @@ export const calculateActionFees = async (
     let totalAmountNeededForsSwapsInLamports = 0;
     let flatFeeInLamports = 0;
     let percentFee = 0;
-    const ddcaAccountSizeInBytes = 220; //TODO: calculate dynamically
+    const ddcaAccountSizeInBytes = 500; //TODO: calculate dynamically
     const tokenAccountSizeInBytes = 165; //TODO: calculate dynamically
     const minimumAccountSizeInBytes = 128; //Solana min account size (aka metadata)
 
@@ -35,9 +35,17 @@ export const calculateActionFees = async (
 
     switch (action) {
         case DDCA_ACTIONS.create: {
-            signaturesCount = 1;
+            signaturesCount = 2; // owner + temp wrap account
             maxTotalRentExcemptInLamports = 
-                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 2 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 1 account + 2 token accounts
+                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 3 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 1 account + 3 token accounts
+            totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
+            flatFeeInLamports = 0;
+            percentFee = 0;
+            break;
+        }
+        case DDCA_ACTIONS.addFunds: {
+            signaturesCount = 1;
+            maxTotalRentExcemptInLamports = 0;
             totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
             flatFeeInLamports = 0;
             percentFee = 0;
@@ -67,9 +75,10 @@ export const calculateActionFees = async (
     }
 
     return {
-        blockchainFee: (maxTotalRentExcemptInLamports + lamportsPerSignatureFee * signaturesCount) / LAMPORTS_PER_SOL,
-        scheduledSwapsFees: totalAmountNeededForsSwapsInLamports / LAMPORTS_PER_SOL,
+        maxBlockchainFee: (maxTotalRentExcemptInLamports + lamportsPerSignatureFee * signaturesCount) / LAMPORTS_PER_SOL,
+        totalScheduledSwapsFees: totalAmountNeededForsSwapsInLamports / LAMPORTS_PER_SOL,
         flatFee: flatFeeInLamports,
-        percentFee: percentFee
+        percentFee: percentFee,
+        maxFeePerSwap: MAX_FEE_PER_SWAP_IN_LAMPORTS / LAMPORTS_PER_SOL
     };
 }
