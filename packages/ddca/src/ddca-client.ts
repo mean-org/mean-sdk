@@ -230,9 +230,6 @@ export class DdcaClient {
         if(ixs.length === 0)
             ixs = undefined;
 
-        if(signers.length === 0)
-            signers = undefined;
-
         if(this.verbose){
             console.log("TEST PARAMETERS:")
             console.log("  Program ID:                           " + this.program.programId);
@@ -287,7 +284,7 @@ export class DdcaClient {
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         createTx.recentBlockhash = hash.blockhash;
         
-        if(signers)
+        if(signers.length > 0)
             createTx.partialSign(...signers);
 
         return [ddcaAccountPda, createTx];
@@ -418,6 +415,7 @@ export class DdcaClient {
     public async createAddFundsTx(
         ddcaAccountAddress: PublicKey,
         depositAmount: number,
+        wrapSolIfNeeded: boolean = false,
     ): Promise<Transaction> {
 
         if(!ddcaAccountAddress) throw new Error("Invalid param 'ddcaAccountAddress'");
@@ -453,10 +451,24 @@ export class DdcaClient {
         if (ownerFromAtaCreateInstruction !== null)
             ixs.push(ownerFromAtaCreateInstruction);
 
+        let signers: Array<Signer> | undefined = new Array<Signer>();
+        if(ddcaAccount.fromMint.equals(WRAPPED_SOL_MINT) && wrapSolIfNeeded){
+            let ownerWSolAtaBalance = 0;
+            if(!ownerFromAtaCreateInstruction) { // owner wSOL ATA account does not exist so balance is zero
+                const ownerWSolAtaTokenAmount = (await this.connection.getTokenAccountBalance(ownerFromTokenAccountAddress)).value;
+                ownerWSolAtaBalance = parseFloat(ownerWSolAtaTokenAmount.amount) / 10 ** ownerWSolAtaTokenAmount.decimals;
+            }
+            if(depositAmount > ownerWSolAtaBalance){
+                const amountToWrap = depositAmount - ownerWSolAtaBalance;
+                const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(amountToWrap, ownerFromTokenAccountAddress);
+                ixs.push(...wrapIxs);
+                signers.push(newWrapAccount);
+            }
+        }
+
         if(ixs.length === 0)
             ixs = undefined;
         
-
         if(this.verbose){
             console.log("TEST PARAMETERS:")
             console.log("  Program ID:                           " + this.program.programId);
@@ -497,6 +509,9 @@ export class DdcaClient {
         addFundsTx.feePayer = ownerAccountAddress;
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         addFundsTx.recentBlockhash = hash.blockhash;
+        
+        if(signers.length > 0)
+            addFundsTx.partialSign(...signers);
 
         return addFundsTx;
     }
