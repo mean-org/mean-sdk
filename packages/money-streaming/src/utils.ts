@@ -792,7 +792,7 @@ export const calculateActionFees = async (
             let accountsSize = 2 * AccountLayout.span;
             const maxAccountsSize = accountsHeaderSize + accountsSize;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
-            txFees.mspPercentFee = 0.05;
+            txFees.mspPercentFee = 0.3;
             break;
         }
         case MSP_ACTIONS.closeStream: {
