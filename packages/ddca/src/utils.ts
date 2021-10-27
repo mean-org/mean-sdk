@@ -44,7 +44,7 @@ export const calculateActionFees = async (
             break;
         }
         case DDCA_ACTIONS.addFunds: {
-            signaturesCount = 1;
+            signaturesCount = 2; // owner + temp wrap account
             maxTotalRentExcemptInLamports = 0;
             totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
             flatFeeInLamports = 0;

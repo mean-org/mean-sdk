@@ -14,7 +14,7 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID, NATIVE_MINT as WR
 import * as anchor from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
 import * as idl1 from './idl.json'; // force idl.json to the build output './lib' folder
-import { DdcaAccount, DdcaAction, DdcaActivity, DdcaDetails, HlaInfo, SOL_MINT } from '.';
+import { DdcaAccount, DdcaAction, DdcaActivity, DdcaDetails, HlaInfo, SOL_MINT, SOL_MINT_DECIMALS } from '.';
 import { parseIdlErrors, ProgramError } from '@project-serum/anchor';
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 const idl = require('./idl.json');
@@ -87,21 +87,20 @@ export class DdcaClient {
         return provider;
     }
 
-    private async createWrapSolInstructions(amountOfSolToWrap: number, ownerWrapTokenAccountAddress: PublicKey): Promise<[TransactionInstruction[], Keypair]>
+    private async createWrapSolInstructions(amountOfToWrapInLamports: number, ownerWrapTokenAccountAddress: PublicKey): Promise<[TransactionInstruction[], Keypair]>
     {   
         // Allocate memory for the account
         const minimumAccountBalance = await Token.getMinBalanceRentForExemptAccount(
             this.connection,
         );
         const newWrapAccount = Keypair.generate();
-        const amountOfLamportsToTransfer = amountOfSolToWrap * LAMPORTS_PER_SOL;
 
         let wrapIxs: Array<TransactionInstruction> = 
         [
             SystemProgram.createAccount({
                 fromPubkey: this.ownerAccountAddress,
                 newAccountPubkey: newWrapAccount.publicKey,
-                lamports: minimumAccountBalance + amountOfLamportsToTransfer,
+                lamports: minimumAccountBalance + amountOfToWrapInLamports,
                 space: AccountLayout.span,
                 programId: TOKEN_PROGRAM_ID,
             }),
@@ -117,7 +116,7 @@ export class DdcaClient {
                 ownerWrapTokenAccountAddress,
                 this.ownerAccountAddress,
                 [],
-                amountOfLamportsToTransfer // BN to number
+                amountOfToWrapInLamports // BN to number
             ),
             Token.createCloseAccountInstruction(
                 TOKEN_PROGRAM_ID,
@@ -136,8 +135,12 @@ export class DdcaClient {
         toMint: PublicKey,
         depositAmount: number,
         amountPerSwap: number,
-        intervalInSeconds: number
+        intervalInSeconds: number,
+        wrapSolIfNeeded: boolean = false
     ): Promise<[PublicKey, Transaction]> {
+
+        if(!depositAmount || depositAmount <= 0) throw new Error("Invalid param 'depositAmount'");
+        if(!amountPerSwap || amountPerSwap <= 0) throw new Error("Invalid param 'amountPerSwap'");
 
         if(fromMint.equals(toMint))
             throw Error("Cannot create DDCA with same 'from' and 'to' mints");
@@ -149,6 +152,17 @@ export class DdcaClient {
         }
         else if(toMint.equals(SOL_MINT)){
             toMint = WRAPPED_SOL_MINT;
+        }
+
+        const fromMintDecimals = fromMint.equals(WRAPPED_SOL_MINT)
+            ? SOL_MINT_DECIMALS
+            : (await this.connection.getTokenSupply(fromMint)).value.decimals;
+        const depositAmountBn =  new anchor.BN(depositAmount * 10 ** fromMintDecimals);
+        const amountPerSwapBn =  new anchor.BN(amountPerSwap * 10 ** fromMintDecimals);
+        
+        const swapCountBn = depositAmountBn.div(amountPerSwapBn);
+        if(!amountPerSwapBn.mul(swapCountBn).eq(depositAmountBn)){
+            throw new Error("'depositAmount' must be a multiple of 'amountPerSwap'");
         }
 
         const blockHeight = await this.connection.getSlot('confirmed');
@@ -220,11 +234,23 @@ export class DdcaClient {
         if (hlaOperatingFromAtaCreateInstruction !== null)
             ixs.push(hlaOperatingFromAtaCreateInstruction);
 
-        let signers: Array<Signer> | undefined = new Array<Signer>();
-        if(changedFromMintTowSol){
-            const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(depositAmount, ownerFromTokenAccountAddress);
+        let signers: Array<Signer> | undefined = new Array<Signer>(); 
+        if (changedFromMintTowSol) {
+            const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(depositAmountBn.toNumber(), ownerFromTokenAccountAddress);
             ixs.push(...wrapIxs);
             signers.push(newWrapAccount);
+        } else if (fromMint.equals(WRAPPED_SOL_MINT) && wrapSolIfNeeded) {
+            let ownerWSolAtaBalanceBn = new anchor.BN(0);
+            if (!ownerFromAtaCreateInstruction) { // owner wSOL ATA account does not exist so balance is zero
+                const ownerWSolAtaTokenAmount = (await this.connection.getTokenAccountBalance(ownerFromTokenAccountAddress)).value;
+                ownerWSolAtaBalanceBn = new anchor.BN(ownerWSolAtaTokenAmount.amount);
+            }
+            if(depositAmountBn > ownerWSolAtaBalanceBn){
+                const amountToWrapBn = depositAmountBn.sub(ownerWSolAtaBalanceBn);
+                const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(amountToWrapBn.toNumber(), ownerFromTokenAccountAddress);
+                ixs.push(...wrapIxs);
+                signers.push(newWrapAccount);
+            }
         }
 
         if(ixs.length === 0)
@@ -251,10 +277,6 @@ export class DdcaClient {
             console.log("  ASSOCIATED_TOKEN_PROGRAM_ID:          " + ASSOCIATED_TOKEN_PROGRAM_ID);
             console.log();
         }
-
-        const fromMintDecimals = (await this.connection.getTokenSupply(fromMint)).value.decimals;
-        const depositAmountBn =  new anchor.BN(depositAmount * 10 ** fromMintDecimals);
-        const amountPerSwapBn =  new anchor.BN(amountPerSwap * 10 ** fromMintDecimals);
 
         const createTx = await this.program.transaction.create(new anchor.BN(blockHeight), ddcaAccountPdaBump,
             depositAmountBn, amountPerSwapBn, new anchor.BN(intervalInSeconds),
@@ -431,6 +453,14 @@ export class DdcaClient {
             throw new Error(`DDCA account: ${ddcaAccountAddress} ins not owned by this owner`);
         }
 
+        const depositAmountBn =  new anchor.BN(depositAmount * 10 ** ddcaAccount.fromMintDecimals);
+        // const amountPerSwapBn =  new anchor.BN(ddcaAccount.amountPerSwap);
+        
+        const swapCountBn = depositAmountBn.div(ddcaAccount.amountPerSwap);
+        if(!ddcaAccount.amountPerSwap.mul(swapCountBn).eq(depositAmountBn)){
+            throw new Error("'depositAmount' must be a multiple of 'amountPerSwap'");
+        }
+
         //owner token account (from)
         const ownerFromTokenAccountAddress = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -453,14 +483,18 @@ export class DdcaClient {
 
         let signers: Array<Signer> | undefined = new Array<Signer>();
         if(ddcaAccount.fromMint.equals(WRAPPED_SOL_MINT) && wrapSolIfNeeded){
-            let ownerWSolAtaBalance = 0;
+            let ownerWSolAtaBalanceBn = new anchor.BN(0);
             if(!ownerFromAtaCreateInstruction) { // owner wSOL ATA account does not exist so balance is zero
                 const ownerWSolAtaTokenAmount = (await this.connection.getTokenAccountBalance(ownerFromTokenAccountAddress)).value;
-                ownerWSolAtaBalance = parseFloat(ownerWSolAtaTokenAmount.amount) / 10 ** ownerWSolAtaTokenAmount.decimals;
+                ownerWSolAtaBalanceBn = new anchor.BN(ownerWSolAtaTokenAmount.amount);
             }
-            if(depositAmount > ownerWSolAtaBalance){
-                const amountToWrap = depositAmount - ownerWSolAtaBalance;
-                const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(amountToWrap, ownerFromTokenAccountAddress);
+            console.log("depositAmount:", depositAmount)
+            console.log("depositAmountBn:", depositAmountBn.toNumber())
+            console.log("ownerWSolAtaBalanceBn:", ownerWSolAtaBalanceBn.toNumber())
+            if(depositAmountBn > ownerWSolAtaBalanceBn){
+                const amountToWrapBn = depositAmountBn.sub(ownerWSolAtaBalanceBn);
+                console.log("amountToWrapBn:", amountToWrapBn.toNumber())
+                const [wrapIxs, newWrapAccount] = await this.createWrapSolInstructions(amountToWrapBn.toNumber(), ownerFromTokenAccountAddress);
                 ixs.push(...wrapIxs);
                 signers.push(newWrapAccount);
             }
@@ -481,8 +515,6 @@ export class DdcaClient {
             console.log("  fromMintDecimals:                     " + ddcaAccount.fromMintDecimals);
             console.log();
         }
-
-        const depositAmountBn =  new anchor.BN(depositAmount * 10 ** ddcaAccount.fromMintDecimals);
 
         const addFundsTx = await this.program.transaction.addFunds(
             depositAmountBn,
