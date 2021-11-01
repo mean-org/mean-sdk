@@ -4,6 +4,7 @@ import {
 } from '@solana/web3.js';
 
 export const SOL_MINT = new PublicKey("11111111111111111111111111111111");
+export const SOL_MINT_DECIMALS = 9;
 export const MAX_FEE_PER_SWAP_IN_LAMPORTS: number = 20000000;
 
 export interface DdcaAccount {
