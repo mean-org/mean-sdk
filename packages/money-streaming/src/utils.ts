@@ -759,7 +759,7 @@ export const calculateActionFees = async (
             let accountsSize = 2 * AccountLayout.span + Layout.createStreamLayout.span + Layout.createTreasuryLayout.span;
             const maxAccountsSize = 3 * accountsHeaderSize + accountsSize;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
-            txFees.mspFlatFee = 0.000010;
+            txFees.mspFlatFee = 0.00001;
             break;
         }
         case MSP_ACTIONS.createStreamWithFunds: {
@@ -768,12 +768,7 @@ export const calculateActionFees = async (
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
             txFees.mspFlatFee = 0.000010;
-            txFees.mspPercentFee = 0.3;
-            break;
-        }
-        case MSP_ACTIONS.oneTimePayment: {
-            blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(AccountLayout.span.toFixed(9)));
-            txFees.mspPercentFee = 0.3;
+            txFees.mspPercentFee = 0.25;
             break;
         }
         case MSP_ACTIONS.scheduleOneTimePayment: {
@@ -781,18 +776,18 @@ export const calculateActionFees = async (
             const maxAccountsSize = 3 * accountsHeaderSize + accountsSize;
             lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature * 2;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
-            txFees.mspPercentFee = 0.3;
+            txFees.mspPercentFee = 0.25;
             break;
         }
         case MSP_ACTIONS.addFunds: {
-            txFees.mspPercentFee = 0.3;
+            txFees.mspPercentFee = 0.25;
             break;
         }
         case MSP_ACTIONS.withdraw: {
             let accountsSize = 2 * AccountLayout.span;
             const maxAccountsSize = accountsHeaderSize + accountsSize;
             blockchainFee = await connection.getMinimumBalanceForRentExemption(parseFloat(maxAccountsSize.toFixed(9)));
-            txFees.mspPercentFee = 0.3;
+            txFees.mspPercentFee = 0.05;
             break;
         }
         case MSP_ACTIONS.closeStream: {
