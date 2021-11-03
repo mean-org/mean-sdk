@@ -1,7 +1,7 @@
 {
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "outDir": "lib",
+        "outDir": "./lib",
         "declaration": true,
         "target": "es6",
         "lib": [
@@ -16,7 +16,8 @@
         "sourceMap": false,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
     "display": "Recommended"

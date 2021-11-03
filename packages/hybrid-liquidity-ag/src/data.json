@@ -1,0 +1,239 @@
+{
+    "CHAINS": [
+      {
+        "id": 101,
+        "name": "Solana"
+      }
+    ],
+    "TOKENS": [
+      {
+        "chainId": 101,
+        "address": "11111111111111111111111111111111",
+        "name": "Native SOL",
+        "symbol": "SOL",
+        "decimals": 9,
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+      },
+      {
+        "chainId": 101,
+        "address": "So11111111111111111111111111111111111111112",
+        "name": "Wrapped SOL",
+        "symbol": "wSOL",
+        "decimals": 9,
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+      },
+      {
+        "chainId": 101,
+        "address": "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
+        "name": "Wrapped Bitcoin (Sollet)",
+        "symbol": "BTC",
+        "decimals": 6,
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png"
+      },
+      {
+        "chainId": 101,
+        "address": "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
+        "name": "Wrapped Ethereum (Sollet)",
+        "symbol": "ETH",
+        "decimals": 6,
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk/logo.png"
+      },
+      {
+        "chainId": 101,
+        "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "name": "USDC",
+        "symbol": "USDC",
+        "decimals": 6,
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"
+      },
+      {
+        "chainId": 101,
+        "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+        "name": "USDT",
+        "symbol": "USDT",
+        "decimals": 6,
+        "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg"
+      }
+    ],
+    "PROTOCOLS": [
+      {
+        "address": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "name": "Raydium"
+      },
+      {
+        "address": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+        "name": "Orca"
+      },
+      {
+        "address": "SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ",
+        "name": "Saber"
+      },
+      {
+        "address": "MERLuDFBMmsHnsBPZw2sDQZHvXFMwp8EdjudcU2HKky",
+        "name": "Mercurial"
+      },
+      {
+        "address": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+        "name": "Serum DEX"
+      }
+    ],
+    "AMM_POOLS": [
+      {
+        "chainId": 101,
+        "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+        "ammAddress": "EGZ7tiLeH62TPV1gL8WwbXGzEPa9zmcpVnnkPKKnrE2U",
+        "address": "APDFRM3HMr8CAGXwKHiu2f5ePSpaiEJhaURwhsRrUUt9",
+        "name": "SOL_USDC",
+        "tokenAddresses": [
+          "So11111111111111111111111111111111111111112",
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "ammAddress": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+        "address": "8HoQnePLqPj4M7PUDzfw8e3Ymdwgc7NLGnaTUapubyvu",
+        "name": "SOL-USDC LP",
+        "tokenAddresses": [
+          "11111111111111111111111111111111",
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "ammAddress": "6kbC5epG18DF2DwPEW34tBy5pGFS7pEGALR3v5MGxgc5",
+        "address": "2hMdRdVWZqetQsaHG8kQjdZinEMBz75vsoWTCob1ijXu",
+        "name": "BTC-USDC LP",
+        "tokenAddresses": [
+          "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+        "ammAddress": "EuK3xDa4rWuHeMQCBsHf1ETZNiEQb5C476oE9u9kp8Ji",
+        "address": "71FymgN2ZUf7VvVTLE8jYEnjP3jSK1Frp2XT1nHs8Hob",
+        "name": "ETH_SOL",
+        "tokenAddresses": [
+          "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
+          "So11111111111111111111111111111111111111112"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+        "ammAddress": "FgZut2qVQEyPBibaTJbbX2PxaMZvT1vjDebiVaDp5BWP",
+        "address": "3e1W6Aqcbuk2DfHUwRiRcyzpyYRRjg6yhZZcyEARydUX",
+        "name": "ETH_USDC",
+        "tokenAddresses": [
+          "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "ammAddress": "AoPebtuJC4f2RweZSxcVCcdeTgaEXY64Uho8b5HdPxAR",
+        "address": "13PoKid6cZop4sj2GfoBeujnGfthUbTERdE5tpLCDLEY",
+        "name": "ETH-USDC LP",
+        "tokenAddresses": [
+          "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+        "ammAddress": "Dqk7mHQBx2ZWExmyrR2S8X6UG75CrbbpK2FSBZsNYsw6",
+        "address": "FZthQCuYHhcfiDma7QrX7buDHwrZEd7vL8SjS6LQa3Tx",
+        "name": "SOL_USDT",
+        "tokenAddresses": [
+          "So11111111111111111111111111111111111111112",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "ammAddress": "7XawhbbxtsRcQA8KTkHT9f9nc6d69UwqCDh6U5EEbEmX",
+        "address": "Epm4KfTj4DMrvqn6Bwg2Tr2N8vhQuNbuK8bESFp4k33K",
+        "name": "SOL-USDT LP",
+        "tokenAddresses": [
+          "11111111111111111111111111111111",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "ammAddress": "AMMwkf57c7ZsbbDCXvBit9zFehMr1xRn8ZzaT1iDF18o",
+        "address": "DgGuvR9GSHimopo3Gc7gfkbKamLKrdyzWkq5yqA6LqYS",
+        "name": "BTC-USDT LP",
+        "tokenAddresses": [
+          "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+        "ammAddress": "He3iAEV5rYjv6Xf7PxKro19eVrC3QAcdic5CF2D2obPt",
+        "address": "nPrB78ETY8661fUgohpuVusNCZnedYCgghzRJzxWnVb",
+        "name": "ETH-USDT LP",
+        "tokenAddresses": [
+          "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ",
+        "ammAddress": "YAkoNb6HKmSxQN9L8hiBE5tPJRsniSSMzND1boHmZxe",
+        "address": "2poo1w1DL6yd2WNTCnNTzDqkC6MBXq7axo77P16yrBuf",
+        "name": "USDT-USDC Saber LP",
+        "tokenAddresses": [
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "MERLuDFBMmsHnsBPZw2sDQZHvXFMwp8EdjudcU2HKky",
+        "ammAddress": "FDonWCo5RJhx8rzSwtToUXiLEL7dAqLmUhnyH76F888D",
+        "address": "USD6kaowtDjwRkN5gAjw1PDMQvc9xRp8xW9GK8Z5HBA",
+        "name": "Mercurial UST 3-Pool (USDC-USDT-UST)",
+        "tokenAddresses": [
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+          "CXLBjMMcwkc17GfJtBos6rQCo1ypeH6eDbB82Kby4MRm"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "MERLuDFBMmsHnsBPZw2sDQZHvXFMwp8EdjudcU2HKky",
+        "ammAddress": "2dc3UgMuVkASzW4sABDjDB5PjFbPTncyECUnZL73bmQR",
+        "address": "SWABtvDnJwWwAb9CbSA3nv7nTnrtYjrACAVtuP3gyBB",
+        "name": "Mercurial PAI 3-Pool (USDC-USDT-PAI)",
+        "tokenAddresses": [
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+          "Ea5SjE2Y6yvCeW5dYTn7PYMuW5ikXkvbGdcmSnXeaLjS"
+        ]
+      },
+      {
+        "chainId": 101,
+        "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+        "ammAddress": "F13xvvx45jVGd84ynK3c8T89UejQVxjCLtmHfPmAXAHP",
+        "address": "H2uzgruPvonVpCRhwwdukcpXK8TG17swFNzYFr2rtPxy",
+        "name": "USDC_USDT",
+        "tokenAddresses": [
+          "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        ]
+      }
+    ]
+  }
+  
