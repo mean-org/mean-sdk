@@ -4,10 +4,10 @@ import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "./types";
 import { Connection, Keypair, LAMPORTS_PER_SOL, Signer, SystemProgram, Transaction } from "@solana/web3.js";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { RaydiumClient } from "./raydium/client";
-// import { OrcaClient } from "../hybrid-liquidity-ag/orca/client";
-// import { SerumClient } from "./serum/client";
-// import { SaberClient } from "./saber/client";
-// import { MercurialClient } from "./mercurial/client";
+import { OrcaClient } from "./orca/client";
+import { SerumClient } from "./serum/client";
+import { SaberClient } from "./saber/client";
+import { MercurialClient } from "./mercurial/client";
 import BN from "bn.js";
 
 export const getClient = (
@@ -23,22 +23,22 @@ export const getClient = (
       client = new RaydiumClient(connection);
       break;
     }
-    // case ORCA.toBase58(): {
-    //   client = new OrcaClient(connection);
-    //   break;
-    // }
-    // case SABER.toBase58(): {
-    //   client = new SaberClient(connection);
-    //   break;
-    // }
-    // case MERCURIAL.toBase58(): {
-    //   client = new MercurialClient(connection);
-    //   break;
-    // }
-    // case SERUM.toBase58(): {
-    //   client = new SerumClient(connection);
-    //   break;
-    // }
+    case ORCA.toBase58(): {
+      client = new OrcaClient(connection);
+      break;
+    }
+    case SABER.toBase58(): {
+      client = new SaberClient(connection);
+      break;
+    }
+    case MERCURIAL.toBase58(): {
+      client = new MercurialClient(connection);
+      break;
+    }
+    case SERUM.toBase58(): {
+      client = new SerumClient(connection);
+      break;
+    }
     default: { break; }
   }
 
@@ -251,4 +251,8 @@ export const unwrap = async(
 
 export * from "./types";
 export * from "./data";
-export * from "./utils";
+export * from "./raydium/client";
+export * from "./mercurial/client";
+export * from "./orca/client";
+export * from "./saber/client";
+export * from "./serum/client";

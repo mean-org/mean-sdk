@@ -1,4 +1,4 @@
-import { TokenAmount } from "./safe-math";
+import { TokenAmount } from "../safe-math";
 
 export interface Tokens {
   [key: string]: any

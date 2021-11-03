@@ -72,6 +72,15 @@ export const USDT_MINT = new PublicKey(
   "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
 );
 
+export const NATIVE_SOL: TokenInfo = {
+  symbol: 'SOL',
+  name: 'Native SOL',
+  address: NATIVE_SOL_MINT.toString(),
+  decimals: 9,
+  logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+  chainId: 0
+}
+
 export type ChainInfo = {
   id: number;
   name: string;

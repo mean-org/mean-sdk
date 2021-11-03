@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { cloneDeep } from "lodash-es";
-import { AMM_INFO_LAYOUT_V4, MINT_LAYOUT } from "./layouts";
+import { AMM_INFO_LAYOUT_V4, MINT_LAYOUT } from "../layouts";
 import { LP_TOKENS, NATIVE_SOL, TOKENS } from "./tokens";
 import { TokenInfo } from "./types";
 import { LIQUIDITY_POOLS } from "./pools";

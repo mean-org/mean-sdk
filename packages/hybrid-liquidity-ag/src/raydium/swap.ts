@@ -1,8 +1,8 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Account, Connection, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { WRAPPED_SOL_MINT } from "../types";
-import { TokenAmount } from "./safe-math";
-import { ACCOUNT_LAYOUT } from "./layouts";
+import { TokenAmount } from "../safe-math";
+import { ACCOUNT_LAYOUT } from "../layouts";
 import BN from "bn.js";
 
 const BufferLayout = require('buffer-layout');
