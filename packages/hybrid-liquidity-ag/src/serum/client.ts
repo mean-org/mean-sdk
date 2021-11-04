@@ -37,7 +37,7 @@ export class SerumClient implements Client {
     const market = cloneDeep(this.currentMarket);
 
     if (!market) {
-      throw new Error('Raydium pool info not found');
+      throw new Error('Serum market info not found');
     }
 
     const fromMint = from === market.baseMintAddress.toBase58() 

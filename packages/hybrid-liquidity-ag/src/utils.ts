@@ -11,8 +11,15 @@ import {
   Transaction
 
 } from "@solana/web3.js";
+import { ExchangeInfo, LPClient } from ".";
 
 import { ACCOUNT_LAYOUT } from "./layouts";
+import { MercurialClient } from "./mercurial/client";
+import { OrcaClient } from "./orca/client";
+import { RaydiumClient } from "./raydium/client";
+import { SaberClient } from "./saber/client";
+import { SerumClient } from "./serum/client";
+import { AmmPoolInfo, Client, MERCURIAL, ORCA, RAYDIUM, SABER, SERUM } from "./types";
 
 export async function getMultipleAccounts(
   connection: Connection,
@@ -144,4 +151,169 @@ export async function createTokenAccountIfNotExist(
   }
 
   return publicKey;
+}
+
+export const getProtocolClient = (
+  connection: Connection,
+  protocolAddress: string
+
+): Client => {
+
+  let client: any = undefined;
+
+  switch (protocolAddress) {
+    case RAYDIUM.toBase58(): {
+      client = new RaydiumClient(connection);
+      break;
+    }
+    case ORCA.toBase58(): {
+      client = new OrcaClient(connection);
+      break;
+    }
+    case SABER.toBase58(): {
+      client = new SaberClient(connection);
+      break;
+    }
+    case MERCURIAL.toBase58(): {
+      client = new MercurialClient(connection);
+      break;
+    }
+    case SERUM.toBase58(): {
+      client = new SerumClient(connection);
+      break;
+    }
+    default: { break; }
+  }
+
+  return client;
+}
+
+export async function getOptimalPools(
+  connection: Connection,
+  from: string,
+  to: string,
+  pools: AmmPoolInfo[]
+
+): Promise<AmmPoolInfo[]> {
+
+  let orderedPools: AmmPoolInfo[] = [];
+  
+  for (let pool of pools) {
+    
+    let exchangeInfo: ExchangeInfo | undefined;
+
+    const client = getProtocolClient(
+      connection,
+      pool.protocolAddress
+    );
+
+    const isSerumClient = client.protocolAddress === SERUM.toBase58();
+      
+    if (isSerumClient) {
+
+      const serumClient = (client as SerumClient);
+      const serumMarket = await serumClient.getMarketInfo(from, to);
+
+      if (!serumMarket) {
+        throw Error('Serum market not found');
+      }
+
+      exchangeInfo = await client.getExchangeInfo(from, to, 1, 1);
+
+    } else {
+
+      const lpClient = (client as LPClient);
+      const clientPool = await lpClient.getPoolInfo(pool.address);
+
+      if (!clientPool) {
+        throw Error('Pool not found');
+      }
+
+      exchangeInfo = await lpClient.getExchangeInfo(from, to, 1, 1);
+    }
+
+    orderedPools.push(
+      Object.assign({ }, 
+        pool,
+        { 
+          exchangeInfo 
+        }
+      )
+    );
+  }
+
+  const sortByOutAmount = (
+    first: ExchangeInfo | undefined, 
+    second: ExchangeInfo | undefined
+
+  ) => {
+
+    let result = 0;
+
+    if (!first) { 
+      result = -1;
+    } else if (!second) {
+      result = 1;
+    } else {
+
+      const firstAmountOut = first.amountOut || 0;
+      const secondAmountOut = second.amountOut || 0;
+
+      if (firstAmountOut >= secondAmountOut) {
+        result = 1; 
+      } else {
+        result = -1;
+      }
+    }
+
+    return result;
+  };
+
+  const sortByProtocolFees = (
+    first: ExchangeInfo | undefined, 
+    second: ExchangeInfo | undefined
+
+  ) => {
+
+    let result = 0;
+
+    if (!first) { 
+      result = -1;
+    } else if (!second) {
+      result = 1;
+    } else if (first.protocolFees >= second.protocolFees) {
+      result = 1; 
+    } else {
+      result = -1;
+    }
+
+    return result;
+  };
+
+  const sortByNetworkFees = (
+    first: ExchangeInfo | undefined, 
+    second: ExchangeInfo | undefined
+
+  ) => {
+
+    let result = 0;
+
+    if (!first) { 
+      result = -1;
+    } else if (!second) {
+      result = 1;
+    } else if (first.networkFees >= second.networkFees) {
+      result = 1; 
+    } else {
+      result = -1;
+    }
+
+    return result;
+  };
+
+  orderedPools.sort((a, b) => sortByOutAmount(b.exchangeInfo, a.exchangeInfo));
+  orderedPools.sort((a, b) => sortByProtocolFees(b.exchangeInfo, a.exchangeInfo));
+  orderedPools.sort((a, b) => sortByNetworkFees(b.exchangeInfo, a.exchangeInfo));  
+
+  return orderedPools;
 }

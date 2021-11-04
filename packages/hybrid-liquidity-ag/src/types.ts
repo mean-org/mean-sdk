@@ -106,7 +106,8 @@ export type AmmPoolInfo = {
   address: string,
   protocolAddress: string,
   ammAddress: string,
-  tokenAddresses: string[]  
+  tokenAddresses: string[],
+  exchangeInfo: ExchangeInfo | undefined  
 }
 
 export type ExchangeInfo = {
