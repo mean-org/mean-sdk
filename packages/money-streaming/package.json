@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/money-streaming",
-  "version": "1.4.11",
+  "version": "1.4.15",
   "description": "",
   "private": false,
   "repository": {
@@ -60,7 +60,6 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -R ./lib",
-    "publish": "npm publish --access public",
-    "start": "ts-node main.ts"
+    "publish": "npm publish --access public"
   }
 }
