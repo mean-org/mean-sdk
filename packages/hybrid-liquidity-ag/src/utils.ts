@@ -11,8 +11,9 @@ import {
   Transaction
 
 } from "@solana/web3.js";
-import { ExchangeInfo, LPClient } from ".";
 
+import { ExchangeInfo, LPClient, NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "./types";
+import { AMM_POOLS } from "./data";
 import { ACCOUNT_LAYOUT } from "./layouts";
 import { MercurialClient } from "./mercurial/client";
 import { OrcaClient } from "./orca/client";
@@ -155,13 +156,13 @@ export async function createTokenAccountIfNotExist(
 
 export const getProtocolClient = (
   connection: Connection,
-  protocolAddress: string
+  protocol: string
 
 ): Client => {
 
   let client: any = undefined;
 
-  switch (protocolAddress) {
+  switch (protocol) {
     case RAYDIUM.toBase58(): {
       client = new RaydiumClient(connection);
       break;
@@ -182,65 +183,110 @@ export const getProtocolClient = (
       client = new SerumClient(connection);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
 
   return client;
 }
 
-export async function getOptimalPools(
+export const getAmmPools = (
+  from: string,
+  to: string,
+  protocol?: string | undefined,
+
+): AmmPoolInfo[] => {
+
+  return AMM_POOLS.filter((ammPool) => {
+
+    let fromIncluded = false;
+
+    if (from === NATIVE_SOL_MINT.toBase58() || from === WRAPPED_SOL_MINT.toBase58()) {
+      fromIncluded = (
+        ammPool.tokenAddresses.includes(NATIVE_SOL_MINT.toBase58()) || 
+        ammPool.tokenAddresses.includes(WRAPPED_SOL_MINT.toBase58())
+      );
+    } else {
+      fromIncluded = ammPool.tokenAddresses.includes(from);
+    }
+
+    let toIncluded = false;
+
+    if (to === NATIVE_SOL_MINT.toBase58() || to === WRAPPED_SOL_MINT.toBase58()) {
+      toIncluded = (
+        ammPool.tokenAddresses.includes(NATIVE_SOL_MINT.toBase58()) || 
+        ammPool.tokenAddresses.includes(WRAPPED_SOL_MINT.toBase58())
+      );
+    } else {
+      toIncluded = ammPool.tokenAddresses.includes(to);
+    }
+
+    let included = fromIncluded && toIncluded;
+
+    if (protocol && ammPool.protocolAddress !== protocol) {
+      included = false;
+    }
+
+    return included;
+
+  });
+}
+
+export const getBestClients = async (
   connection: Connection,
   from: string,
   to: string,
+  amount: number,
   pools: AmmPoolInfo[]
 
-): Promise<AmmPoolInfo[]> {
+): Promise<Client[]> => {
 
-  let orderedPools: AmmPoolInfo[] = [];
+  let clients: Client[] = [];
+  let promises: Promise<Client | null>[] = [];  
   
   for (let pool of pools) {
-    
-    let exchangeInfo: ExchangeInfo | undefined;
+
+    let promise: () => Promise<Client>;
 
     const client = getProtocolClient(
       connection,
       pool.protocolAddress
     );
 
-    const isSerumClient = client.protocolAddress === SERUM.toBase58();
+    const isSerumClient = client.protocol.equals(SERUM);
       
     if (isSerumClient) {
 
-      const serumClient = (client as SerumClient);
-      const serumMarket = await serumClient.getMarketInfo(from, to);
-
-      if (!serumMarket) {
-        throw Error('Serum market not found');
-      }
-
-      exchangeInfo = await client.getExchangeInfo(from, to, 1, 1);
+      promise = async () => {
+        const serumClient = (client as SerumClient);
+        try { 
+          await serumClient.updateExchange(from, to, amount, 1);
+          if (serumClient.exchange && serumClient.market) {
+            const amountOut = serumClient.exchange.amountOut as number;
+            if (amountOut < serumClient.market.minOrderSize) {
+              serumClient.exchange = undefined;
+            }
+          }
+        } 
+        catch (error) { console.log(error); }
+        return serumClient;
+      };
 
     } else {
 
-      const lpClient = (client as LPClient);
-      const clientPool = await lpClient.getPoolInfo(pool.address);
-
-      if (!clientPool) {
-        throw Error('Pool not found');
-      }
-
-      exchangeInfo = await lpClient.getExchangeInfo(from, to, 1, 1);
+      promise = async () => {
+        const lpClient = (client as LPClient);
+        try { await lpClient.updateExchange(from, to, amount, 1); } 
+        catch (error) { console.log(error); }
+        return lpClient;
+      };
     }
 
-    orderedPools.push(
-      Object.assign({ }, 
-        pool,
-        { 
-          exchangeInfo 
-        }
-      )
-    );
+    promises.push(promise());
   }
+  
+  clients = await Promise.all(promises) as Client[];
 
   const sortByOutAmount = (
     first: ExchangeInfo | undefined, 
@@ -269,51 +315,7 @@ export async function getOptimalPools(
     return result;
   };
 
-  const sortByProtocolFees = (
-    first: ExchangeInfo | undefined, 
-    second: ExchangeInfo | undefined
+  clients.sort((a, b) => sortByOutAmount(b?.exchange, a?.exchange));
 
-  ) => {
-
-    let result = 0;
-
-    if (!first) { 
-      result = -1;
-    } else if (!second) {
-      result = 1;
-    } else if (first.protocolFees >= second.protocolFees) {
-      result = 1; 
-    } else {
-      result = -1;
-    }
-
-    return result;
-  };
-
-  const sortByNetworkFees = (
-    first: ExchangeInfo | undefined, 
-    second: ExchangeInfo | undefined
-
-  ) => {
-
-    let result = 0;
-
-    if (!first) { 
-      result = -1;
-    } else if (!second) {
-      result = 1;
-    } else if (first.networkFees >= second.networkFees) {
-      result = 1; 
-    } else {
-      result = -1;
-    }
-
-    return result;
-  };
-
-  orderedPools.sort((a, b) => sortByOutAmount(b.exchangeInfo, a.exchangeInfo));
-  orderedPools.sort((a, b) => sortByProtocolFees(b.exchangeInfo, a.exchangeInfo));
-  orderedPools.sort((a, b) => sortByNetworkFees(b.exchangeInfo, a.exchangeInfo));  
-
-  return orderedPools;
+  return clients;
 }

@@ -1,8 +1,7 @@
 import { Market, Orderbook } from "@project-serum/serum";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
-import { cloneDeep } from "lodash";
-import { getMultipleAccounts } from "../utils";
+import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { AccountMeta, Connection, LAMPORTS_PER_SOL, PublicKey, Transaction } from "@solana/web3.js";
+import { getAmmPools, getMultipleAccounts } from "../utils";
 import { NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
 import { TokenAmount } from "../safe-math";
 import { PROTOCOLS } from "../data";
@@ -17,39 +16,69 @@ export class SerumClient implements Client {
   private connection: Connection;
   private currentMarket: any;
   private currentOrderbooks: any;
+  private exchangeInfo: ExchangeInfo | undefined;
+  private exchangeAccounts: AccountMeta[];
 
   constructor(connection: Connection) {
     this.connection = connection;
+    this.exchangeAccounts = [];
   }
 
-  public get protocolAddress(): string {
-    return SERUM.toBase58();
+  public get protocol() : PublicKey {
+    return SERUM; 
   }
 
-  public getExchangeInfo = async (
+  public get accounts(): AccountMeta[] {
+    return this.exchangeAccounts;
+  }
+
+  public get market() : any {
+    return this.currentMarket; 
+  }
+
+  public get exchange() : ExchangeInfo | undefined {
+    return this.exchangeInfo; 
+  }
+
+  public set exchange(exchangeInfo: ExchangeInfo | undefined) {
+    this.exchangeInfo = exchangeInfo; 
+  }
+
+  public get orderbooks() : Orderbook[] {
+    return this.currentOrderbooks; 
+  }  
+
+  public updateExchange = async (
     from: string,
     to: string,
     amount: number,
     slippage: number
 
-  ): Promise<ExchangeInfo> => {
-    
-    const market = cloneDeep(this.currentMarket);
+  ): Promise<void> => {
 
-    if (!market) {
+    await this.updateMarket(from, to);
+
+    if (!this.currentMarket) {
       throw new Error('Serum market info not found');
     }
 
-    const fromMint = from === market.baseMintAddress.toBase58() 
-      ? market.baseMintAddress.toBase58() 
-      : market.quoteMintAddress.toBase58();
+    await this.updateOrderbooks(this.currentMarket);
 
-    const toMint = to === market.quoteMintAddress.toBase58() 
-      ? market.quoteMintAddress.toBase58() 
-      : market.baseMintAddress.toBase58();
+    const fromMint = from === this.currentMarket.baseMintAddress.toBase58() 
+      ? this.currentMarket.baseMintAddress.toBase58() 
+      : this.currentMarket.quoteMintAddress.toBase58();
     
-    const toDecimals = from === market.quoteMintAddress.toBase58() 
-      ? market._baseSplTokenDecimals : market._quoteSplTokenDecimals;
+    const fromDecimals = to === this.currentMarket.baseMintAddress.toBase58() 
+      ? this.currentMarket._quoteSplTokenDecimals 
+      : this.currentMarket._baseSplTokenDecimals;
+
+    const toMint = to === this.currentMarket.quoteMintAddress.toBase58() 
+      ? this.currentMarket.quoteMintAddress.toBase58() 
+      : this.currentMarket.baseMintAddress.toBase58();
+    
+    const toDecimals = from === this.currentMarket.quoteMintAddress.toBase58() 
+      ? this.currentMarket._baseSplTokenDecimals 
+      : this.currentMarket._quoteSplTokenDecimals;
 
     const priceAmount = 1;
     // always calculate the price based on the unit
@@ -57,7 +86,7 @@ export class SerumClient implements Client {
     const asks = (this.currentOrderbooks.filter((ob: any) => !ob.isBids)[0]).slab;
 
     const { amountOut, amountOutWithSlippage, priceImpact } = getOutAmount(
-      market,
+      this.currentMarket,
       asks,
       bids,
       fromMint,
@@ -70,25 +99,21 @@ export class SerumClient implements Client {
     const outWithSlippage = new TokenAmount(amountOutWithSlippage, toDecimals, false);
     const protocol = PROTOCOLS.filter(p => p.address === SERUM.toBase58())[0];
 
-    const exchangeInfo: ExchangeInfo = {
+    this.exchangeInfo = {
       fromAmm: protocol.name,
       outPrice: !out.isNullOrZero() ? +out.fixed(): 1,
       priceImpact,
       amountIn: amount,
       amountOut: !out.isNullOrZero() ? (+out.fixed() * amount): 0,
       minAmountOut: +outWithSlippage.fixed() * amount,
-      networkFees: 0,
+      networkFees: 0.00001 + 3 * await Token.getMinBalanceRentForExemptAccount(this.connection) / (10 ** fromDecimals),
       protocolFees: 0.3 * amount / 100
     };
 
-    return exchangeInfo;
+    await this.updateExchangeAccounts(from, to);    
   };
 
-  public getTokens = (): Promise<Map<string, any>> => {
-    throw new Error("Method not implemented.");
-  };
-
-  public getSwap = async (
+  public swapTx = async (
     owner: PublicKey,
     from: string,
     to: string,
@@ -99,28 +124,24 @@ export class SerumClient implements Client {
     feeAmount: number
   ): Promise<Transaction> => {
     
-    const market = cloneDeep(this.currentMarket);
-
-    if (!market) {
-      throw new Error('Raydium pool info not found');
-    }
-
     const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT.toBase58() : from;
-    const fromDecimals = fromMint === market.baseMintAddress.toBase58() 
-      ? market._baseSplTokenDecimals : market._quoteSplTokenDecimals;
+    const fromDecimals = fromMint === this.currentMarket.baseMintAddress.toBase58() 
+      ? this.currentMarket._baseSplTokenDecimals 
+      : this.currentMarket._quoteSplTokenDecimals;
 
     const fromAccount = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      new PublicKey(from),
+      new PublicKey(fromMint),
       owner,
       true
     );
       
+    const toMint = to === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT.toBase58() : to;
     const toAccount = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
-      new PublicKey(to),
+      new PublicKey(toMint),
       owner,
       true
     );
@@ -131,7 +152,7 @@ export class SerumClient implements Client {
     let { transaction, signers } = await placeOrderTx(
       this.connection,
       owner,
-      market, // poolInfo,
+      this.currentMarket,
       asks,
       bids,
       new PublicKey(from),
@@ -155,11 +176,11 @@ export class SerumClient implements Client {
     return transaction;
   };
 
-  public getMarketInfo = async (
+  private updateMarket = async (
     from: string,
     to: string
     
-  ): Promise<Market | undefined> => {
+  ): Promise<void> => {
 
     const marketInfo = await getMarket(
       this.connection,
@@ -171,26 +192,17 @@ export class SerumClient implements Client {
       throw new Error('Serum Market not found');
     }
 
-    if (this.currentMarket && this.currentMarket.address.equals(marketInfo.ownAddress)) {
-      return this.currentMarket;
-    }
+    const serumProgramKey = new PublicKey(SERUM_PROGRAM_ID_V3);
 
-    if (marketInfo) {
-      const serumProgramKey = new PublicKey(SERUM_PROGRAM_ID_V3);
-      this.currentMarket = await Market.load(
-        this.connection, 
-        marketInfo.ownAddress, { }, 
-        serumProgramKey
-      );
-    }
-
-    return this.currentMarket;
+    this.currentMarket = await Market.load(
+      this.connection, 
+      marketInfo.ownAddress, 
+      { }, 
+      serumProgramKey
+    );
   };
 
-  public getMarketOrderbooks = async (
-    market: Market
-
-  ): Promise<Orderbook[]> => {
+  private updateOrderbooks = async (market: Market): Promise<void> => {
 
     const accounts = await getMultipleAccounts(
       this.connection, 
@@ -213,7 +225,15 @@ export class SerumClient implements Client {
     }
 
     this.currentOrderbooks = orderBooks;
+  }
 
-    return orderBooks;
+  private updateExchangeAccounts = async (from: string, to: string): Promise<void> => {
+
+    try {
+      //TODO: Implement
+      this.exchangeAccounts = [] as AccountMeta[];
+    } catch (_error) {
+      throw _error;
+    }
   }
 }

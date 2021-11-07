@@ -52,8 +52,7 @@ const initialize = () => {
         name: ammPoolInfo.name,
         protocolAddress: ammPoolInfo.protocolAddress,
         ammAddress: ammPoolInfo.ammAddress,
-        tokenAddresses: ammPoolInfo.tokenAddresses,
-        exchangeInfo: ammPoolInfo.exchangeInfo
+        tokenAddresses: ammPoolInfo.tokenAddresses
       });
     }
   }

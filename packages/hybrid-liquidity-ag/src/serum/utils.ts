@@ -1,12 +1,13 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MARKETS as SERUM_MARKETS } from "@project-serum/serum/lib/tokens_and_markets";
 import { getMultipleAccounts } from "../utils";
-import { MARKET_STATE_LAYOUT_V2 } from "@project-serum/serum";
+import { Market, MARKET_STATE_LAYOUT_V2, MARKET_STATE_LAYOUT_V3 } from "@project-serum/serum";
 import { cloneDeep } from "lodash";
-import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
+import { AmmPoolInfo, NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
+import { AMM_POOLS, SERUM, SERUM_PROGRAM_ID_V3 } from "..";
 
 export const startMarkets = () => {
-  let markets: string[] = [];
+  let markets: any[] = [];
   for (const market of SERUM_MARKETS) {
     const address = market.address.toBase58();
     if (!market.deprecated && !markets.includes(address)) {
@@ -16,12 +17,11 @@ export const startMarkets = () => {
   return markets;
 }
 
-export const getMarkets = async (
-  connection: Connection
-) => {
+export const getMarkets = async (connection: Connection) => {
 
   let markets: any = { };
   const marketAddresses = startMarkets();
+
   const marketInfos = await getMultipleAccounts(
     connection,
     marketAddresses.map((m) => new PublicKey(m)),
@@ -34,7 +34,7 @@ export const getMarkets = async (
       const data = marketInfo.account.data;
 
       if (address && data) {
-        const decoded = MARKET_STATE_LAYOUT_V2.decode(data);
+        const decoded = MARKET_STATE_LAYOUT_V3.decode(data);
         markets[address] = decoded;
       }
     }

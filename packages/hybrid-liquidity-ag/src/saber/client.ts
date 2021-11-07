@@ -1,10 +1,9 @@
 import { AccountMeta, Connection, PublicKey, SYSVAR_CLOCK_PUBKEY, Transaction } from "@solana/web3.js";
-import { cloneDeep } from "lodash-es";
 import { AMM_POOLS, PROTOCOLS } from "../data";
 import { ExchangeInfo, LPClient, SABER } from "../types";
 import { deserializeMint, deserializeAccount, TokenAmount, Token as SaberToken } from "@saberhq/token-utils";
 import { SLPInfo } from "./types";
-import { getMultipleAccounts } from "../utils";
+import { getAmmPools, getMultipleAccounts } from "../utils";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, Token, u64 } from "@solana/spl-token";
 import { SLPools } from "./pool";
 
@@ -28,6 +27,7 @@ export class SaberClient implements LPClient {
   private connection: Connection;
   private saberSwap: any;
   private currentPool: any;
+  private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
   constructor(connection: Connection) {
@@ -35,130 +35,55 @@ export class SaberClient implements LPClient {
     this.exchangeAccounts = [];
   }
 
-  public get protocolAddress() : string {
-    return SABER.toBase58(); 
+  public get protocol() : PublicKey {
+    return SABER; 
   }
 
-  public get hlaExchangeAccounts(): AccountMeta[] {
+  public get accounts(): AccountMeta[] {
     return this.exchangeAccounts || [];
   }
 
-  public getPoolInfo = async (
-    address: string
-
-  ) => {
-
-    const poolInfo = AMM_POOLS.filter(info => info.address === address)[0];
-
-    if (!poolInfo) {
-      throw new Error("Saber pool not found.");
-    }
-
-    const programId = new PublicKey(poolInfo.protocolAddress);
-    const swapAccountData = await loadProgramAccount(
-      this.connection,
-      new PublicKey(poolInfo.ammAddress),
-      programId
-    );
-
-    const swapState = decodeSwap(swapAccountData);
-
-    const [authority] = await findSwapAuthorityKey(
-      new PublicKey(poolInfo.ammAddress),
-      programId
-    );
-
-    const config = {
-      authority,
-      swapAccount: new PublicKey(poolInfo.ammAddress),
-      swapProgramID: programId,
-      tokenProgramID: TOKEN_PROGRAM_ID
-      
-    } as StableSwapConfig
-
-    this.saberSwap = new StableSwap(config, swapState);
-    const saberPool = SLPools.filter(p => p.address === poolInfo.address)[0];
-
-    if (!saberPool) {
-      throw new Error("Saber pool not found.");
-    }
-
-    // Mints accounts
-    const mintsMap: any = {};
-    const mintInfos = await getMultipleAccounts(
-      this.connection,
-      saberPool.mints.map(a => new PublicKey(a)),
-      this.connection.commitment
-    );
-
-    mintInfos.forEach((value, index) => {
-      if (value) {
-        const data = value.account.data;
-        const decoded = deserializeMint(data);
-        const token = SaberToken.fromMint(
-          value.publicKey,
-          decoded.decimals,
-          { chainId: 101 }
-        );
-        mintsMap[saberPool.tokens[index]] = token;
-      }
-    });
-
-    // Reserves accounts
-    const reservesMap: any = {};
-    const reserveInfos = await getMultipleAccounts(
-      this.connection,
-      saberPool.reserves.map(a => new PublicKey(a)),
-      this.connection.commitment
-    );
-
-    reserveInfos.forEach((value, index) => {
-      if (value) {
-        const data = value.account.data;
-        const decoded = deserializeAccount(data);
-        reservesMap[saberPool.tokens[index]] = Object.assign({ 
-          address: value.publicKey 
-        }, decoded);
-      }
-    });
-
-    const slpInfo: SLPInfo = {
-      name: saberPool.name,
-      address: saberPool.address,
-      ammAddress: saberPool.ammAddress,
-      programId: saberPool.programId,
-      tokens: saberPool.tokens,
-      mints: mintsMap,
-      reserves: reservesMap
-    };
-
-    this.currentPool = slpInfo;
-
-    return this.currentPool;
+  public get pool() : any {
+    return this.currentPool; 
   }
 
-  public getExchangeInfo = async (
+  public get exchange() : ExchangeInfo | undefined {
+    return this.exchangeInfo; 
+  }
+
+  public updateExchange = async (
     from: string,
     to: string,
     amount: number,
     slippage: number
 
-  ): Promise<ExchangeInfo> => {
+  ): Promise<void> => {
     
-    const poolInfo = cloneDeep(this.currentPool);
-
-    if (!poolInfo) {
-      throw new Error("Orca pool not found.");
+    const ammPool = getAmmPools(
+      from, 
+      to, 
+      SABER.toBase58()
+    );
+    
+    if (!ammPool || ammPool.length === 0) {
+      throw new Error("Amm pool info not found.");
     }
 
-    const invert = (from === poolInfo.tokens[1] && to === poolInfo.tokens[0]);
-    const tokenA = !invert ? poolInfo.mints[from] : poolInfo.mints[to];
-    const tokenB = !invert ? poolInfo.mints[to] : poolInfo.mints[from];
+    await this.updatePoolInfo(ammPool[0].address);
+
+    if (!this.currentPool) {
+      throw new Error("Saber pool not found.");
+    }
+
+    const invert = (from === this.currentPool.tokens[1] && to === this.currentPool.tokens[0]);
+    const tokenA = !invert ? this.currentPool.mints[from] : this.currentPool.mints[to];
+    const tokenB = !invert ? this.currentPool.mints[to] : this.currentPool.mints[from];
+
     const basicExchange = makeExchange({
-      swapAccount: new PublicKey(poolInfo.ammAddress),
-      lpToken: new PublicKey(poolInfo.address),
-      tokenA,
-      tokenB
+      swapAccount: new PublicKey(this.currentPool.ammAddress),
+      lpToken: new PublicKey(this.currentPool.address),
+      tokenA: tokenA as SaberToken,
+      tokenB: tokenB as SaberToken
     });
 
     if (!basicExchange) {
@@ -176,12 +101,11 @@ export class SaberClient implements LPClient {
     }
 
     const amountIn = amount === 0 ? 1 : amount;
-    const fromAmount = new TokenAmount(tokenA, 1 * 10 ** tokenA.decimals);
+    const fromAmount = new TokenAmount(tokenA as SaberToken, 10 ** tokenA.decimals);
     const swapOutput = calculateEstimatedSwapOutputAmount(exchangeInfo, fromAmount);
     const swapPrice = calculateSwapPrice(exchangeInfo);
     const protocol = PROTOCOLS.filter(p => p.address === SABER.toBase58())[0];
-
-    const outAmount =  !invert
+    const outAmount = !invert
       ? +swapOutput
           .outputAmountBeforeFees
           .toFixed(tokenB.decimals, undefined, 1)
@@ -210,7 +134,7 @@ export class SaberClient implements LPClient {
           .asFraction
           .toFixed(tokenB.decimals, undefined, 1);
     
-    const exchange: ExchangeInfo = {
+    this.exchangeInfo = {
       fromAmm: protocol.name,
       outPrice: price,
       priceImpact: 0,
@@ -224,18 +148,13 @@ export class SaberClient implements LPClient {
       protocolFees: amount === 0 ? 0 : +swapOutput
         .lpFee
         .toFixed(tokenA.decimals, undefined, 1)
-    };
 
-    await this.updateHlaExchangeAccounts(from, to);
+    } as ExchangeInfo;
 
-    return exchange;    
+    await this.updateExchangeAccounts(from, to);
   };
 
-  public getTokens = (): Promise<Map<string, any>> => {
-    throw new Error("Method not implemented.");
-  };
-
-  public getSwap = async (
+  public swapTx = async (
     owner: PublicKey,
     from: string,
     to: string,
@@ -246,16 +165,14 @@ export class SaberClient implements LPClient {
     feeAmount: number
 
   ): Promise<Transaction> => {
-    
-    const poolInfo = cloneDeep(this.currentPool);
 
-    if (!poolInfo) {
+    if (!this.currentPool) {
       throw new Error("Saber pool not found.");
     }
-
+    
     const tx = new Transaction();
-    const tokenA = poolInfo.mints[from];
-    const tokenB = poolInfo.mints[to];
+    const tokenA = this.currentPool.mints[from];
+    const tokenB = this.currentPool.mints[to];
     const fromMint = new PublicKey(from);
     const toMint = new PublicKey(to);
 
@@ -290,7 +207,7 @@ export class SaberClient implements LPClient {
       );
     }
 
-    const saberPool = SLPools.filter(p => p.address === poolInfo.address)[0];
+    const saberPool = SLPools.filter(p => p.address === this.currentPool.address)[0];
 
     if (!saberPool) {
       throw new Error("Saber pool not found.");
@@ -300,8 +217,8 @@ export class SaberClient implements LPClient {
     const swapArgs = {
       userAuthority: owner,
       userSource: fromTokenAccount,
-      poolSource: poolInfo.reserves[fromMint.toBase58()].address,
-      poolDestination: poolInfo.reserves[toMint.toBase58()].address,
+      poolSource: this.currentPool.reserves[fromMint.toBase58()].address,
+      poolDestination: this.currentPool.reserves[toMint.toBase58()].address,
       userDestination: toTokenAccount,
       amountIn: new u64(parseFloat(amountIn.toFixed(tokenA.decimals)) * 10 ** tokenA.decimals),
       minimumAmountOut: new u64(parseFloat(amountWithSlippage.toFixed(tokenA.decimals)) * 10 ** tokenB.decimals)
@@ -355,7 +272,94 @@ export class SaberClient implements LPClient {
     return tx; 
   };
 
-  private updateHlaExchangeAccounts = async (
+  private updatePoolInfo = async (address: string) => {
+
+    const poolInfo = AMM_POOLS.filter(info => info.address === address)[0];
+
+    if (!poolInfo) {
+      throw new Error("Saber pool not found.");
+    }
+
+    const swapAccountData = await loadProgramAccount(
+      this.connection,
+      new PublicKey(poolInfo.ammAddress),
+      SABER
+    );
+
+    const swapState = decodeSwap(swapAccountData);
+
+    const [authority] = await findSwapAuthorityKey(
+      new PublicKey(poolInfo.ammAddress),
+      SABER
+    );
+
+    const config = {
+      authority,
+      swapAccount: new PublicKey(poolInfo.ammAddress),
+      swapProgramID: SABER,
+      tokenProgramID: TOKEN_PROGRAM_ID
+      
+    } as StableSwapConfig
+
+    this.saberSwap = new StableSwap(config, swapState);
+    const saberPool = SLPools.filter(p => p.address === poolInfo.address)[0];
+
+    if (!saberPool) {
+      throw new Error("Saber pool not found.");
+    }
+
+    // Mints accounts
+    const mintsMap: any = {};
+    const mintInfos = await getMultipleAccounts(
+      this.connection,
+      saberPool.mints.map(a => new PublicKey(a)),
+      this.connection.commitment
+    );
+
+    mintInfos.forEach((value, index) => {
+      if (value) {
+        const data = value.account.data;
+        const decoded = deserializeMint(data);
+        const token = SaberToken.fromMint(
+          value.publicKey,
+          decoded.decimals,
+          { chainId: 101 }
+        );
+        mintsMap[saberPool.tokens[index]] = token;
+      }
+    });
+
+    // Reserves accounts
+    const reservesMap: any = {};
+    const reserveInfos = await getMultipleAccounts(
+      this.connection,
+      saberPool.reserves.map(a => new PublicKey(a)),
+      this.connection.commitment
+    );
+
+    reserveInfos.forEach((value, index) => {
+      if (value) {
+        const data = value.account.data;
+        const decoded = deserializeAccount(data);
+        reservesMap[saberPool.tokens[index]] = Object.assign({ 
+          address: value.publicKey 
+        }, decoded);
+      }
+    });
+
+    this.currentPool = {
+      name: saberPool.name,
+      address: saberPool.address,
+      ammAddress: saberPool.ammAddress,
+      programId: saberPool.programId,
+      tokens: saberPool.tokens,
+      mints: mintsMap,
+      reserves: reservesMap
+
+    } as SLPInfo;
+  }
+
+  private updateExchangeAccounts = async (
     from: string,
     to: string
 
