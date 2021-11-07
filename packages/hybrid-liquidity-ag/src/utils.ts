@@ -237,7 +237,6 @@ export const getBestClients = async (
   connection: Connection,
   from: string,
   to: string,
-  amount: number,
   pools: AmmPoolInfo[]
 
 ): Promise<Client[]> => {
@@ -261,12 +260,11 @@ export const getBestClients = async (
       promise = async () => {
         const serumClient = (client as SerumClient);
         try { 
-          await serumClient.updateExchange(from, to, amount, 1);
-          if (serumClient.exchange && serumClient.market) {
-            const amountOut = serumClient.exchange.amountOut as number;
-            if (amountOut < serumClient.market.minOrderSize) {
-              serumClient.exchange = undefined;
-            }
+          await serumClient.updateExchange(from, to, 1, 1);
+          const isFromSol = from === NATIVE_SOL_MINT.toBase58() || from === WRAPPED_SOL_MINT.toBase58();
+          const isToSol = to === NATIVE_SOL_MINT.toBase58() || to === WRAPPED_SOL_MINT.toBase58();
+          if (isFromSol || isToSol) {
+            serumClient.exchange = undefined;
           }
         } 
         catch (error) { console.log(error); }
@@ -277,7 +275,7 @@ export const getBestClients = async (
 
       promise = async () => {
         const lpClient = (client as LPClient);
-        try { await lpClient.updateExchange(from, to, amount, 1); } 
+        try { await lpClient.updateExchange(from, to, 1, 1); } 
         catch (error) { console.log(error); }
         return lpClient;
       };

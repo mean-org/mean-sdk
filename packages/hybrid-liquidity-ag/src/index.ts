@@ -9,7 +9,6 @@ export const getClients = async (
   connection: Connection,
   from: string,
   to: string,
-  amount?: number,
   protocol?: string | undefined,
 
 ): Promise<Client[]> => {
@@ -38,7 +37,7 @@ export const getClients = async (
     throw new Error("Pool not found");
   }
 
-  return await getBestClients(connection, from, to, amount || 1, pools);
+  return await getBestClients(connection, from, to, pools);
 }
 
 export const wrapSol = async (
