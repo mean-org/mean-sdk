@@ -14,13 +14,11 @@ import { getOrca, Orca, OrcaPoolConfig, OrcaPoolToken, ORCA_TOKEN_SWAP_ID, U64Ut
 import { LPClient, ExchangeInfo, ORCA } from "../types";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { AMM_POOLS, PROTOCOLS } from "../data";
-import { cloneDeep } from "lodash";
-import Decimal from "decimal.js";
 import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
 import { TokenSwap } from "@solana/spl-token-swap";
-import BN from "bn.js";
 import { getAmmPools } from "../utils";
-import { CDNTokenListResolutionStrategy } from "@solana/spl-token-registry";
+import Decimal from "decimal.js";
+import BN from "bn.js";
 
 export class OrcaClient implements LPClient {
 
@@ -78,10 +76,10 @@ export class OrcaClient implements LPClient {
  
     let tokenA = this.currentPool.getTokenA() as OrcaPoolToken;
     let tokenB = this.currentPool.getTokenB() as OrcaPoolToken;
-    let tradeToken = cloneDeep(tokenA);
+    let tradeToken = Object.assign({}, tokenA);
 
     if (from === tokenB.mint.toBase58() || to === tokenA.mint.toBase58()) {
-      tradeToken = cloneDeep(tokenB);
+      tradeToken = Object.assign({}, tokenB);
     }
 
     const decimalTradeAmount = new Decimal(1);
@@ -129,11 +127,11 @@ export class OrcaClient implements LPClient {
 
     let inputToken = this.currentPool.getTokenA() as OrcaPoolToken;
     let outputToken = this.currentPool.getTokenB() as OrcaPoolToken;
-    let tradeToken = cloneDeep(inputToken);
+    let tradeToken = Object.assign({}, inputToken);
 
     if (fromMint.equals(outputToken.mint)) {
-      tradeToken = cloneDeep(outputToken);
-      outputToken = cloneDeep(inputToken);
+      tradeToken = Object.assign({}, outputToken);
+      outputToken = Object.assign({}, inputToken);
     }
     
     let tx = new Transaction();

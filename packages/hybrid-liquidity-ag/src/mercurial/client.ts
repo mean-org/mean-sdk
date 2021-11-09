@@ -1,9 +1,9 @@
-import { AccountMeta, Connection, Keypair, Message, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { AccountMeta, Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { ExchangeInfo, LPClient, MERCURIAL } from "../types";
 import { AMM_POOLS, PROTOCOLS } from "../data";
 import { MercurialPoolInfo } from "./types";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, MintLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token"
-import { findLogAndParse, GetDyUnderlying, GetVirtualPrice, SIMULATION_USER, StableSwapNPool } from "@mercurial-finance/stable-swap-n-pool";
+import { findLogAndParse, GetDyUnderlying, SIMULATION_USER, StableSwapNPool } from "@mercurial-finance/stable-swap-n-pool";
 import { USDC_MINT, USDT_MINT } from "../types";
 import { SwapInstruction } from "@mercurial-finance/stable-swap-n-pool/dist/cjs/instructions";
 import { getAmmPools } from "../utils";

@@ -6,7 +6,6 @@ import { createAmmAuthority, getAddressForWhat, getLpMintListDecimals, getMarket
 import { LiquidityPoolInfo } from "./types";
 import { LIQUIDITY_POOL_PROGRAM_ID_V4, NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
 import { LP_TOKENS, TOKENS } from "./tokens";
-import { cloneDeep } from "lodash-es";
 import { TokenAmount } from "../safe-math";
 import { getAmmPools, getMultipleAccounts } from "../utils";
 import { ACCOUNT_LAYOUT, AMM_INFO_LAYOUT, AMM_INFO_LAYOUT_V3, AMM_INFO_LAYOUT_V4, MINT_LAYOUT } from "../layouts";
@@ -314,7 +313,7 @@ export class RaydiumClient implements LPClient {
       new PublicKey(lp.address)
     ];
   
-    const poolInfo = cloneDeep(itemLiquidity);
+    const poolInfo = Object.assign({}, itemLiquidity);
     poolInfo.coin.balance = new TokenAmount(0, coin.decimals);
     poolInfo.pc.balance = new TokenAmount(0, pc.decimals);
     liquidityPool = poolInfo;
@@ -392,8 +391,37 @@ export class RaydiumClient implements LPClient {
   private updateExchangeAccounts = async (from: string, to: string): Promise<void> => {
 
     try {
-      //TODO: Implement
-      this.exchangeAccounts = [] as AccountMeta[];
+
+      const ammPool = getAmmPools(
+        from, 
+        to, 
+        RAYDIUM.toBase58()
+      );
+      
+      if (!ammPool || ammPool.length === 0 || !this.currentPool) {
+        throw new Error("Raydium pool not found.");
+      }
+
+      this.exchangeAccounts = [
+        { pubkey: new PublicKey(ammPool[0].address), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.programId), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(this.currentPool.ammId), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.ammAuthority), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(this.currentPool.ammOpenOrders), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.ammTargetOrders), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.poolCoinTokenAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.poolPcTokenAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumProgramId), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(this.currentPool.serumMarket), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumBids), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumAsks), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumEventQueue), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumCoinVaultAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumPcVaultAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumVaultSigner), isSigner: false, isWritable: false }
+
+      ] as AccountMeta[];
+
     } catch (_error) {
       throw _error;
     }
