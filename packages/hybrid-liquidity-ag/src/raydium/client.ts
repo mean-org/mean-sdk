@@ -16,12 +16,14 @@ import { BN } from "bn.js";
 export class RaydiumClient implements LPClient {
   
   private connection: Connection;
+  private poolAddress: string;
   private currentPool: any;
   private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, poolAddress: string) {
     this.connection = connection;
+    this.poolAddress = poolAddress;
     this.exchangeAccounts = [];
   }
 
@@ -49,17 +51,11 @@ export class RaydiumClient implements LPClient {
 
   ): Promise<void> => {
 
-    const ammPool = getAmmPools(
-      from, 
-      to, 
-      RAYDIUM.toBase58()
-    );
-    
-    if (!ammPool || ammPool.length === 0) {
-      throw new Error("Amm pool info not found.");
+    if (!this.poolAddress) {
+      throw Error("Unknown pool");
     }
 
-    await this.updatePoolInfo(ammPool[0].address);
+    await this.updatePoolInfo();
 
     if (!this.currentPool) {
       throw new Error('Raydium pool info not found');
@@ -190,9 +186,13 @@ export class RaydiumClient implements LPClient {
     return transaction;
   };
 
-  private updatePoolInfo = async (address: string) => {
+  private updatePoolInfo = async () => {
 
-    const { ammId, ammInfo } = await getPool(this.connection, address);
+    if (!this.poolAddress) {
+      throw new Error("Unknown pool");
+    }
+
+    const { ammId, ammInfo } = await getPool(this.connection, this.poolAddress);
   
     if (!ammInfo) {
       throw new Error('Raydium pool not found');

@@ -8,19 +8,20 @@ import { PROTOCOLS } from "../data";
 import { ExchangeInfo, SERUM } from "../types";
 import { getOutAmount, placeOrderTx } from "./swap";
 import { SerumClient as Client } from "./types";
-import { getMarket } from "./utils";
 import BN from "bn.js";
 
 export class SerumClient implements Client {
 
   private connection: Connection;
+  private marketAddress: string;
   private currentMarket: any;
   private currentOrderbooks: any;
   private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, marketAddress: string) {
     this.connection = connection;
+    this.marketAddress = marketAddress;
     this.exchangeAccounts = [];
   }
 
@@ -56,7 +57,11 @@ export class SerumClient implements Client {
 
   ): Promise<void> => {
 
-    await this.updateMarket(from, to);
+    if (!this.marketAddress) {
+      throw new Error("Unknown market");
+    }
+
+    await this.updateMarket();
 
     if (!this.currentMarket) {
       throw new Error('Serum market info not found');
@@ -99,7 +104,7 @@ export class SerumClient implements Client {
     const outWithSlippage = new TokenAmount(amountOutWithSlippage, toDecimals, false);
     const protocol = PROTOCOLS.filter(p => p.address === SERUM.toBase58())[0];
 
-    this.exchangeInfo = {
+    this.exchange = {
       fromAmm: protocol.name,
       outPrice: !out.isNullOrZero() ? +out.fixed(): 1,
       priceImpact,
@@ -176,27 +181,17 @@ export class SerumClient implements Client {
     return transaction;
   };
 
-  private updateMarket = async (
-    from: string,
-    to: string
-    
-  ): Promise<void> => {
+  private updateMarket = async (): Promise<void> => {
 
-    const marketInfo = await getMarket(
-      this.connection,
-      from,
-      to
-    );
-
-    if (!marketInfo) {
-      throw new Error('Serum Market not found');
+    if (!this.marketAddress) {
+      throw new Error('Unknown market');
     }
 
     const serumProgramKey = new PublicKey(SERUM_PROGRAM_ID_V3);
 
     this.currentMarket = await Market.load(
       this.connection, 
-      marketInfo.ownAddress, 
+      new PublicKey(this.marketAddress), 
       { }, 
       serumProgramKey
     );

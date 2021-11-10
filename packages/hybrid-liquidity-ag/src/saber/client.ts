@@ -25,13 +25,15 @@ import { BN } from "bn.js";
 export class SaberClient implements LPClient {
 
   private connection: Connection;
+  private poolAddress: string;
   private saberSwap: any;
   private currentPool: any;
   private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, poolAddress: string) {
     this.connection = connection;
+    this.poolAddress = poolAddress;
     this.exchangeAccounts = [];
   }
 
@@ -59,17 +61,11 @@ export class SaberClient implements LPClient {
 
   ): Promise<void> => {
     
-    const ammPool = getAmmPools(
-      from, 
-      to, 
-      SABER.toBase58()
-    );
-    
-    if (!ammPool || ammPool.length === 0) {
-      throw new Error("Amm pool info not found.");
+    if (!this.poolAddress) {
+      throw new Error("Unknown pool");
     }
 
-    await this.updatePoolInfo(ammPool[0].address);
+    await this.updatePoolInfo();
 
     if (!this.currentPool) {
       throw new Error("Saber pool not found.");
@@ -272,91 +268,101 @@ export class SaberClient implements LPClient {
     return tx; 
   };
 
-  private updatePoolInfo = async (address: string) => {
+  private updatePoolInfo = async () => {
 
-    const poolInfo = AMM_POOLS.filter(info => info.address === address)[0];
+    try {
 
-    if (!poolInfo) {
-      throw new Error("Saber pool not found.");
-    }
-
-    const swapAccountData = await loadProgramAccount(
-      this.connection,
-      new PublicKey(poolInfo.ammAddress),
-      SABER
-    );
-
-    const swapState = decodeSwap(swapAccountData);
-
-    const [authority] = await findSwapAuthorityKey(
-      new PublicKey(poolInfo.ammAddress),
-      SABER
-    );
-
-    const config = {
-      authority,
-      swapAccount: new PublicKey(poolInfo.ammAddress),
-      swapProgramID: SABER,
-      tokenProgramID: TOKEN_PROGRAM_ID
-      
-    } as StableSwapConfig
-
-    this.saberSwap = new StableSwap(config, swapState);
-    const saberPool = SLPools.filter(p => p.address === poolInfo.address)[0];
-
-    if (!saberPool) {
-      throw new Error("Saber pool not found.");
-    }
-
-    // Mints accounts
-    const mintsMap: any = {};
-    const mintInfos = await getMultipleAccounts(
-      this.connection,
-      saberPool.mints.map(a => new PublicKey(a)),
-      this.connection.commitment
-    );
-
-    mintInfos.forEach((value, index) => {
-      if (value) {
-        const data = value.account.data;
-        const decoded = deserializeMint(data);
-        const token = SaberToken.fromMint(
-          value.publicKey,
-          decoded.decimals,
-          { chainId: 101 }
-        );
-        mintsMap[saberPool.tokens[index]] = token;
+      if (!this.poolAddress) {
+        throw new Error("Unknown pool");
       }
-    });
-
-    // Reserves accounts
-    const reservesMap: any = {};
-    const reserveInfos = await getMultipleAccounts(
-      this.connection,
-      saberPool.reserves.map(a => new PublicKey(a)),
-      this.connection.commitment
-    );
-
-    reserveInfos.forEach((value, index) => {
-      if (value) {
-        const data = value.account.data;
-        const decoded = deserializeAccount(data);
-        reservesMap[saberPool.tokens[index]] = Object.assign({ 
-          address: value.publicKey 
-        }, decoded);
+  
+      const poolInfo = AMM_POOLS.filter(info => info.address === this.poolAddress)[0];
+  
+      if (!poolInfo) {
+        throw new Error("Saber pool not found.");
       }
-    });
+  
+      const swapAccountData = await loadProgramAccount(
+        this.connection,
+        new PublicKey(poolInfo.ammAddress),
+        SABER
+      );
+  
+      const swapState = decodeSwap(swapAccountData);
+  
+      const [authority] = await findSwapAuthorityKey(
+        new PublicKey(poolInfo.ammAddress),
+        SABER
+      );
+  
+      const config = {
+        authority,
+        swapAccount: new PublicKey(poolInfo.ammAddress),
+        swapProgramID: SABER,
+        tokenProgramID: TOKEN_PROGRAM_ID
+        
+      } as StableSwapConfig
+  
+      this.saberSwap = new StableSwap(config, swapState);
+      const saberPool = SLPools.filter(p => p.address === poolInfo.address)[0];
+  
+      if (!saberPool) {
+        throw new Error("Saber pool not found.");
+      }
+  
+      // Mints accounts
+      const mintsMap: any = {};
+      const mintInfos = await getMultipleAccounts(
+        this.connection,
+        saberPool.mints.map(a => new PublicKey(a)),
+        this.connection.commitment
+      );
+  
+      mintInfos.forEach((value, index) => {
+        if (value) {
+          const data = value.account.data;
+          const decoded = deserializeMint(data);
+          const token = SaberToken.fromMint(
+            value.publicKey,
+            decoded.decimals,
+            { chainId: 101 }
+          );
+          mintsMap[saberPool.tokens[index]] = token;
+        }
+      });
+  
+      // Reserves accounts
+      const reservesMap: any = {};
+      const reserveInfos = await getMultipleAccounts(
+        this.connection,
+        saberPool.reserves.map(a => new PublicKey(a)),
+        this.connection.commitment
+      );
+  
+      reserveInfos.forEach((value, index) => {
+        if (value) {
+          const data = value.account.data;
+          const decoded = deserializeAccount(data);
+          reservesMap[saberPool.tokens[index]] = Object.assign({ 
+            address: value.publicKey 
+          }, decoded);
+        }
+      });
+  
+      this.currentPool = {
+        name: saberPool.name,
+        address: saberPool.address,
+        ammAddress: saberPool.ammAddress,
+        programId: saberPool.programId,
+        tokens: saberPool.tokens,
+        mints: mintsMap,
+        reserves: reservesMap
+  
+      } as SLPInfo;
 
-    this.currentPool = {
-      name: saberPool.name,
-      address: saberPool.address,
-      ammAddress: saberPool.ammAddress,
-      programId: saberPool.programId,
-      tokens: saberPool.tokens,
-      mints: mintsMap,
-      reserves: reservesMap
-
-    } as SLPInfo;
+    } catch (error) {
+      throw error;
+    }
   }
 
   private updateExchangeAccounts = async (

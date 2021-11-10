@@ -156,31 +156,31 @@ export async function createTokenAccountIfNotExist(
 
 export const getProtocolClient = (
   connection: Connection,
-  protocol: string
+  pool: AmmPoolInfo
 
 ): Client => {
 
   let client: any = undefined;
 
-  switch (protocol) {
+  switch (pool.protocolAddress) {
     case RAYDIUM.toBase58(): {
-      client = new RaydiumClient(connection);
+      client = new RaydiumClient(connection, pool.address);
       break;
     }
     case ORCA.toBase58(): {
-      client = new OrcaClient(connection);
+      client = new OrcaClient(connection, pool.address);
       break;
     }
     case SABER.toBase58(): {
-      client = new SaberClient(connection);
+      client = new SaberClient(connection, pool.address);
       break;
     }
     case MERCURIAL.toBase58(): {
-      client = new MercurialClient(connection);
+      client = new MercurialClient(connection, pool.address);
       break;
     }
     case SERUM.toBase58(): {
-      client = new SerumClient(connection);
+      client = new SerumClient(connection, pool.address);
       break;
     }
     default: {
@@ -250,7 +250,7 @@ export const getBestClients = async (
 
     const client = getProtocolClient(
       connection,
-      pool.protocolAddress
+      pool
     );
 
     const isSerumClient = client.protocol.equals(SERUM);

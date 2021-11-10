@@ -8,17 +8,20 @@ import { USDC_MINT, USDT_MINT } from "../types";
 import { SwapInstruction } from "@mercurial-finance/stable-swap-n-pool/dist/cjs/instructions";
 import { getAmmPools } from "../utils";
 import { BN } from "bn.js";
+import { AmmPoolInfo } from "..";
 
 export class MercurialClient implements LPClient {
 
   private connection: Connection;
+  private poolAddress: string;
   private currentPool: MercurialPoolInfo | undefined;
   private USDX_POW: number = 10 ** 6;
   private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, poolAddress: string) {
     this.connection = connection;
+    this.poolAddress = poolAddress;
     this.exchangeAccounts = [];
   }
 
@@ -46,17 +49,11 @@ export class MercurialClient implements LPClient {
 
   ) => {
 
-    const ammPool = getAmmPools(
-      from, 
-      to, 
-      MERCURIAL.toBase58()
-    );
-    
-    if (!ammPool || ammPool.length === 0) {
-      throw new Error("Amm pool info not found.");
+    if (!this.poolAddress) {
+      throw Error("Unknown pool");
     }
 
-    await this.updatePoolInfo(ammPool[0].address);
+    await this.updatePoolInfo();
 
     if (!this.currentPool) {
       throw new Error("Mercurial pool not found.");
@@ -243,11 +240,15 @@ export class MercurialClient implements LPClient {
 
   };
 
-  private updatePoolInfo = async (address: string) => {
+  private updatePoolInfo = async () => {
 
     try {
 
-      const poolInfo = AMM_POOLS.filter(info => info.address === address)[0];
+      if (!this.poolAddress) {
+        throw new Error("Unknown pool");
+      }
+
+      const poolInfo = AMM_POOLS.filter(info => info.address === this.poolAddress)[0];
 
       if (!poolInfo) {
         throw new Error("Mercurial pool not found.");

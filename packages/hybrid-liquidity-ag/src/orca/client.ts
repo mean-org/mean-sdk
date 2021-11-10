@@ -23,13 +23,15 @@ import BN from "bn.js";
 export class OrcaClient implements LPClient {
 
   private connection: Connection;
+  private poolAddress: string;
   private orcaSwap: Orca;
   private currentPool: any;
   private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, poolAddress: string) {
     this.connection = connection;
+    this.poolAddress = poolAddress;
     this.orcaSwap = getOrca(this.connection);
     this.exchangeAccounts = [];
   }
@@ -58,17 +60,11 @@ export class OrcaClient implements LPClient {
 
   ): Promise<void> => {
 
-    const ammPool = getAmmPools(
-      from, 
-      to, 
-      ORCA.toBase58()
-    );
-    
-    if (!ammPool || ammPool.length === 0) {
-      throw new Error("Amm pool info not found.");
+    if (!this.poolAddress) {
+      throw Error("Unknown pool");
     }
 
-    await this.updatePoolInfo(ammPool[0].address);
+    await this.updatePoolInfo();
 
     if (!this.currentPool) {
       throw new Error("Orca pool not found.");
@@ -344,16 +340,26 @@ export class OrcaClient implements LPClient {
     return tx;
   };
 
-  private updatePoolInfo = async (address: string) => {
+  private updatePoolInfo = async () => {
 
-    const poolInfo = AMM_POOLS.filter(info => info.address === address)[0];
+    try {
 
-    if (!poolInfo) {
-      throw new Error("Orca pool not found.");
+      if (!this.poolAddress) {
+        throw Error("Unknown pool");
+      }
+  
+      const poolInfo = AMM_POOLS.filter(info => info.address === this.poolAddress)[0];
+  
+      if (!poolInfo) {
+        throw new Error("Orca pool not found.");
+      }
+  
+      const poolConfig = Object.entries(OrcaPoolConfig).filter(c => c[1] === poolInfo.address)[0];
+      this.currentPool = this.orcaSwap.getPool(poolConfig[1]);
+
+    } catch (error) {
+      throw error;
     }
-
-    const poolConfig = Object.entries(OrcaPoolConfig).filter(c => c[1] === poolInfo.address)[0];
-    this.currentPool = this.orcaSwap.getPool(poolConfig[1]);
   }
 
   private updateExchangeAccounts = async (from: string, to: string): Promise<void> => {
