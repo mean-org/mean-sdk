@@ -31,8 +31,6 @@ export const placeOrderTx = async (
   const toMintAccount = getTokenByMintAddress(toCoinMint.toBase58());
   const swapAmount = fromAmount.toNumber() / 10 ** (fromMintAccount?.decimals || 9);
 
-  console.log('swapAmount.toString()', swapAmount.toString());
-
   const forecastConfig = getOutAmount(
     market,
     asks,
@@ -87,28 +85,6 @@ export const placeOrderTx = async (
   let wrappedSolAccount: PublicKey | null = null;
 
   if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
-    // let lamports;
-
-    // if (forecastConfig.side === "buy") {
-
-    //   lamports =
-    //     forecastConfig.worstPrice *
-    //     forecastConfig.amountOut *
-    //     1.01 *
-    //     LAMPORTS_PER_SOL;
-
-    //   if (openOrdersAccounts.length > 0) {
-    //     lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
-    //   }
-
-    // } else {
-        
-    //   lamports = forecastConfig.maxInAllow * LAMPORTS_PER_SOL;
-
-    //   if (openOrdersAccounts.length > 0) {
-    //     lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
-    //   }
-    // }
 
     let lamports = swapAmount * LAMPORTS_PER_SOL + await Token.getMinBalanceRentForExemptAccount(connection);
 
@@ -141,8 +117,6 @@ export const placeOrderTx = async (
       )
     );
   }
-
-  console.log('forecastConfig', forecastConfig);
   
   tx.add(
     market.makePlaceOrderInstruction(connection, {

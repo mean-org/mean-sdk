@@ -1,10 +1,8 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MARKETS as SERUM_MARKETS } from "@project-serum/serum/lib/tokens_and_markets";
 import { getMultipleAccounts } from "../utils";
-import { Market, MARKET_STATE_LAYOUT_V2, MARKET_STATE_LAYOUT_V3 } from "@project-serum/serum";
-import { cloneDeep } from "lodash";
-import { AmmPoolInfo, NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
-import { AMM_POOLS, SERUM, SERUM_PROGRAM_ID_V3 } from "..";
+import { MARKET_STATE_LAYOUT_V3 } from "@project-serum/serum";
+import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
 
 export const startMarkets = () => {
   let markets: any[] = [];
@@ -19,28 +17,34 @@ export const startMarkets = () => {
 
 export const getMarkets = async (connection: Connection) => {
 
-  let markets: any = { };
-  const marketAddresses = startMarkets();
+  try {
 
-  const marketInfos = await getMultipleAccounts(
-    connection,
-    marketAddresses.map((m) => new PublicKey(m)),
-    connection.commitment
-  );
+    let markets: any = { };
+    const marketAddresses = startMarkets();
 
-  marketInfos.forEach((marketInfo) => {
-    if (marketInfo) {
-      const address = marketInfo.publicKey.toBase58();
-      const data = marketInfo.account.data;
+    const marketInfos = await getMultipleAccounts(
+      connection,
+      marketAddresses.map((m) => new PublicKey(m)),
+      connection.commitment
+    );
 
-      if (address && data) {
-        const decoded = MARKET_STATE_LAYOUT_V3.decode(data);
-        markets[address] = decoded;
+    marketInfos.forEach((marketInfo) => {
+      if (marketInfo) {
+        const address = marketInfo.publicKey.toBase58();
+        const data = marketInfo.account.data;
+
+        if (address && data) {
+          const decoded = MARKET_STATE_LAYOUT_V3.decode(data);
+          markets[address] = decoded;
+        }
       }
-    }
-  });
+    });
 
-  return markets;
+    return markets;
+
+  } catch (error) {
+    throw error;
+  }
 }
 
 export const getMarket = async (
@@ -50,33 +54,39 @@ export const getMarket = async (
   
 ): Promise<any> => {
 
-  let marketInfo: any;
-  const allMarkets = await getMarkets(connection);
+  try {
 
-  for (let address of Object.keys(allMarkets)) {
+    let marketInfo: any;
+    const allMarkets = await getMarkets(connection);
 
-    let info = cloneDeep(allMarkets[address]);
-    let fromAddress = from;
-    let toAddress = to;
+    for (let address of Object.keys(allMarkets)) {
 
-    if (fromAddress === NATIVE_SOL_MINT.toBase58()) {
-      fromAddress = WRAPPED_SOL_MINT.toBase58();
+      let info = Object.assign({}, allMarkets[address]);
+      let fromAddress = from;
+      let toAddress = to;
+
+      if (fromAddress === NATIVE_SOL_MINT.toBase58()) {
+        fromAddress = WRAPPED_SOL_MINT.toBase58();
+      }
+
+      if (toAddress === NATIVE_SOL_MINT.toBase58()) {
+        toAddress = WRAPPED_SOL_MINT.toBase58();
+      }
+
+      if (
+        (info.baseMint.toBase58() === fromAddress &&
+          info.quoteMint.toBase58() === toAddress) ||
+        (info.quoteMint.toBase58() === fromAddress &&
+          info.baseMint.toBase58() === toAddress)
+      ) {
+        marketInfo = info;
+        break;
+      }
     }
 
-    if (toAddress === NATIVE_SOL_MINT.toBase58()) {
-      toAddress = WRAPPED_SOL_MINT.toBase58();
-    }
+    return marketInfo
 
-    if (
-      (info.baseMint.toBase58() === fromAddress &&
-        info.quoteMint.toBase58() === toAddress) ||
-      (info.quoteMint.toBase58() === fromAddress &&
-        info.baseMint.toBase58() === toAddress)
-    ) {
-      marketInfo = info;
-      break;
-    }
+  } catch (error) {
+    throw error;
   }
-
-  return marketInfo
 };
