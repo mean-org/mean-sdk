@@ -1,6 +1,6 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Account, Connection, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { WRAPPED_SOL_MINT } from "../types";
+import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
 import { TokenAmount } from "../safe-math";
 import { ACCOUNT_LAYOUT } from "../layouts";
 import BN from "bn.js";
@@ -27,7 +27,7 @@ export const getSwapTx = async (
   let wrappedSolAccount: Account | null = null;
   let wrappedSolAccount2: Account | null = null;
 
-  if (fromCoinMint.equals(WRAPPED_SOL_MINT)) {
+  if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
 
     wrappedSolAccount = new Account();
 
@@ -48,29 +48,6 @@ export const getSwapTx = async (
     );
 
     signers.push(wrappedSolAccount);
-  }
-
-  if (toCoinMint.equals(WRAPPED_SOL_MINT)) {
-
-    wrappedSolAccount2 = new Account();
-
-    tx.add(
-      SystemProgram.createAccount({
-        fromPubkey: owner,
-        newAccountPubkey: wrappedSolAccount2.publicKey,
-        lamports: 1e7,
-        space: ACCOUNT_LAYOUT.span,
-        programId: TOKEN_PROGRAM_ID,
-      }),
-      Token.createInitAccountInstruction(
-        TOKEN_PROGRAM_ID,
-        WRAPPED_SOL_MINT,
-        wrappedSolAccount2.publicKey,
-        owner
-      )
-    );
-
-    signers.push(wrappedSolAccount2);
   }
 
   const fromTokenAccountInfo = await connection.getAccountInfo(fromTokenAccount);
@@ -103,6 +80,29 @@ export const getSwapTx = async (
     );
   }
 
+  if (toCoinMint.equals(NATIVE_SOL_MINT)) {
+
+    wrappedSolAccount2 = new Account();
+
+    tx.add(
+      SystemProgram.createAccount({
+        fromPubkey: owner,
+        newAccountPubkey: wrappedSolAccount2.publicKey,
+        lamports: 1e7,
+        space: ACCOUNT_LAYOUT.span,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      Token.createInitAccountInstruction(
+        TOKEN_PROGRAM_ID,
+        WRAPPED_SOL_MINT,
+        wrappedSolAccount2.publicKey,
+        owner
+      )
+    );
+
+    signers.push(wrappedSolAccount2);
+  }
+
   // Swap ix
   tx.add(
     getSwapIx(
@@ -129,11 +129,17 @@ export const getSwapTx = async (
     )
   )
 
+  let fromMint = fromCoinMint;
+
+  if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
+    fromMint = WRAPPED_SOL_MINT;
+  }
+
   // Transfer fees
   const feeAccountToken = await Token.getAssociatedTokenAddress(
     ASSOCIATED_TOKEN_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
-    fromCoinMint,
+    fromMint,
     feeAccount,
     true
   );
@@ -145,7 +151,7 @@ export const getSwapTx = async (
       Token.createAssociatedTokenAccountInstruction(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
-        fromCoinMint,
+        fromMint,
         feeAccountToken,
         feeAccount,
         owner

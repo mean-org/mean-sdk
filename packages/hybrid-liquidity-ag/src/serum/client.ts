@@ -8,7 +8,6 @@ import { PROTOCOLS } from "../data";
 import { ExchangeInfo, SERUM } from "../types";
 import { getOutAmount, placeOrderTx } from "./swap";
 import { SerumClient as Client } from "./types";
-import BN from "bn.js";
 
 export class SerumClient implements Client {
 
@@ -87,8 +86,8 @@ export class SerumClient implements Client {
 
     const priceAmount = 1;
     // always calculate the price based on the unit
-    const bids = (this.currentOrderbooks.filter((ob: any) => ob.isBids)[0]).slab;
     const asks = (this.currentOrderbooks.filter((ob: any) => !ob.isBids)[0]).slab;
+    const bids = (this.currentOrderbooks.filter((ob: any) => ob.isBids)[0]).slab;
 
     const { amountOut, amountOutWithSlippage, priceImpact } = getOutAmount(
       this.currentMarket,
@@ -96,7 +95,7 @@ export class SerumClient implements Client {
       bids,
       fromMint,
       toMint,
-      priceAmount.toString(),
+      priceAmount,
       slippage
     );
 
@@ -130,10 +129,6 @@ export class SerumClient implements Client {
   ): Promise<Transaction> => {
     
     const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT.toBase58() : from;
-    const fromDecimals = fromMint === this.currentMarket.baseMintAddress.toBase58() 
-      ? this.currentMarket._baseSplTokenDecimals 
-      : this.currentMarket._quoteSplTokenDecimals;
-
     const fromAccount = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -164,10 +159,11 @@ export class SerumClient implements Client {
       new PublicKey(to),
       fromAccount,
       toAccount,
-      new BN(amountIn * 10 ** fromDecimals),
+      amountIn,
+      amountOut,
       slippage,
       new PublicKey(feeAddress),
-      new BN(feeAmount * 10 ** fromDecimals)
+      feeAmount
     );
 
     transaction.feePayer = owner;
