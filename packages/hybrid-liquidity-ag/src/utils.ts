@@ -261,11 +261,11 @@ export const getBestClients = async (
         const serumClient = (client as SerumClient);
         try { 
           await serumClient.updateExchange(from, to, 1, 1);
-          // const isFromSol = from === NATIVE_SOL_MINT.toBase58() || from === WRAPPED_SOL_MINT.toBase58();
-          // const isToSol = to === NATIVE_SOL_MINT.toBase58() || to === WRAPPED_SOL_MINT.toBase58();
-          // if (isFromSol || isToSol) {
-          //   serumClient.exchange = undefined;
-          // }
+          const isFromSol = from === NATIVE_SOL_MINT.toBase58() || from === WRAPPED_SOL_MINT.toBase58();
+          const isToSol = to === NATIVE_SOL_MINT.toBase58() || to === WRAPPED_SOL_MINT.toBase58();
+          if (isFromSol || isToSol) {
+            serumClient.exchange = undefined;
+          }
         } 
         catch (error) { console.log(error); }
         return serumClient;

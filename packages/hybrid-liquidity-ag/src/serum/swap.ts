@@ -37,8 +37,6 @@ export const placeOrderTx = async (
     slippage
   );
 
-  console.log('forecastConfig', forecastConfig);
-
   const openOrdersAccounts = await market.findOpenOrdersAccountsForOwner(connection, owner, 0);  
   let openOrdersAddress: PublicKey;
 
