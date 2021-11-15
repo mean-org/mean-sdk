@@ -1,59 +1,43 @@
-import { AmmPoolInfo, Client } from "./types";
-import { AMM_POOLS } from "./data";
-import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "./types";
+import { AmmPoolInfo, Client, SERUM, WRAPPED_SOL_MINT } from "./types";
 import { Connection, Keypair, LAMPORTS_PER_SOL, Signer, SystemProgram, Transaction } from "@solana/web3.js";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { getOptimalPools, getProtocolClient } from "./utils";
+import { getAmmPools, getBestClients } from "./utils";
 import BN from "bn.js";
+import { getMarket } from "./serum/utils";
 
-export const getClient = (
-  connection: Connection,
-  protocolAddress: string
-
-): Client => {
-
-  return getProtocolClient(
-    connection, 
-    protocolAddress
-  );
-}
-
-export const getPools = async (
+export const getClients = async (
   connection: Connection,
   from: string,
-  to: string
+  to: string,
+  protocol?: string | undefined,
 
-): Promise<AmmPoolInfo[]> => {
+): Promise<Client[]> => {
 
-  const pools = AMM_POOLS.filter((ammPool) => {
+  const pools = [
+    ...getAmmPools(
+      from,
+      to,
+      protocol
+    )
+  ];
 
-    let fromIncluded = false;
+  const market = await getMarket(connection, from, to);
 
-    if (from === NATIVE_SOL_MINT.toBase58() || from === WRAPPED_SOL_MINT.toBase58()) {
-      fromIncluded = (
-        ammPool.tokenAddresses.includes(NATIVE_SOL_MINT.toBase58()) || 
-        ammPool.tokenAddresses.includes(WRAPPED_SOL_MINT.toBase58())
-      );
-    } else {
-      fromIncluded = ammPool.tokenAddresses.includes(from);
-    }
+  if (market) {
+    pools.push({
+      protocolAddress: SERUM.toBase58(),
+      address: market.ownAddress.toBase58(),
+      chainId: 101,
+      tokenAddresses: [from, to]
 
-    let toIncluded = false;
+    } as AmmPoolInfo);
+  }
 
-    if (to === NATIVE_SOL_MINT.toBase58() || to === WRAPPED_SOL_MINT.toBase58()) {
-      toIncluded = (
-        ammPool.tokenAddresses.includes(NATIVE_SOL_MINT.toBase58()) || 
-        ammPool.tokenAddresses.includes(WRAPPED_SOL_MINT.toBase58())
-      );
-    } else {
-      toIncluded = ammPool.tokenAddresses.includes(to);
-    }
+  if (pools.length === 0) {
+    throw new Error("Pool not found");
+  }
 
-    return fromIncluded && toIncluded;
-
-  });
-
-  return await getOptimalPools(connection, from, to, pools);
+  return await getBestClients(connection, from, to, pools);
 }
 
 export const wrapSol = async (

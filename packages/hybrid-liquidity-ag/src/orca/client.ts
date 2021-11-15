@@ -14,75 +14,73 @@ import { getOrca, Orca, OrcaPoolConfig, OrcaPoolToken, ORCA_TOKEN_SWAP_ID, U64Ut
 import { LPClient, ExchangeInfo, ORCA } from "../types";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { AMM_POOLS, PROTOCOLS } from "../data";
-import { cloneDeep } from "lodash";
-import Decimal from "decimal.js";
 import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
 import { TokenSwap } from "@solana/spl-token-swap";
+import { getAmmPools } from "../utils";
+import Decimal from "decimal.js";
 import BN from "bn.js";
 
 export class OrcaClient implements LPClient {
 
   private connection: Connection;
+  private poolAddress: string;
   private orcaSwap: Orca;
   private currentPool: any;
+  private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, poolAddress: string) {
     this.connection = connection;
+    this.poolAddress = poolAddress;
     this.orcaSwap = getOrca(this.connection);
     this.exchangeAccounts = [];
   }
 
-  public get protocolAddress() : string {
-    return ORCA.toBase58(); 
+  public get protocol() : PublicKey {
+    return ORCA; 
   }
 
-  public get hlaExchangeAccounts(): AccountMeta[] {
+  public get accounts(): AccountMeta[] {
     return this.exchangeAccounts;
   }
 
-  public getPoolInfo = async (
-    address: string
-
-  ) => {
-
-    const poolInfo = AMM_POOLS.filter(info => info.address === address)[0];
-
-    if (!poolInfo) {
-      throw new Error("Orca pool not found.");
-    }
-
-    const poolConfig = Object.entries(OrcaPoolConfig).filter(c => c[1] === poolInfo.address)[0];
-    this.currentPool = this.orcaSwap.getPool(poolConfig[1]);
-
-    return this.currentPool;
+  public get pool() : any {
+    return this.currentPool; 
   }
 
-  public getExchangeInfo = async (
+  public get exchange() : ExchangeInfo | undefined {
+    return this.exchangeInfo; 
+  }  
+
+  public updateExchange = async (
     from: string,
     to: string,
     amount: number,
     slippage: number
 
-  ): Promise<ExchangeInfo> => {
-    
-    const poolInfo = cloneDeep(this.currentPool);
+  ): Promise<void> => {
 
-    if (!poolInfo) {
+    if (!this.poolAddress) {
+      throw Error("Unknown pool");
+    }
+
+    await this.updatePoolInfo();
+
+    if (!this.currentPool) {
       throw new Error("Orca pool not found.");
     }
  
-    let tokenA = poolInfo.getTokenA() as OrcaPoolToken;
-    let tokenB = poolInfo.getTokenB() as OrcaPoolToken;
-    let tradeToken = cloneDeep(tokenA);
+    let tokenA = this.currentPool.getTokenA() as OrcaPoolToken;
+    let tokenB = this.currentPool.getTokenB() as OrcaPoolToken;
+    let tradeToken = Object.assign({}, tokenA);
 
     if (from === tokenB.mint.toBase58() || to === tokenA.mint.toBase58()) {
-      tradeToken = cloneDeep(tokenB);
+      tradeToken = Object.assign({}, tokenB);
     }
 
     const decimalTradeAmount = new Decimal(1);
     const decimalSlippage = new Decimal(slippage / 10);
-    const quote = await poolInfo.getQuote(tradeToken, decimalTradeAmount, decimalSlippage);
+    const quote = await this.currentPool.getQuote(tradeToken, decimalTradeAmount, decimalSlippage);
     const protocol = PROTOCOLS.filter(p => p.address === ORCA.toBase58())[0];
     const recentBlockhash = await this.connection.getRecentBlockhash("recent");
     const lamportsPerSignatureFee = recentBlockhash.feeCalculator.lamportsPerSignature;
@@ -90,7 +88,7 @@ export class OrcaClient implements LPClient {
     const allTokenAccountsBalance = 2 * await this.connection.getMinimumBalanceForRentExemption(AccountLayout.span);
     const networkFees = (quote.getNetworkFees().toNumber() + maxLamportsPerSignatureFee + allTokenAccountsBalance);
 
-    const exchangeInfo: ExchangeInfo = {
+    this.exchangeInfo = {
       fromAmm: protocol.name,
       outPrice: quote.getRate().toNumber(),
       priceImpact: quote.getPriceImpact().toNumber(),
@@ -98,19 +96,13 @@ export class OrcaClient implements LPClient {
       amountOut: quote.getExpectedOutputAmount().toNumber() * amount,
       minAmountOut: quote.getMinOutputAmount().toNumber() * amount,
       networkFees: amount === 0 ? 0 : networkFees / LAMPORTS_PER_SOL,
-      protocolFees: amount === 0 ? 0 : quote.getLPFees().toNumber() * amount / LAMPORTS_PER_SOL
+      protocolFees: amount === 0 ? 0 : quote.getLPFees().toNumber() * amount
     };
 
-    await this.updateHlaExchangeAccounts(from, to);
-
-    return exchangeInfo;
+    await this.updateExchangeAccounts(from, to);
   };
 
-  public getTokens = (): Promise<Map<string, any>> => {
-    throw new Error("Method not implemented.");
-  };
-
-  public getSwap = async (
+  public swapTx = async (
     owner: PublicKey,
     from: string,
     to: string,
@@ -122,22 +114,20 @@ export class OrcaClient implements LPClient {
 
   ): Promise<Transaction> => {
 
-    const poolInfo = cloneDeep(this.currentPool);
-
-    if (!poolInfo) {
-      throw new Error("Orca pool not found.");
+    if (!this.currentPool) {
+      throw Error("Orca pool not found");
     }
 
     const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(from);
     const toMint = to === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(to);
 
-    let inputToken = poolInfo.getTokenA() as OrcaPoolToken;
-    let outputToken = poolInfo.getTokenB() as OrcaPoolToken;
-    let tradeToken = cloneDeep(inputToken);
+    let inputToken = this.currentPool.getTokenA() as OrcaPoolToken;
+    let outputToken = this.currentPool.getTokenB() as OrcaPoolToken;
+    let tradeToken = Object.assign({}, inputToken);
 
     if (fromMint.equals(outputToken.mint)) {
-      tradeToken = cloneDeep(outputToken);
-      outputToken = cloneDeep(inputToken);
+      tradeToken = Object.assign({}, outputToken);
+      outputToken = Object.assign({}, inputToken);
     }
     
     let tx = new Transaction();
@@ -242,21 +232,21 @@ export class OrcaClient implements LPClient {
     sig.push(userTransferAuthority);
 
     const [authorityForPoolAddress] = await PublicKey.findProgramAddress(
-      [poolInfo.poolParams.address.toBuffer()],
+      [this.currentPool.poolParams.address.toBuffer()],
       ORCA_TOKEN_SWAP_ID
     );
   
     tx.add(
       TokenSwap.swapInstruction(
-        poolInfo.poolParams.address,
+        this.currentPool.poolParams.address,
         authorityForPoolAddress,
         userTransferAuthority.publicKey,
         fromWrapAccount !== undefined ? fromWrapAccount.publicKey : fromTokenAccount,
         tradeToken.addr,
         outputToken.addr,
         toWrapAccount !== undefined ? toWrapAccount.publicKey : toTokenAccount,
-        poolInfo.poolParams.poolTokenMint,
-        poolInfo.poolParams.feeAccount,
+        this.currentPool.poolParams.poolTokenMint,
+        this.currentPool.poolParams.feeAccount,
         null,
         ORCA_TOKEN_SWAP_ID,
         TOKEN_PROGRAM_ID,
@@ -350,16 +340,34 @@ export class OrcaClient implements LPClient {
     return tx;
   };
 
-  private updateHlaExchangeAccounts = async (
-    from: string,
-    to: string
+  private updatePoolInfo = async () => {
 
-  ): Promise<void> => {
+    try {
+
+      if (!this.poolAddress) {
+        throw Error("Unknown pool");
+      }
+  
+      const poolInfo = AMM_POOLS.filter(info => info.address === this.poolAddress)[0];
+  
+      if (!poolInfo) {
+        throw new Error("Orca pool not found.");
+      }
+  
+      const poolConfig = Object.entries(OrcaPoolConfig).filter(c => c[1] === poolInfo.address)[0];
+      this.currentPool = this.orcaSwap.getPool(poolConfig[1]);
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private updateExchangeAccounts = async (from: string, to: string): Promise<void> => {
 
     try {
 
       if (!this.currentPool) {
-        return undefined;
+        throw Error("Orca pool not found");
       }
 
       const [authorityForPoolAddress] = await PublicKey.findProgramAddress(
@@ -378,7 +386,8 @@ export class OrcaClient implements LPClient {
         { pubkey: this.currentPool.poolParams.tokens[fromAddress].addr, isSigner: false, isWritable: true },
         { pubkey: this.currentPool.poolParams.tokens[toAddress].addr, isSigner: false, isWritable: true },
         { pubkey: this.currentPool.poolParams.feeAccount, isSigner: false, isWritable: true }
-      ];
+
+      ] as AccountMeta[];
 
     } catch (_error) {
       throw _error;

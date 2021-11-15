@@ -6,41 +6,193 @@ import { createAmmAuthority, getAddressForWhat, getLpMintListDecimals, getMarket
 import { LiquidityPoolInfo } from "./types";
 import { LIQUIDITY_POOL_PROGRAM_ID_V4, NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
 import { LP_TOKENS, TOKENS } from "./tokens";
-import { cloneDeep } from "lodash-es";
 import { TokenAmount } from "../safe-math";
-import { getMultipleAccounts } from "../utils";
+import { getAmmPools, getMultipleAccounts } from "../utils";
 import { ACCOUNT_LAYOUT, AMM_INFO_LAYOUT, AMM_INFO_LAYOUT_V3, AMM_INFO_LAYOUT_V4, MINT_LAYOUT } from "../layouts";
 import { OpenOrders } from "@project-serum/serum";
-import { BN } from "bn.js";
 import { PROTOCOLS } from "../data";
+import { BN } from "bn.js";
 
 export class RaydiumClient implements LPClient {
   
   private connection: Connection;
+  private poolAddress: string;
   private currentPool: any;
+  private exchangeInfo: ExchangeInfo | undefined;
+  private exchangeAccounts: AccountMeta[];
 
-  constructor(connection: Connection) {
+  constructor(connection: Connection, poolAddress: string) {
     this.connection = connection;
+    this.poolAddress = poolAddress;
+    this.exchangeAccounts = [];
   }
 
-  public get protocolAddress(): string {
-    return RAYDIUM.toBase58();
+  public get protocol() : PublicKey {
+    return RAYDIUM; 
   }
 
-  public get hlaExchangeAccounts(): AccountMeta[] {
-    return [];
+  public get accounts(): AccountMeta[] {
+    return this.exchangeAccounts;
   }
 
-  public getPoolInfo = async (
-    address: string
-  
-  ) => {
+  public get pool() : any {
+    return this.currentPool; 
+  }
 
-    if (this.currentPool && this.currentPool.address === address) {
-      return this.currentPool;
+  public get exchange() : ExchangeInfo | undefined {
+    return this.exchangeInfo; 
+  }
+
+  public updateExchange = async (
+    from: string,
+    to: string,
+    amount: number,
+    slippage: number
+
+  ): Promise<void> => {
+
+    if (!this.poolAddress) {
+      throw Error("Unknown pool");
     }
-  
-    const { ammId, ammInfo } = await getPool(this.connection, address);
+
+    await this.updatePoolInfo();
+
+    if (!this.currentPool) {
+      throw new Error('Raydium pool info not found');
+    }
+
+    if (from === WRAPPED_SOL_MINT.toBase58()) {
+      from = NATIVE_SOL_MINT.toBase58()
+    }
+
+    if (to === WRAPPED_SOL_MINT.toBase58()) {
+      to = NATIVE_SOL_MINT.toBase58();
+    }
+
+    const fromMint = from === this.currentPool.coin.address 
+      ? this.currentPool.coin.address 
+      : this.currentPool.pc.address;
+
+    const toMint = to === this.currentPool.pc.address 
+      ? this.currentPool.pc.address 
+      : this.currentPool.coin.address;
+
+    const { 
+      amountOut, 
+      amountOutWithSlippage, 
+      priceImpact
+
+    } = getSwapOutAmount(
+      this.currentPool, 
+      fromMint, 
+      toMint,
+      '1', 
+      slippage
+    );
+
+    const protocol = PROTOCOLS.filter(p => p.address === RAYDIUM.toBase58())[0];
+    const amountIn = new BN(amount * 10 ** this.currentPool.coin.decimals);
+    const amountInWithFees = amountIn
+      .muln(this.currentPool.fees.swapFeeDenominator - this.currentPool.fees.swapFeeNumerator)
+      .divn(this.currentPool.fees.swapFeeDenominator);
+
+    this.exchangeInfo = {
+      fromAmm: protocol.name,
+      outPrice: !amountOut.isNullOrZero() ? +amountOut.fixed(): 0,
+      priceImpact,
+      amountIn: amount,
+      amountOut: +amountOut.fixed() * amount,
+      minAmountOut: +amountOutWithSlippage.fixed() * amount,
+      networkFees: 0.02,
+      protocolFees: amountIn.sub(amountInWithFees).toNumber() / (10 ** this.currentPool.coin.decimals)
+
+    } as ExchangeInfo;
+
+    await this.updateExchangeAccounts(from, to);
+
+  };
+
+  public swapTx = async (
+    owner: PublicKey,
+    from: string,
+    to: string,
+    amountIn: number,
+    amountOut: number,
+    slippage: number,
+    feeAddress: string,
+    feeAmount: number
+
+  ): Promise<Transaction> => {
+
+    if (!this.currentPool) {
+      throw new Error('Raydium pool info not found');
+    }
+
+    if (from === WRAPPED_SOL_MINT.toBase58()) {
+      from = NATIVE_SOL_MINT.toBase58()
+    }
+
+    if (to === WRAPPED_SOL_MINT.toBase58()) {
+      to = NATIVE_SOL_MINT.toBase58();
+    }
+
+    const fromMintToken = getTokenByMintAddress(from);
+    const toMintToken = getTokenByMintAddress(to);
+    const fromDecimals = fromMintToken ? fromMintToken.decimals : 6;
+    const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(from);
+
+    const fromAccount = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      fromMint,
+      owner,
+      true
+    );
+
+    const toDecimals = toMintToken ? toMintToken.decimals : 6;
+    const toMint = to === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(to);
+    const toAccount = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      toMint,
+      owner,
+      true
+    );
+
+    const toSwapAmount = amountOut * (100 - slippage) / 100;
+    
+    let { transaction, signers } = await getSwapTx(
+      this.connection,
+      owner,
+      this.currentPool,
+      fromMint,
+      toMint,
+      fromAccount,
+      toAccount,
+      new BN(parseFloat(amountIn.toFixed(fromDecimals)) * 10 ** fromDecimals),
+      new BN(parseFloat(toSwapAmount.toFixed(toDecimals)) * 10 ** toDecimals),
+      new PublicKey(feeAddress),
+      new BN(parseFloat(feeAmount.toFixed(fromDecimals)) * 10 ** fromDecimals)
+    );
+
+    transaction.feePayer = owner;
+    const { blockhash } = await this.connection.getRecentBlockhash(this.connection.commitment);
+    transaction.recentBlockhash = blockhash;
+
+    if (signers.length) {
+      transaction.partialSign(...signers);
+    }
+
+    return transaction;
+  };
+
+  private updatePoolInfo = async () => {
+
+    if (!this.poolAddress) {
+      throw new Error("Unknown pool");
+    }
+
+    const { ammId, ammInfo } = await getPool(this.connection, this.poolAddress);
   
     if (!ammInfo) {
       throw new Error('Raydium pool not found');
@@ -161,7 +313,7 @@ export class RaydiumClient implements LPClient {
       new PublicKey(lp.address)
     ];
   
-    const poolInfo = cloneDeep(itemLiquidity);
+    const poolInfo = Object.assign({}, itemLiquidity);
     poolInfo.coin.balance = new TokenAmount(0, coin.decimals);
     poolInfo.pc.balance = new TokenAmount(0, pc.decimals);
     liquidityPool = poolInfo;
@@ -234,144 +386,44 @@ export class RaydiumClient implements LPClient {
     });
   
     this.currentPool = liquidityPool;
-
-    return this.currentPool;
   }
 
-  public getExchangeInfo = async (
-    from: string,
-    to: string,
-    amount: number,
-    slippage: number
+  private updateExchangeAccounts = async (from: string, to: string): Promise<void> => {
 
-  ): Promise<ExchangeInfo> => {
+    try {
 
-    const poolInfo = cloneDeep(this.currentPool);
+      const ammPool = getAmmPools(
+        from, 
+        to, 
+        RAYDIUM.toBase58()
+      );
+      
+      if (!ammPool || ammPool.length === 0 || !this.currentPool) {
+        throw new Error("Raydium pool not found.");
+      }
 
-    if (!poolInfo) {
-      throw new Error('Raydium pool info not found');
+      this.exchangeAccounts = [
+        { pubkey: new PublicKey(ammPool[0].address), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.programId), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(this.currentPool.ammId), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.ammAuthority), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(this.currentPool.ammOpenOrders), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.ammTargetOrders), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.poolCoinTokenAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.poolPcTokenAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumProgramId), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(this.currentPool.serumMarket), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumBids), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumAsks), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumEventQueue), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumCoinVaultAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumPcVaultAccount), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.currentPool.serumVaultSigner), isSigner: false, isWritable: false }
+
+      ] as AccountMeta[];
+
+    } catch (_error) {
+      throw _error;
     }
-
-    if (from === WRAPPED_SOL_MINT.toBase58()) {
-      from = NATIVE_SOL_MINT.toBase58()
-    }
-
-    if (to === WRAPPED_SOL_MINT.toBase58()) {
-      to = NATIVE_SOL_MINT.toBase58();
-    }
-
-    const fromMint = from === poolInfo.coin.address ? poolInfo.coin.address : poolInfo.pc.address;
-    const toMint = to === poolInfo.pc.address ? poolInfo.pc.address : poolInfo.coin.address;
-    const { 
-      amountOut, 
-      amountOutWithSlippage, 
-      priceImpact
-
-    } = getSwapOutAmount(
-      poolInfo, 
-      fromMint, 
-      toMint,
-      '1', 
-      slippage
-    );
-
-    const protocol = PROTOCOLS.filter(p => p.address === RAYDIUM.toBase58())[0];
-    const amountIn = new BN(amount * 10 ** poolInfo.coin.decimals);
-    const amountInWithFees = amountIn
-      .muln(poolInfo.fees.swapFeeDenominator - poolInfo.fees.swapFeeNumerator)
-      .divn(poolInfo.fees.swapFeeDenominator);
-
-    const exchangeInfo: ExchangeInfo = {
-      fromAmm: protocol.name,
-      outPrice: !amountOut.isNullOrZero() ? +amountOut.fixed(): 0,
-      priceImpact,
-      amountIn: amount,
-      amountOut: +amountOut.fixed() * amount,
-      minAmountOut: +amountOutWithSlippage.fixed() * amount,
-      networkFees: 0.02,
-      protocolFees: amountIn.sub(amountInWithFees).toNumber() / (10 ** poolInfo.coin.decimals)
-    };
-
-    return exchangeInfo;
-  };
-
-  public getTokens = (): Promise<Map<string, any>> => {
-    throw new Error("Method not implemented.");
-  };
-
-  public getSwap = async (
-    owner: PublicKey,
-    from: string,
-    to: string,
-    amountIn: number,
-    amountOut: number,
-    slippage: number,
-    feeAddress: string,
-    feeAmount: number
-
-  ): Promise<Transaction> => {
-
-    const poolInfo = cloneDeep(this.currentPool);
-
-    if (!poolInfo) {
-      throw new Error('Raydium pool info not found');
-    }
-
-    if (from === WRAPPED_SOL_MINT.toBase58()) {
-      from = NATIVE_SOL_MINT.toBase58()
-    }
-
-    if (to === WRAPPED_SOL_MINT.toBase58()) {
-      to = NATIVE_SOL_MINT.toBase58();
-    }
-
-    const fromMintToken = getTokenByMintAddress(from);
-    const toMintToken = getTokenByMintAddress(to);
-    const fromDecimals = fromMintToken ? fromMintToken.decimals : 6;
-    const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(from);
-
-    const fromAccount = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      fromMint,
-      owner,
-      true
-    );
-
-    const toDecimals = toMintToken ? toMintToken.decimals : 6;
-    const toMint = to === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(to);
-    const toAccount = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      toMint,
-      owner,
-      true
-    );
-
-    const toSwapAmount = amountOut * (100 - slippage) / 100;
-    
-    let { transaction, signers } = await getSwapTx(
-      this.connection,
-      owner,
-      poolInfo,
-      fromMint,
-      toMint,
-      fromAccount,
-      toAccount,
-      new BN(parseFloat(amountIn.toFixed(fromDecimals)) * 10 ** fromDecimals),
-      new BN(parseFloat(toSwapAmount.toFixed(toDecimals)) * 10 ** toDecimals),
-      new PublicKey(feeAddress),
-      new BN(parseFloat(feeAmount.toFixed(fromDecimals)) * 10 ** fromDecimals)
-    );
-
-    transaction.feePayer = owner;
-    const { blockhash } = await this.connection.getRecentBlockhash(this.connection.commitment);
-    transaction.recentBlockhash = blockhash;
-
-    if (signers.length) {
-      transaction.partialSign(...signers);
-    }
-
-    return transaction;
-  };
+  }
 }

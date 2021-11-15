@@ -1,5 +1,4 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { cloneDeep } from "lodash-es";
 import { AMM_INFO_LAYOUT_V4, MINT_LAYOUT } from "../layouts";
 import { LP_TOKENS, NATIVE_SOL, TOKENS } from "./tokens";
 import { TokenInfo } from "./types";
@@ -10,13 +9,13 @@ import { getMultipleAccounts } from "../utils";
 export const getTokenByMintAddress = (address: string): TokenInfo | null => {
 
   if (address === NATIVE_SOL.address) {
-    return cloneDeep(NATIVE_SOL);
+    return Object.assign({}, NATIVE_SOL);
   }
 
   let token = null;
 
   for (const symbol of Object.keys(TOKENS)) {
-    const info = cloneDeep(TOKENS[symbol]);
+    const info = Object.assign({}, TOKENS[symbol]);
 
     if (info.address === address) {
       token = info;

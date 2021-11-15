@@ -1,7 +1,7 @@
 import { Market } from "@project-serum/serum";
 import { OpenOrders, _OPEN_ORDERS_LAYOUT_V2 } from "@project-serum/serum/lib/market";
 import { closeAccount } from "@project-serum/serum/lib/token-instructions";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Account, Connection, LAMPORTS_PER_SOL, PublicKey, Signer, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { getTokenByMintAddress } from "../raydium/utils";
 import { NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
@@ -85,30 +85,12 @@ export const placeOrderTx = async (
   let wrappedSolAccount: PublicKey | null = null;
 
   if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
-    let lamports;
 
-    if (forecastConfig.side === "buy") {
+    let lamports = swapAmount * LAMPORTS_PER_SOL + await Token.getMinBalanceRentForExemptAccount(connection);
 
-      lamports =
-        forecastConfig.worstPrice *
-        forecastConfig.amountOut *
-        1.01 *
-        LAMPORTS_PER_SOL;
-
-      if (openOrdersAccounts.length > 0) {
-        lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
-      }
-
-    } else {
-        
-      lamports = forecastConfig.maxInAllow * LAMPORTS_PER_SOL;
-
-      if (openOrdersAccounts.length > 0) {
-        lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
-      }
+    if (openOrdersAccounts.length > 0) {
+      lamports -= openOrdersAccounts[0].baseTokenFree.toNumber();
     }
-
-    lamports += fee.toNumber() + 1e7;
 
     wrappedSolAccount = await createTokenAccountIfNotExist(
       connection,
@@ -121,7 +103,20 @@ export const placeOrderTx = async (
     );
   }
 
-  console.log('forecastConfig', forecastConfig);
+  const fromTokenAccountInfo = await connection.getAccountInfo(fromTokenAccount);
+
+  if (!fromTokenAccountInfo) {
+    tx.add(
+      Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        fromMint,
+        fromTokenAccount,
+        owner,
+        owner
+      )
+    );
+  }
   
   tx.add(
     market.makePlaceOrderInstruction(connection, {
@@ -131,49 +126,26 @@ export const placeOrderTx = async (
       price: forecastConfig.worstPrice,
       size:
         forecastConfig.side === 'buy'
-          ? parseFloat(forecastConfig.amountOut.toFixed(toMintAccount?.decimals || 9))
-          : parseFloat(forecastConfig.maxInAllow.toFixed(fromMintAccount?.decimals || 9)),
+          ? parseFloat(forecastConfig.amountOut.toFixed(fromMintAccount?.decimals || 9))
+          : parseFloat(forecastConfig.maxInAllow.toFixed(toMintAccount?.decimals || 9)),
 
       orderType: 'ioc',
       openOrdersAddressKey: openOrdersAddress
     })
   )
 
-  const fromTokenAccountInfo = await connection.getAccountInfo(fromTokenAccount);
-
-  if (!fromTokenAccountInfo) {
-    tx.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: owner, isSigner: true, isWritable: true },
-          { pubkey: fromTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: owner, isSigner: false, isWritable: false },
-          { pubkey: fromMint, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-      })
-    );
-  }
-
   const toTokenAccountInfo = await connection.getAccountInfo(toTokenAccount);
 
   if (!toTokenAccountInfo) {
     tx.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: owner, isSigner: true, isWritable: true },
-          { pubkey: toTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: owner, isSigner: false, isWritable: false },
-          { pubkey: toMint, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-      })
+      Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        toMint,
+        toTokenAccount,
+        owner,
+        owner
+      )
     );
   }
 
@@ -227,20 +199,14 @@ export const placeOrderTx = async (
   const feeAccountTokenInfo = await connection.getAccountInfo(feeAccountToken);
 
   if (!feeAccountTokenInfo) {
-    tx.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: owner, isSigner: true, isWritable: true },
-          { pubkey: feeAccountToken, isSigner: false, isWritable: true },
-          { pubkey: feeAccount, isSigner: false, isWritable: false },
-          { pubkey: fromMint, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false, },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-      })
-    );
+    Token.createAssociatedTokenAccountInstruction(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      fromCoinMint,
+      feeAccountToken,
+      owner,
+      owner
+    )
   }
 
   if (wrappedSolAccount) {
@@ -312,7 +278,7 @@ export const getOutAmount = (
 export const forecastBuy = (
   market: any,
   orderBook: any,
-  pcIn: any,
+  amount: number,
   slippage: number
 
 ) => {
@@ -320,7 +286,7 @@ export const forecastBuy = (
   let coinOut = 0;
   let bestPrice = null;
   let worstPrice = 0;
-  let availablePc = pcIn;
+  let availablePc = amount;
 
   for (const { key, quantity } of orderBook.items(false)) {
     const price = market.priceLotsToNumber(key.ushrn(64)) || 0;
@@ -345,14 +311,14 @@ export const forecastBuy = (
 
   // coinOut = coinOut * 0.993;
   const priceImpact = ((worstPrice - bestPrice) / bestPrice) * 100;
-  worstPrice = (worstPrice * (100 + slippage)) / 100;
+  worstPrice = (worstPrice * (100 - slippage)) / 100;
   const amountOutWithSlippage = (coinOut * (100 - slippage)) / 100;
   // const avgPrice = (pcIn - availablePc) / coinOut;
-  const maxInAllow = pcIn - availablePc;
+  const maxInAllow = amount - availablePc;
 
   return {
     side: "buy",
-    maxInAllow,
+    maxInAllow: maxInAllow === 0 ? amount : maxInAllow,
     amountOut: coinOut,
     amountOutWithSlippage,
     worstPrice,
@@ -363,7 +329,7 @@ export const forecastBuy = (
 export const forecastSell = (
   market: any,
   orderBook: any,
-  coinIn: any,
+  amount: number,
   slippage: number
 
 ) => {
@@ -371,7 +337,7 @@ export const forecastSell = (
   let pcOut = 0;
   let bestPrice = null;
   let worstPrice = 0;
-  let availableCoin = coinIn;
+  let availableCoin = amount;
 
   for (const { key, quantity } of orderBook.items(true)) {
     const price = market.priceLotsToNumber(key.ushrn(64));
@@ -385,7 +351,7 @@ export const forecastSell = (
 
     if (availableCoin < size) {
       pcOut += availableCoin * price;
-      availableCoin = coinIn;
+      availableCoin = amount;
       break;
     } else {
       pcOut += price * size;
@@ -398,11 +364,11 @@ export const forecastSell = (
   worstPrice = (worstPrice * (100 - slippage)) / 100;
   const amountOutWithSlippage = (pcOut * (100 - slippage)) / 100;
   // const avgPrice = pcOut / (coinIn - availableCoin);
-  const maxInAllow = coinIn - availableCoin;
+  const maxInAllow = amount - availableCoin;
 
   return {
     side: "sell",
-    maxInAllow,
+    maxInAllow: maxInAllow === 0 ? amount : maxInAllow,
     amountOut: pcOut,
     amountOutWithSlippage,
     worstPrice,

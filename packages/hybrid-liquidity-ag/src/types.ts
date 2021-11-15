@@ -48,10 +48,6 @@ export const SWAP_PROGRAM_ID = new PublicKey(
   "SwaPpA9LAaLfeLi3a68M4DjnLqgtticKg6CnyNwgAC8"
 );
 
-export const DEX_PROGRAM_ID = new PublicKey(
-  "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
-);
-
 export const NATIVE_SOL_MINT = new PublicKey(
   "11111111111111111111111111111111"
 );
@@ -106,8 +102,7 @@ export type AmmPoolInfo = {
   address: string,
   protocolAddress: string,
   ammAddress: string,
-  tokenAddresses: string[],
-  exchangeInfo: ExchangeInfo | undefined  
+  tokenAddresses: string[]
 }
 
 export type ExchangeInfo = {
@@ -137,17 +132,18 @@ export type HlaInfo = {
 
 export interface Client {
 
-  protocolAddress: string;
+  protocol: PublicKey;
+  exchange: ExchangeInfo | undefined;
 
-  getExchangeInfo: (
+  updateExchange: (
     from: string,
     to: string,
     amount: number,
     slippage: number
 
-  ) => Promise<ExchangeInfo>
+  ) => Promise<void>
 
-  getSwap(
+  swapTx(
     owner: PublicKey,
     from: string, 
     to: string, 
@@ -161,9 +157,6 @@ export interface Client {
 }
 
 export interface LPClient extends Client {
-
-  getPoolInfo(address: string): Promise<any | undefined>
-
-  hlaExchangeAccounts: AccountMeta[]
-
+  pool: any;
+  accounts: AccountMeta[];
 }

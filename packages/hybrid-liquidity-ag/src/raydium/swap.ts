@@ -234,7 +234,7 @@ export function getSwapIx(
   ]);
 
   const keys = [
-     // spl token
+    // spl token
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     // amm
     { pubkey: ammId, isSigner: false, isWritable: true },

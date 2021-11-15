@@ -30,15 +30,6 @@ export const TOKENS: Tokens = {
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png",
     tags: ['raydium']
   },
-  renBTC: {
-    symbol: 'renBTC',
-    name: 'renBTC',
-    address: 'CDJWUqTcYTVAKXAVXoQZFes5JUFc7owSeq7eMQcDSbo5',
-    decimals: 8,
-    referrer: '7rr64uygy3o5RKVeNv12JGDUFMXVdr2YHvA3NTxzbZT6',
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/CDJWUqTcYTVAKXAVXoQZFes5JUFc7owSeq7eMQcDSbo5/logo.png',
-    tags: ['raydium']
-  },
   ETH: {
     symbol: 'ETH',
     name: 'Wrapped Ethereum',
@@ -66,6 +57,24 @@ export const TOKENS: Tokens = {
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png",
     tags: ['raydium']
   },
+  RAY: {
+    symbol: 'RAY',
+    name: 'Raydium',
+    address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+    decimals: 6,
+    referrer: '33XpMmMQRf6tSPpmYyzpwU4uXpZHkFwCZsusD9dMYkjy',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R/logo.png",
+    tags: ['raydium']
+  },
+  SRM: {
+    symbol: 'SRM',
+    name: 'Serum',
+    address: 'SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt',
+    decimals: 6,
+    referrer: 'HYxa4Ea1dz7ya17Cx18rEGUA1WbCvKjXjFKrnu8CwugH',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt/logo.png",
+    tags: ['raydium']
+  },
 }
 
 export const LP_TOKENS: Tokens = {
@@ -86,15 +95,6 @@ export const LP_TOKENS: Tokens = {
 
     address: '2hMdRdVWZqetQsaHG8kQjdZinEMBz75vsoWTCob1ijXu',
     decimals: TOKENS.BTC.decimals
-  },
-  'renBTC-USDC-V4': {
-    symbol: 'renBTC-USDC',
-    name: 'renBTC-USDC LP',
-    coin: { ...TOKENS.renBTC },
-    pc: { ...TOKENS.USDC },
-
-    address: 'CTEpsih91ZLo5gunvryLpJ3pzMjmt5jbS6AnSQrzYw7V',
-    decimals: TOKENS.renBTC.decimals
   },
   'ETH-USDC-V4': {
     symbol: 'ETH-USDC',
@@ -132,4 +132,94 @@ export const LP_TOKENS: Tokens = {
     address: 'nPrB78ETY8661fUgohpuVusNCZnedYCgghzRJzxWnVb',
     decimals: TOKENS.ETH.decimals
   },
+  'RAY-USDT-V4': {
+    symbol: 'RAY-USDT',
+    name: 'RAY-USDT LP',
+    coin: { ...TOKENS.RAY },
+    pc: { ...TOKENS.USDT },
+
+    address: 'C3sT1R3nsw4AVdepvLTLKr5Gvszr7jufyBWUCvy4TUvT',
+    decimals: TOKENS.RAY.decimals
+  },
+  'RAY-USDC-V4': {
+    symbol: 'RAY-USDC',
+    name: 'RAY-USDC LP',
+    coin: { ...TOKENS.RAY },
+    pc: { ...TOKENS.USDC },
+
+    address: 'FbC6K13MzHvN42bXrtGaWsvZY9fxrackRSZcBGfjPc7m',
+    decimals: TOKENS.RAY.decimals
+  },
+  'RAY-SRM-V4': {
+    symbol: 'RAY-SRM',
+    name: 'RAY-SRM LP',
+    coin: { ...TOKENS.RAY },
+    pc: { ...TOKENS.SRM },
+
+    address: '7P5Thr9Egi2rvMmEuQkLn8x8e8Qro7u2U7yLD2tU2Hbe',
+    decimals: TOKENS.RAY.decimals
+  },
+  'RAY-ETH-V4': {
+    symbol: 'RAY-ETH',
+    name: 'RAY-ETH LP',
+    coin: { ...TOKENS.RAY },
+    pc: { ...TOKENS.ETH },
+
+    address: 'mjQH33MqZv5aKAbKHi8dG3g3qXeRQqq1GFcXceZkNSr',
+    decimals: TOKENS.RAY.decimals
+  },
+  'RAY-SOL-V4': {
+    symbol: 'RAY-SOL',
+    name: 'RAY-SOL LP',
+    coin: { ...TOKENS.RAY },
+    pc: { ...NATIVE_SOL },
+
+    address: '89ZKE4aoyfLBe2RuV6jM3JGNhaV18Nxh8eNtjRcndBip',
+    decimals: TOKENS.RAY.decimals
+  },
+  'BTC-SRM-V4': {
+    symbol: 'BTC-SRM',
+    name: 'BTC-SRM LP',
+    coin: { ...TOKENS.BTC },
+    pc: { ...TOKENS.SRM },
+
+    address: 'AGHQxXb3GSzeiLTcLtXMS2D5GGDZxsB2fZYZxSB5weqB',
+    decimals: TOKENS.BTC.decimals
+  },
+  'SRM-USDC-V4': {
+    symbol: 'SRM-USDC',
+    name: 'SRM-USDC LP',
+    coin: { ...TOKENS.SRM },
+    pc: { ...TOKENS.USDC },
+
+    address: '9XnZd82j34KxNLgQfz29jGbYdxsYznTWRpvZE3SRE7JG',
+    decimals: TOKENS.SRM.decimals
+  },
+  'SRM-USDT-V4': {
+    symbol: 'SRM-USDT',
+    name: 'SRM-USDT LP',
+    coin: { ...TOKENS.SRM },
+    pc: { ...TOKENS.USDT },
+
+    address: 'HYSAu42BFejBS77jZAZdNAWa3iVcbSRJSzp3wtqCbWwv',
+    decimals: TOKENS.SRM.decimals
+  },
+  'ETH-SRM-V4': {
+    symbol: 'ETH-SRM',
+    name: 'ETH-SRM LP',
+    coin: { ...TOKENS.ETH },
+    pc: { ...TOKENS.SRM },
+
+    address: '9VoY3VERETuc2FoadMSYYizF26mJinY514ZpEzkHMtwG',
+    decimals: TOKENS.ETH.decimals
+  },
+  'SRM-SOL-V4': {
+    symbol: 'SRM-SOL',
+    name: 'SRM-SOL LP',
+    coin: { ...TOKENS.SRM },
+    pc: { ...NATIVE_SOL },
+
+    address: 'AKJHspCwDhABucCxNLXUSfEzb7Ny62RqFtC9uNjJi4fq',
+    decimals: TOKENS.SRM.decimals
+  }
 }
