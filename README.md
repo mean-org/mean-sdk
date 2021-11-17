@@ -26,19 +26,18 @@ const moneyStreaming = new MoneyStreaming("https://api.mainnet-beta.solana.com",
 const wallet = new PublicKey("DjsyGs6HpszmH9N4UJgr1huBrWgysvUc1gSBk8MPbNfY");
 ```
 
-- List all streams from the blockchain. The wallet is passed 2 times to retrieved the streams where the wallet acts either as a treasurer or as a beneficiary.
-In case we need to retrive only the streams where the wallet acts only as a treasury OR only as a beneficiary we just pass the first (treasurer) OR the second (beneficiary) 
-Both parameters are optional. If we don't pass any of both then we will get all streams of the Money Streaming program.
+- List all streams from the blockchain. The wallet is passed 2 times to retrieve the streams where the wallet acts either as a treasurer OR as a beneficiary.
+In case you need to retrive only the streams where the wallet acts only as a treasury just pass wallet in the first parameter (treasurer) OR only as a beneficiary just pass wallet in the second parameter (beneficiary). Both parameters are optional. If we don't pass any of both then we will get all streams of the Money Streaming program:
 
 ```let treasurerStreams = await moneyStreaming.listStreams(wallet, wallet);```
 
-- Refresh al previously retrieved streams with the option of `hardUpdate` which forces the SDK to get the data from the blockchain instead of refresh it in the client
+- Refresh al previously retrieved streams with the option of `hardUpdate` which forces the SDK to get the data from the blockchain instead of refresh it in the client:
 
 ```
 let cachedStreams = await moneyStreaming.refreshStreams(treasurerStreams, wallet, wallet);
 ```
 
-- This is an example of how to show data and a resume from all the retrieved streams
+- Show a resume for all the retrieved streams of the wallet:
 
 ```
 let resume: any = {
@@ -73,14 +72,14 @@ resume['totalAmount'] = cachedStreams.length;
 console.log('My money streams resume', resume);
 ```
 
-- To get data from a specific stream instead of the whole user streams list there is another method
+- Get data from a specific stream instead of the whole user streams list:
 
 ```
 const streamAccount = new PublicKey('3ccJxgkeettdFnsZHgor3Q3pSWgGpEysfDmlLoiAAs');
 const streamInfo =  await moneyStreaming.getStream(streamAccount);
 ```
 
-- We can also refresh the previously retrieved stream data without getting it from the blockchain or we can use `hardUpdate` parameter that forces to get data from the blockchain instead of refreshing from the previously retrieved stream info.
+- Refresh the previously retrieved stream data without getting it from the blockchain or use `hardUpdate` parameter that forces to get data from the blockchain instead of refreshing it from the previously retrieved stream data:
 
 ```
 const cachedStreamData = await moneyStreaming.refreshStream(streamInfo);
