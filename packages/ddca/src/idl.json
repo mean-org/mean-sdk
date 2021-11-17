@@ -41,6 +41,11 @@
           "isSigner": false
         },
         {
+          "name": "wakeAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
@@ -93,7 +98,7 @@
       "name": "wakeAndSwap",
       "accounts": [
         {
-          "name": "ownerAccount",
+          "name": "wakeAccount",
           "isMut": true,
           "isSigner": true
         },
@@ -194,6 +199,11 @@
         },
         {
           "name": "fromTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "wakeAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -424,6 +434,18 @@
           },
           {
             "name": "lastDepositTs",
+            "type": "u64"
+          },
+          {
+            "name": "wakeAccAddr",
+            "type": "publicKey"
+          },
+          {
+            "name": "createdSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastDepositSlot",
             "type": "u64"
           }
         ]
