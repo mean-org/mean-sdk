@@ -22,7 +22,7 @@ import * as Instructions from "./instructions";
 import * as Utils from "./utils";
 import * as Layout from "./layout";
 import { u64Number } from "./u64n";
-import { StreamInfo, StreamTermsInfo, TreasuryInfo } from "./types";
+import { StreamInfo, StreamTermsInfo, STREAM_STATE, TreasuryInfo } from "./types";
 import { Errors } from "./errors";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -91,6 +91,31 @@ export class MoneyStreaming {
     return await Utils.getStream(this.connection, id, commitment, friendly);
   }
 
+  public async refreshStream(
+    streamInfo: StreamInfo,
+    hardUpdate: boolean = false,
+    friendly: boolean = true
+
+  ): Promise<StreamInfo> {
+
+    let copyStreamInfo = Object.assign({}, streamInfo);
+
+    const currentTime = Date.parse(new Date().toUTCString()) / 1000;
+    const lastRetrievedElapsedTime = currentTime - copyStreamInfo.lastRetrievedBlockTime;
+    const fiveMin = 5 * 60;
+
+    if (hardUpdate || lastRetrievedElapsedTime > fiveMin) {
+
+      const streamId = typeof copyStreamInfo.id === 'string' 
+        ? new PublicKey(copyStreamInfo.id) 
+        : copyStreamInfo.id as PublicKey; 
+
+        return await Utils.getStream(this.connection, streamId);
+    }
+
+    return Utils.getStreamCached(copyStreamInfo, currentTime, friendly);
+  }
+
   public async getTreasury(
     id: PublicKey,
     commitment?: Commitment | undefined,
@@ -121,6 +146,34 @@ export class MoneyStreaming {
       treasurer,
       beneficiary,
       commitment,
+      friendly
+    );
+  }
+
+  public async refreshStreams(
+    streams: StreamInfo[],
+    treasurer?: PublicKey | undefined,
+    beneficiary?: PublicKey | undefined,
+    commitment?: Commitment | undefined,
+    hardUpdate: boolean = false,
+    friendly: boolean = true
+
+  ): Promise<StreamInfo[]> {
+
+    if (hardUpdate) {
+
+      return await Utils.listStreams(
+        this.connection, 
+        this.programId, 
+        treasurer, 
+        beneficiary, 
+        commitment, 
+        friendly
+      );
+    }
+
+    return Utils.listStreamsCached(
+      streams,
       friendly
     );
   }

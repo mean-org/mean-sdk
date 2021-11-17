@@ -142,6 +142,7 @@ export type StreamInfo = {
   autoPauseInSeconds: number;
   isUpdatePending: boolean;
   transactionSignature: string | undefined;
-  blockTime: number;
+  createdBlockTime: number;
+  lastRetrievedBlockTime: number;
   state: STREAM_STATE;
 };
