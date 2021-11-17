@@ -13,8 +13,10 @@ export interface DdcaAccount {
     toMint: string;
     totalDepositsAmount: number;
     startTs?: number;
+    createdSlot: number;
     amountPerSwap: number;
     intervalInSeconds: number;
+    wakeAccountAddress: string,
     startUtc: string;
     lastCompletedSwapTs?: number;
     lastCompletedSwapUtc: string;
@@ -29,6 +31,7 @@ export interface DdcaDetails extends DdcaAccount{
     swapCount: number;
     swapAvgRate: number;
     lastDepositTs?: number;
+    lastDepositSlot: number;
     lastDepositedtUtc: string;
 }
 
@@ -80,16 +83,26 @@ export type HlaInfo = {
   | 'withdrew'
   | 'unknown'
 
-  /**
-   * DDCA activity
-   */
-  export type DdcaActivity = {
-      transactionSignature: string,
-      action: DdcaAction;
-      fromMint: string | null;
-      fromAmount: number | null;
-      toMint: string | null;
-      toAmount: number | null;
-      networkFeeInLamports?: number;
-      dateUtc: string;
-  }
+/**
+ * DDCA activity
+ */
+export type DdcaActivity = {
+    transactionSignature: string,
+    action: DdcaAction;
+    fromMint: string | null;
+    fromAmount: number | null;
+    toMint: string | null;
+    toAmount: number | null;
+    networkFeeInLamports?: number;
+    dateUtc: string;
+}
+
+export const tempoHeaders = new Headers();
+tempoHeaders.append('X-Api-Version', '1.0');
+// export const tempoRequestOptions: RequestInit = {
+//     headers: tempoHeaders
+// }
+
+export type CrankAccount = {
+    crankAddress: string;
+}
