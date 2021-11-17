@@ -98,7 +98,8 @@ let defaultStreamInfo: StreamInfo = {
   autoPauseInSeconds: 0,
   isUpdatePending: false,
   transactionSignature: undefined,
-  blockTime: 0,
+  createdBlockTime: 0,
+  lastRetrievedBlockTime: 0,
   state: STREAM_STATE.Schedule,
 };
 
@@ -249,7 +250,8 @@ const parseStreamData = (
       autoPauseInSeconds: autoPauseInSeconds,
       isUpdatePending: false,
       transactionSignature: "",
-      blockTime: currentBlockTime,
+      createdBlockTime: 0,
+      lastRetrievedBlockTime: currentBlockTime,
       state,
     }
   );
@@ -438,12 +440,97 @@ export const getStream = async (
 
     if (signatures.length > 0) {
       stream.transactionSignature = signatures[0].signature;
-      stream.blockTime = signatures[0].blockTime as number;
+      stream.createdBlockTime = signatures[0].blockTime as number;
     }
   }
 
   return stream as StreamInfo;
 };
+
+export const getStreamCached = (
+  streamInfo: StreamInfo,
+  currentBlocktime: number,
+  friendly: boolean = true
+
+): StreamInfo => {
+
+  let copyStreamInfo = Object.assign({}, streamInfo);
+
+  const startDate = new Date();
+  startDate.setTime(parseFloat(
+    copyStreamInfo.startUtc !== undefined && 
+    typeof copyStreamInfo.startUtc !== 'string'
+      ? copyStreamInfo.startUtc.toUTCString()
+      : copyStreamInfo.startUtc === undefined
+      ? new Date().toUTCString()
+      : copyStreamInfo.startUtc
+  ));
+
+  // refresh copy stream info
+  let isStreaming = copyStreamInfo.streamResumedBlockTime >= copyStreamInfo.escrowVestedAmountSnapBlockTime ? 1 : 0;
+  let lastTimeSnap = Math.max(copyStreamInfo.streamResumedBlockTime, copyStreamInfo.escrowVestedAmountSnapBlockTime);
+
+  const rate = copyStreamInfo.rateIntervalInSeconds > 0
+    ? (copyStreamInfo.rateAmount / copyStreamInfo.rateIntervalInSeconds) * isStreaming
+    : 1;
+
+  const elapsedTime = currentBlocktime - lastTimeSnap;
+  copyStreamInfo.associatedToken = 
+    friendly === true &&
+    copyStreamInfo.associatedToken !== undefined &&
+    typeof copyStreamInfo.associatedToken !== 'string'
+      ? copyStreamInfo.associatedToken.toBase58()
+      : copyStreamInfo.associatedToken
+
+  if (currentBlocktime >= lastTimeSnap) {
+    copyStreamInfo.escrowVestedAmount = copyStreamInfo.escrowVestedAmountSnap + rate * elapsedTime;
+
+    if (copyStreamInfo.escrowVestedAmount > copyStreamInfo.totalDeposits - copyStreamInfo.totalWithdrawals) {
+      copyStreamInfo.escrowVestedAmount = copyStreamInfo.totalDeposits - copyStreamInfo.totalWithdrawals;
+    }
+  }
+
+  copyStreamInfo.escrowUnvestedAmount = 
+    copyStreamInfo.totalDeposits - 
+    copyStreamInfo.totalWithdrawals - 
+    copyStreamInfo.escrowVestedAmount;
+
+  let escrowEstimatedDepletionDateUtc = new Date();
+  escrowEstimatedDepletionDateUtc.setTime(Date.parse(copyStreamInfo.escrowEstimatedDepletionUtc as string));
+
+  if (escrowEstimatedDepletionDateUtc.getTime() === 0) {
+    let depletionTimeInSeconds = rate ? copyStreamInfo.totalDeposits / rate : 0;
+    escrowEstimatedDepletionDateUtc.setTime(startDate.getTime() + depletionTimeInSeconds * 1000);
+    copyStreamInfo.escrowEstimatedDepletionUtc = 
+      friendly === true 
+        ? escrowEstimatedDepletionDateUtc.toUTCString()
+        : escrowEstimatedDepletionDateUtc;
+  }
+
+  const id = 
+    friendly === true && 
+    copyStreamInfo.id !== undefined && 
+    typeof copyStreamInfo.id !== 'string' 
+      ? copyStreamInfo.id.toBase58() 
+      : copyStreamInfo.id;
+
+  let state: STREAM_STATE | undefined;
+  const threeDays = 3 * 24 * 3600;
+  const nowUtc = Date.parse(new Date().toUTCString());
+  
+
+  if (startDate.getTime() > nowUtc) {
+    copyStreamInfo.state = STREAM_STATE.Schedule;
+  } else if (copyStreamInfo.escrowVestedAmount < copyStreamInfo.totalDeposits - copyStreamInfo.totalWithdrawals) {
+    copyStreamInfo.state = STREAM_STATE.Running;
+  } else if (copyStreamInfo.escrowVestedAmount >= copyStreamInfo.totalDeposits - copyStreamInfo.totalWithdrawals && elapsedTime < threeDays) {
+    copyStreamInfo.state = STREAM_STATE.Paused;
+  } else if (copyStreamInfo.escrowVestedAmount >= copyStreamInfo.totalDeposits - copyStreamInfo.totalWithdrawals && elapsedTime >= threeDays) {
+    copyStreamInfo.state = STREAM_STATE.Ended;
+  }
+
+  return copyStreamInfo;
+}
 
 export const getStreamTerms = async (
   programId: PublicKey,
@@ -525,7 +612,7 @@ export async function listStreams(
           );
 
           if (signatures.length > 0) {
-            info.blockTime = signatures[0].blockTime as number;
+            info.createdBlockTime = signatures[0].blockTime as number;
             info.transactionSignature = signatures[0].signature;
           }
         }
@@ -537,9 +624,31 @@ export async function listStreams(
     }
   }
 
-  let orderedStreams = streams.sort((a, b) => b.blockTime - a.blockTime);
+  let orderedStreams = streams.sort((a, b) => b.createdBlockTime - a.createdBlockTime);
 
   return orderedStreams;
+}
+
+export async function listStreamsCached(
+  streams: StreamInfo[],
+  friendly: boolean = true
+
+): Promise<StreamInfo[]> {
+
+  let streamList: StreamInfo[] = [];
+  const currentTime = Date.parse(new Date().toUTCString()) / 1000;
+
+  for (let stream of streams) {
+    streamList.push(
+      getStreamCached(
+        Object.assign({}, stream),
+        currentTime,
+        friendly
+      )
+    );
+  }  
+
+  return streams;
 }
 
 export async function getStreamContributors(
