@@ -37,7 +37,7 @@ export const calculateActionFees = async (
         case DDCA_ACTIONS.create: {
             signaturesCount = 2; // owner + temp wrap account
             maxTotalRentExcemptInLamports = 
-                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 3 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes)); // 1 account + 3 token accounts
+                await connection.getMinimumBalanceForRentExemption(ddcaAccountSizeInBytes + 3 * (tokenAccountSizeInBytes + minimumAccountSizeInBytes) + minimumAccountSizeInBytes); // 1 account + 3 token accounts + 1 wake account
             totalAmountNeededForsSwapsInLamports = swapsCount * 20000000; //20 million
             flatFeeInLamports = 0;
             percentFee = 0;
