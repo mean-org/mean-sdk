@@ -27,7 +27,7 @@ export const getSwapTx = async (
   let wrappedSolAccount: Account | null = null;
   let wrappedSolAccount2: Account | null = null;
 
-  if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
+  if (fromCoinMint.equals(WRAPPED_SOL_MINT)) {
 
     wrappedSolAccount = new Account();
 
@@ -65,22 +65,7 @@ export const getSwapTx = async (
     );
   }
 
-  const toTokenAccountInfo = await connection.getAccountInfo(toTokenAccount);
-
-  if (!toTokenAccountInfo) {
-    tx.add(
-      Token.createAssociatedTokenAccountInstruction(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        toCoinMint,
-        toTokenAccount,
-        owner,
-        owner
-      )
-    );
-  }
-
-  if (toCoinMint.equals(NATIVE_SOL_MINT)) {
+  if (toCoinMint.equals(WRAPPED_SOL_MINT)) {
 
     wrappedSolAccount2 = new Account();
 
@@ -101,6 +86,21 @@ export const getSwapTx = async (
     );
 
     signers.push(wrappedSolAccount2);
+  }
+
+  const toTokenAccountInfo = await connection.getAccountInfo(toTokenAccount);
+
+  if (!toTokenAccountInfo) {
+    tx.add(
+      Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        toCoinMint,
+        toTokenAccount,
+        owner,
+        owner
+      )
+    );
   }
 
   // Swap ix

@@ -21,8 +21,6 @@ export const getClients = async (
     )
   ];
 
-  console.log('pools', pools);
-
   const market = await getMarket(connection, from, to);
 
   if (market) {
