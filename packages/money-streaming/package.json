@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/money-streaming",
-  "version": "1.5.0",
+  "version": "1.5.2",
   "description": "",
   "private": false,
   "repository": {
@@ -52,9 +52,11 @@
   },
   "homepage": "https://github.com/mean-dao/mean-sdk#readme",
   "types": "lib/index.d.ts",
+  "main": "lib/index.js",
   "files": [
     "lib/*.*"
   ],
+  "type": "commonjs",
   "author": "",
   "license": "ISC",
   "scripts": {

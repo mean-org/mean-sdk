@@ -99,12 +99,9 @@ export class MoneyStreaming {
   ): Promise<StreamInfo> {
 
     let copyStreamInfo = Object.assign({}, streamInfo);
-
     const currentTime = Date.parse(new Date().toUTCString()) / 1000;
-    const lastRetrievedElapsedTime = currentTime - copyStreamInfo.lastRetrievedBlockTime;
-    const fiveMin = 5 * 60;
 
-    if (hardUpdate || lastRetrievedElapsedTime > fiveMin) {
+    if (hardUpdate) {
 
       const streamId = typeof copyStreamInfo.id === 'string' 
         ? new PublicKey(copyStreamInfo.id) 
@@ -682,7 +679,7 @@ export class MoneyStreaming {
     let txSigners: Array<Signer> = new Array<Signer>();
 
     const now = new Date();
-    const start = !startUtc ? now : new Date(startUtc.toLocaleString());
+    const start = !startUtc ? now : startUtc;
     const treasurerTokenKey = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -782,6 +779,8 @@ export class MoneyStreaming {
       // Create stream account since the OTP is scheduled
       const streamAccount = Keypair.generate();
       txSigners.push(streamAccount);
+      const startUtc = new Date();
+      startUtc.setMinutes(startUtc.getMinutes() + startUtc.getTimezoneOffset());
 
       // Create stream contract
       ixs.push(
@@ -796,7 +795,7 @@ export class MoneyStreaming {
           streamName || "",
           0,
           0,
-          startUtc ? startUtc.getTime() : Date.parse(now.toUTCString()),
+          startUtc.getTime(),
           0,
           0,
           100,
