@@ -970,7 +970,7 @@ export class DdcaClient {
         return this.rpcVersion;
     }
 
-    public async getActivity(ddcaAccountAddress: PublicKey | string, includeFailed: boolean = false): Promise<DdcaActivity[]> {
+    public async getActivity(ddcaAccountAddress: PublicKey | string, limit: number = 5, includeFailed: boolean = false): Promise<DdcaActivity[]> {
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
         if(ddcaAccount === null)
             return [];
@@ -978,12 +978,14 @@ export class DdcaClient {
         if (typeof ddcaAccountAddress === "string") {
             ddcaAccountAddress = new PublicKey(ddcaAccountAddress);
         }
-        const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: 5 }, 'finalized');
+        const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: limit }, 'finalized');
+        console.log("confirmedSignatures:", confirmedSignatures)
 
         let confirmedTxs: Array<anchor.web3.ParsedConfirmedTransaction | null> | null = null;
         try {
             confirmedTxs = await this.connection.getParsedConfirmedTransactions(confirmedSignatures.map(tx => tx.signature), 'finalized');
         } catch (error) { }
+        console.log("confirmedTxs:", confirmedTxs)
 
         if(!confirmedTxs || confirmedTxs.length === 0){
             confirmedTxs = []
@@ -1000,6 +1002,7 @@ export class DdcaClient {
             }
             try {
                 let ddcaActivity = this.parseTransaction(tx, ddcaAccount);
+                console.log("ddcaActivity:", ddcaActivity)
                 if(ddcaActivity && (includeFailed || ddcaActivity.succeeded)){
                     ddcaActivities.push(ddcaActivity);
                 }
@@ -1083,7 +1086,7 @@ export class DdcaClient {
             }
 
             return {
-                succeeded: !tx.meta || tx.meta.err !== null,
+                succeeded: (tx.meta !== null && tx.meta !== undefined) && !tx.meta.err,
                 action: action,
                 fromMint: fromMint,
                 fromAmount: fromUiAmountDelta ? Math.abs(fromUiAmountDelta): fromUiAmountDelta,
