@@ -968,7 +968,7 @@ export class DdcaClient {
         return this.rpcVersion;
     }
 
-    public async getActivity(ddcaAccountAddress: PublicKey | string): Promise<DdcaActivity[]> {
+    public async getActivity(ddcaAccountAddress: PublicKey | string, includeFailed: boolean = false): Promise<DdcaActivity[]> {
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
         if(ddcaAccount === null)
             return [];
@@ -977,11 +977,6 @@ export class DdcaClient {
             ddcaAccountAddress = new PublicKey(ddcaAccountAddress);
         }
         const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: 5 }, 'finalized');
-
-        // const rpcVersion = await this.getRpcVersion();
-        // if(rpcVersion['solana-core']){
-        //     //TODO
-        // }
 
         let confirmedTxs: Array<anchor.web3.ParsedConfirmedTransaction | null> | null = null;
         try {
@@ -1003,7 +998,7 @@ export class DdcaClient {
             }
             try {
                 let ddcaActivity = this.parseTransaction(tx, ddcaAccount);
-                if(ddcaActivity){
+                if(ddcaActivity && (includeFailed || ddcaActivity.succeeded)){
                     ddcaActivities.push(ddcaActivity);
                 }
             } catch (error) {
@@ -1086,6 +1081,7 @@ export class DdcaClient {
             }
 
             return {
+                succeeded: !tx.meta || tx.meta.err !== null,
                 action: action,
                 fromMint: fromMint,
                 fromAmount: fromUiAmountDelta ? Math.abs(fromUiAmountDelta): fromUiAmountDelta,

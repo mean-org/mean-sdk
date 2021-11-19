@@ -87,6 +87,7 @@ export type HlaInfo = {
  * DDCA activity
  */
 export type DdcaActivity = {
+    succeeded: boolean
     transactionSignature: string,
     action: DdcaAction;
     fromMint: string | null;
