@@ -1,5 +1,13 @@
 import { AccountMeta, PublicKey, Transaction } from "@solana/web3.js"
 
+export const HLA_PROGRAM = new PublicKey(
+  'B6gLd2uyVQLZMdC1s9C4WR7ZP9fMhJNh7WZYcsibuzN3'
+);
+
+export const HLA_OPS = new PublicKey(
+  'FZMd4pn9FsvMC55D4XQfaexJvKBtQpVuqMk5zuonLRDX'
+);
+
 export const MSP_OPS = new PublicKey(
   'CLazQV1BhSrxfgRHko4sC8GYBU3DoHcX4xxRZd12Kohr'
 );
