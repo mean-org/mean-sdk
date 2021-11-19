@@ -101,8 +101,16 @@ export const TOKENS: Tokens = {
     referrer: 'G7gyaTNn2hgjF67SWs4Ee9PEaFU2xadhtXL8HmkJ2cNL',
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4dmKkXNHdgYsXqBHCuMikNQWwVomZURhYvkkX5c4pQ7y/logo.png",
     tags: ['raydium']
+  },
+  PORT: {
+    symbol: "PORT",
+    name: "Port Finance Token",
+    address: "PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y",  
+    decimals: 6,
+    referrer: '5Ve8q9fb7R2DhdqGV4o1RVy7xxo4D6ifQfbxGiASdxEH',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y/PORT.png",
+    tags: ['raydium']
   }
-
 }
 
 export const LP_TOKENS: Tokens = {
@@ -294,5 +302,14 @@ export const LP_TOKENS: Tokens = {
 
     address: '2k4quTuuLUxrSEhFH99qcoZzvgvVEc3b5sz3xz3qstfS',
     decimals: TOKENS.SNY.decimals
+  },
+  'PORT-USDC-V4': {
+    symbol: 'PORT-USDC',
+    name: 'PORT-USDC LP',
+    coin: { ...TOKENS.PORT },
+    pc: { ...TOKENS.USDC },
+
+    address: '9tmNtbUCrLS15qC4tEfr5NNeqcqpZ4uiGgi2vS5CLQBS',
+    decimals: TOKENS.PORT.decimals
   }
 }
