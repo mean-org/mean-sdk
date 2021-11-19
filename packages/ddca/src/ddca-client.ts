@@ -979,13 +979,11 @@ export class DdcaClient {
             ddcaAccountAddress = new PublicKey(ddcaAccountAddress);
         }
         const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: limit }, 'finalized');
-        console.log("confirmedSignatures:", confirmedSignatures)
 
         let confirmedTxs: Array<anchor.web3.ParsedConfirmedTransaction | null> | null = null;
         try {
             confirmedTxs = await this.connection.getParsedConfirmedTransactions(confirmedSignatures.map(tx => tx.signature), 'finalized');
         } catch (error) { }
-        console.log("confirmedTxs:", confirmedTxs)
 
         if(!confirmedTxs || confirmedTxs.length === 0){
             confirmedTxs = []
@@ -1002,7 +1000,6 @@ export class DdcaClient {
             }
             try {
                 let ddcaActivity = this.parseTransaction(tx, ddcaAccount);
-                console.log("ddcaActivity:", ddcaActivity)
                 if(ddcaActivity && (includeFailed || ddcaActivity.succeeded)){
                     ddcaActivities.push(ddcaActivity);
                 }
