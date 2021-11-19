@@ -826,7 +826,7 @@ export class DdcaClient {
         return closeTx;
     }
 
-    public async listDdcas(stortByStartTs: boolean = true, desc: boolean = true) {
+    public async listDdcas(stortByStartTs: boolean = true, desc: boolean = true): Promise<Array<DdcaAccount>> {
 
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.ownerAccountAddress.toBuffer());
         const results: Array<DdcaAccount> = ddcaAccounts.map(x => {
@@ -850,12 +850,14 @@ export class DdcaClient {
         
         if (stortByStartTs) {
             if (desc) {
-                return results.sort((a, b) => b.startTs - a.startTs);
+                results.sort((a, b) => b.startTs - a.startTs);
             }
             else {
-                return results.sort((a, b) => a.startTs - b.startTs);
+                results.sort((a, b) => a.startTs - b.startTs);
             }
         }
+
+        return results;
     }
 
     public async getDdca(ddcaAccountAddress: PublicKey): Promise<DdcaDetails | null> {
