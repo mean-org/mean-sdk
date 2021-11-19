@@ -12,7 +12,7 @@ export interface DdcaAccount {
     fromMint: string;
     toMint: string;
     totalDepositsAmount: number;
-    startTs?: number;
+    startTs: number;
     createdSlot: number;
     amountPerSwap: number;
     intervalInSeconds: number;

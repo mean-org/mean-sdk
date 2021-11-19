@@ -826,10 +826,10 @@ export class DdcaClient {
         return closeTx;
     }
 
-    public async listDdcas() {
+    public async listDdcas(stortByStartTs: boolean = true, desc: boolean = true) {
 
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.ownerAccountAddress.toBuffer());
-        return ddcaAccounts.map(x => {
+        const results: Array<DdcaAccount> = ddcaAccounts.map(x => {
             const values: DdcaAccount = {
                 ddcaAccountAddress: x.publicKey.toBase58(),
                 fromMint: x.account.fromMint.toBase58(),
@@ -847,6 +847,15 @@ export class DdcaClient {
             };
             return values;
         });
+        
+        if (stortByStartTs) {
+            if (desc) {
+                return results.sort((a, b) => b.startTs - a.startTs);
+            }
+            else {
+                return results.sort((a, b) => a.startTs - b.startTs);
+            }
+        }
     }
 
     public async getDdca(ddcaAccountAddress: PublicKey): Promise<DdcaDetails | null> {
