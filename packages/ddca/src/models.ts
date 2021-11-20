@@ -12,7 +12,7 @@ export interface DdcaAccount {
     fromMint: string;
     toMint: string;
     totalDepositsAmount: number;
-    startTs?: number;
+    startTs: number;
     createdSlot: number;
     amountPerSwap: number;
     intervalInSeconds: number;
@@ -87,6 +87,7 @@ export type HlaInfo = {
  * DDCA activity
  */
 export type DdcaActivity = {
+    succeeded: boolean
     transactionSignature: string,
     action: DdcaAction;
     fromMint: string | null;
