@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import {
+ import {
   Commitment,
   Connection,
   ConnectionConfig,
@@ -263,9 +263,12 @@ export class MoneyStreaming {
       throw Error(Errors.AccountNotFound);
     }
 
-    const contributorTokenKey = await Utils.findATokenAddress(
+    const contributorTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      contributorMint,
       contributor,
-      contributorMint
+      true
     );
 
     const beneficiaryMintKey = new PublicKey(
@@ -283,9 +286,12 @@ export class MoneyStreaming {
       throw Error(`${Errors.AccountNotFound}: Treasury account not found`);
     }
 
-    const treasuryTokenKey = await Utils.findATokenAddress(
+    const treasuryTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      contributorMint,
       treasuryKey,
-      contributorMint
+      true
     );
 
     const treasuryMint = new PublicKey(
@@ -328,9 +334,12 @@ export class MoneyStreaming {
       streamInfo.associatedToken as string
     );
 
-    const beneficiaryTokenKey = await Utils.findATokenAddress(
+    const beneficiaryTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMintKey,
       beneficiary,
-      beneficiaryMintKey
+      true
     );
 
     const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(
@@ -339,24 +348,32 @@ export class MoneyStreaming {
 
     if (!beneficiaryTokenAccountInfo) {
       ixs.push(
-        await Instructions.createATokenAccountInstruction(
+        Token.createAssociatedTokenAccountInstruction(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          beneficiaryMintKey,
           beneficiaryTokenKey,
           beneficiary,
-          beneficiaryTokenKey,
-          beneficiaryMintKey
+          beneficiary
         )
       );
     }
 
     const treasuryKey = new PublicKey(streamInfo.treasuryAddress as PublicKey);
-    const treasuryTokenKey = await Utils.findATokenAddress(
+    const treasuryTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMintKey,
       treasuryKey,
-      beneficiaryMintKey
+      true
     );
 
-    const mspOpsTokenKey = await Utils.findATokenAddress(
+    const mspOpsTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMintKey,
       this.mspOps,
-      beneficiaryMintKey
+      true
     );
 
     ixs.push(
@@ -460,13 +477,16 @@ export class MoneyStreaming {
       streamInfo.beneficiaryAddress as string
     );
 
-    const beneficiaryMintKey = new PublicKey(
+    const beneficiaryMint = new PublicKey(
       streamInfo.associatedToken as string
     );
 
-    const beneficiaryTokenKey = await Utils.findATokenAddress(
+    const beneficiaryTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMint,
       beneficiaryKey,
-      beneficiaryMintKey
+      true
     );
 
     const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(
@@ -479,27 +499,36 @@ export class MoneyStreaming {
           beneficiaryTokenKey,
           initializer,
           beneficiaryKey,
-          beneficiaryMintKey
+          beneficiaryMint
         )
       );
     }
 
     const treasurerKey = new PublicKey(streamInfo.treasurerAddress as string);
-    const treasurerTokenKey = await Utils.findATokenAddress(
+    const treasurerTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMint,
       treasurerKey,
-      beneficiaryMintKey
+      true
     );
 
     const treasuryKey = new PublicKey(streamInfo.treasuryAddress as string);
-    const treasuryTokenKey = await Utils.findATokenAddress(
+    const treasuryTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMint,
       treasuryKey,
-      beneficiaryMintKey
+      true
     );
 
     // Get the money streaming program operations token account or create a new one
-    const mspOpsTokenKey = await Utils.findATokenAddress(
+    const mspOpsTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      beneficiaryMint,
       this.mspOps,
-      beneficiaryMintKey
+      true
     );
 
     tx.add(
@@ -509,7 +538,7 @@ export class MoneyStreaming {
         initializer,
         treasurerTokenKey,
         beneficiaryTokenKey,
-        beneficiaryMintKey,
+        beneficiaryMint,
         treasuryKey,
         treasuryTokenKey,
         streamKey,
@@ -757,9 +786,12 @@ export class MoneyStreaming {
         await PublicKey.findProgramAddress(treasurySeeds, this.programId)
       )[0];
 
-      const treasuryTokenKey = await Utils.findATokenAddress(
+      const treasuryTokenKey = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        beneficiaryMint,
         treasury,
-        beneficiaryMint
+        true
       );
 
       // Initialize the treasury
@@ -1004,9 +1036,12 @@ export class MoneyStreaming {
 
     let ixs: TransactionInstruction[] = [];
     // Get the money streaming program operations token account or create a new one
-    const contributorTreasuryTokenKey = await Utils.findATokenAddress(
+    const contributorTreasuryTokenKey = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      treasuryMint,
       contributor,
-      treasuryMint
+      true
     );
 
     ixs.push(

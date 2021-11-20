@@ -826,10 +826,10 @@ export class DdcaClient {
         return closeTx;
     }
 
-    public async listDdcas() {
+    public async listDdcas(stortByStartTs: boolean = true, desc: boolean = true): Promise<Array<DdcaAccount>> {
 
         const ddcaAccounts = await this.program.account.ddcaAccount.all(this.ownerAccountAddress.toBuffer());
-        return ddcaAccounts.map(x => {
+        const results: Array<DdcaAccount> = ddcaAccounts.map(x => {
             const values: DdcaAccount = {
                 ddcaAccountAddress: x.publicKey.toBase58(),
                 fromMint: x.account.fromMint.toBase58(),
@@ -847,6 +847,17 @@ export class DdcaClient {
             };
             return values;
         });
+        
+        if (stortByStartTs) {
+            if (desc) {
+                results.sort((a, b) => b.startTs - a.startTs);
+            }
+            else {
+                results.sort((a, b) => a.startTs - b.startTs);
+            }
+        }
+
+        return results;
     }
 
     public async getDdca(ddcaAccountAddress: PublicKey): Promise<DdcaDetails | null> {
@@ -959,7 +970,7 @@ export class DdcaClient {
         return this.rpcVersion;
     }
 
-    public async getActivity(ddcaAccountAddress: PublicKey | string): Promise<DdcaActivity[]> {
+    public async getActivity(ddcaAccountAddress: PublicKey | string, limit: number = 5, includeFailed: boolean = false): Promise<DdcaActivity[]> {
         const ddcaAccount = await this.program.account.ddcaAccount.fetch(ddcaAccountAddress);
         if(ddcaAccount === null)
             return [];
@@ -967,12 +978,7 @@ export class DdcaClient {
         if (typeof ddcaAccountAddress === "string") {
             ddcaAccountAddress = new PublicKey(ddcaAccountAddress);
         }
-        const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: 5 }, 'finalized');
-
-        // const rpcVersion = await this.getRpcVersion();
-        // if(rpcVersion['solana-core']){
-        //     //TODO
-        // }
+        const confirmedSignatures = await this.connection.getSignaturesForAddress(ddcaAccountAddress, { limit: limit }, 'finalized');
 
         let confirmedTxs: Array<anchor.web3.ParsedConfirmedTransaction | null> | null = null;
         try {
@@ -994,7 +1000,7 @@ export class DdcaClient {
             }
             try {
                 let ddcaActivity = this.parseTransaction(tx, ddcaAccount);
-                if(ddcaActivity){
+                if(ddcaActivity && (includeFailed || ddcaActivity.succeeded)){
                     ddcaActivities.push(ddcaActivity);
                 }
             } catch (error) {
@@ -1077,6 +1083,7 @@ export class DdcaClient {
             }
 
             return {
+                succeeded: (tx.meta !== null && tx.meta !== undefined) && !tx.meta.err,
                 action: action,
                 fromMint: fromMint,
                 fromAmount: fromUiAmountDelta ? Math.abs(fromUiAmountDelta): fromUiAmountDelta,
