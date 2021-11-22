@@ -29,6 +29,7 @@ import {
   SystemProgram,
   ParsedConfirmedTransaction,
   Keypair,
+  GetProgramAccountsConfig,
 
 } from "@solana/web3.js";
 
@@ -572,7 +573,13 @@ export async function listStreams(
 ): Promise<StreamInfo[]> {
 
   let streams: StreamInfo[] = [];
-  const accounts = await connection.getProgramAccounts(programId, commitment);
+
+  const configOrCommitment: GetProgramAccountsConfig = {
+    commitment,
+    filters: [{ dataSize: Layout.streamLayout.span }]
+  };
+  
+  const accounts = await connection.getProgramAccounts(programId, configOrCommitment);  
 
   if (accounts === null || !accounts.length) {
     return streams;
@@ -582,7 +589,7 @@ export async function listStreams(
   let currentBlockTime = await connection.getBlockTime(slot);
 
   for (let item of accounts) {
-    if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
+    if (item.account.lamports > 0 && item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
       let included = false;
       let info = Object.assign({},
         parseStreamData(

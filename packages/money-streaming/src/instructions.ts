@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import {
+ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID
 
@@ -54,7 +54,7 @@ export const createStreamInstruction = async (
   beneficiaryMint: PublicKey,
   stream: PublicKey,
   mspOps: PublicKey,
-  streamName: String,
+  streamName: string,
   rateAmount: number,
   rateIntervalInSeconds: number,
   startUtcNow: number,
@@ -78,9 +78,10 @@ export const createStreamInstruction = async (
 
   let data = Buffer.alloc(Layout.createStreamLayout.span);
   {
+    const encodedUIntArray = new TextEncoder().encode(streamName);
     let nameBuffer = Buffer
       .alloc(32)
-      .fill(streamName as string, 0, (streamName as string).length);
+      .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
 
     let startDateValue = new Date();
     startDateValue.setTime(startUtcNow);
@@ -344,11 +345,10 @@ export const proposeUpdateInstruction = async (
 
   let data = Buffer.alloc(Layout.proposeUpdateLayout.span);
   {
-    let nameBuffer = Buffer.alloc(32).fill(
-      streamName as string,
-      0,
-      (streamName as string).length
-    );
+    const encodedUIntArray = new TextEncoder().encode(streamName);
+    let nameBuffer = Buffer
+      .alloc(32)
+      .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
 
     const decodedData = {
       tag: 6,
