@@ -14,9 +14,9 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID, NATIVE_MINT as WR
 import * as anchor from "@project-serum/anchor";
 import { BN } from "@project-serum/anchor";
 import { Wallet } from "@project-serum/anchor/src/provider";
-import { CrankAccount, DdcaAccount, DdcaAction, DdcaActivity, DdcaDetails, HlaInfo, SOL_MINT, SOL_MINT_DECIMALS, tempoHeaders } from '.';
+import { CrankAccount, DdcaAccount, DdcaAction, DdcaActivity, DdcaDetails, HlaInfo, SOL_MINT, SOL_MINT_DECIMALS, tempoHeaders, UpdateTransactionResponse } from '.';
 import { parseIdlErrors, ProgramError } from '@project-serum/anchor';
-import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
+import { base64, bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 import idl from './idl.json';
 
 // CONSTANTS
@@ -802,6 +802,7 @@ export class DdcaClient {
                 accounts: {
                     // owner
                     ownerAccount: this.ownerAccountAddress,
+                    wakeAccount: ddcaAccountToClose.wakeAccAddr,
                     ownerFromTokenAccount: ownerFromTokenAccountAddress,
                     ownerToTokenAccount: ownerToTokenAccountAddress,
                     // ddca
@@ -814,6 +815,7 @@ export class DdcaClient {
                     operatingToTokenAccount: ddcaOperatingToTokenAccountAddress,
                     // system accounts
                     tokenProgram: TOKEN_PROGRAM_ID,
+                    systemProgram: SYSTEM_PROGRAM_ID,
                 },
                 instructions: ixs,
             }
@@ -824,6 +826,19 @@ export class DdcaClient {
         closeTx.recentBlockhash = hash.blockhash;
 
         return closeTx;
+    }
+
+    public async updateCloseTx(ddcaAccountAddress: PublicKey, closeTxSignedByOwner: Transaction): Promise<Transaction> {
+        if(!closeTxSignedByOwner) {
+            throw Error("Invalid close transaction");
+        }
+
+        const closeTxSerialized = closeTxSignedByOwner.serialize({requireAllSignatures: false});
+        const b64CloseTx = base64.encode(closeTxSerialized)
+        const b64CloseTxUpdated = await this.sendCloseTxUpdateRequest(ddcaAccountAddress, b64CloseTx);
+        const closeTxUpdatedBytes = base64.decode(b64CloseTxUpdated);
+        const closeTxUpdated = Transaction.from(closeTxUpdatedBytes);
+        return closeTxUpdated;
     }
 
     public async listDdcas(stortByStartTs: boolean = true, desc: boolean = true): Promise<Array<DdcaAccount>> {
@@ -1108,11 +1123,37 @@ export class DdcaClient {
         try {
             const response = await fetch(url, options)
             if (response.status !== 200) {
-                throw new Error("Unable to crete crank account");
+                throw new Error("Unable to create crank account");
             }
 
             const crankAddress = (await response.json()) as CrankAccount;
             return new PublicKey(crankAddress.crankAddress);
+
+        } catch (error) {
+            throw (error);
+        }
+    }
+
+    private async sendCloseTxUpdateRequest(ddcaAddress: PublicKey, base64CloseTx: string): Promise<string> {
+        const options: RequestInit = {
+            method: "POST",
+            headers: tempoHeaders,
+            body: JSON.stringify({
+                ddcaAddress: ddcaAddress,
+                base64CloseTransaction: base64CloseTx,
+              }),
+        }
+
+        let url = `${this.tempoApiUrl}/ddca-close`;
+        
+        try {
+            const response = await fetch(url, options)
+            if (response.status !== 200) {
+                throw new Error("Unable to update close tx");
+            }
+
+            const updateCloseTxResponse = (await response.json()) as UpdateTransactionResponse;
+            return updateCloseTxResponse.base64CloseTransaction;
 
         } catch (error) {
             throw (error);
