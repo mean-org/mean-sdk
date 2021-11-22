@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/money-streaming",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "",
   "private": false,
   "repository": {
@@ -56,10 +56,8 @@
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
   "files": [
-    "lib/*.*",
-    "lib/**/*.*"
+    "lib/*.*"
   ],
-  "type": "commonjs",
   "author": "",
   "license": "ISC",
   "scripts": {

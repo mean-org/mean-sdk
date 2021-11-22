@@ -221,14 +221,12 @@ const parseStreamData = (
     state = STREAM_STATE.Ended;
   }
 
-  const decodedName = new TextDecoder().decode(nameBuffer);
-
   Object.assign(
     stream,
     { id: id },
     {
       initialized: decodedData.initialized ? true : false,
-      memo: decodeURIComponent(escape(decodedName)),
+      memo: new TextDecoder().decode(nameBuffer),
       treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
       rateAmount: decodedData.rate_amount,
       rateIntervalInSeconds: rateIntervalInSeconds,
@@ -284,7 +282,6 @@ const parseStreamTermsData = (
     return elem !== 0;
   });
 
-  const decodedName = new TextDecoder().decode(nameBuffer);
   const termsId = friendly === true ? id.toBase58() : id;
   const treasurerAddress = new PublicKey(decodedData.treasurer_address);
   const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
@@ -294,7 +291,7 @@ const parseStreamTermsData = (
     { id: termsId },
     {
       initialized: decodedData.initialized ? true : false,
-      memo: decodeURIComponent(escape(decodedName)),
+      memo: new TextDecoder().decode(nameBuffer),
       treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
       beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
       associatedToken: associatedToken,

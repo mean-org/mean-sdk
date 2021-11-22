@@ -196,7 +196,7 @@ export class MoneyStreaming {
     beneficiaryMint: PublicKey,
     amount: number,
     startUtc?: Date,
-    streamName?: String
+    streamName?: string
 
   ): Promise<Transaction> {
 
@@ -218,7 +218,7 @@ export class MoneyStreaming {
     rateAmount?: number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    streamName?: String,
+    streamName?: string,
     fundingAmount?: number,
     rateCliffInSeconds?: number,
     cliffVestAmount?: number,
@@ -700,7 +700,7 @@ export class MoneyStreaming {
     beneficiaryMint: PublicKey,
     amount: number,
     startUtc?: Date,
-    streamName?: String
+    streamName?: string
 
   ): Promise<Transaction> {
 
@@ -880,7 +880,7 @@ export class MoneyStreaming {
     rateAmount?: number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    streamName?: String,
+    streamName?: string,
     rateCliffInSeconds?: number,
     cliffVestAmount?: number,
     cliffVestPercent?: number,
