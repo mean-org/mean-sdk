@@ -29,6 +29,7 @@ import {
   SystemProgram,
   ParsedConfirmedTransaction,
   Keypair,
+  GetProgramAccountsConfig,
 
 } from "@solana/web3.js";
 
@@ -220,12 +221,14 @@ const parseStreamData = (
     state = STREAM_STATE.Ended;
   }
 
+  const decodedName = new TextDecoder().decode(nameBuffer);
+
   Object.assign(
     stream,
     { id: id },
     {
       initialized: decodedData.initialized ? true : false,
-      memo: new TextDecoder().decode(nameBuffer),
+      memo: decodeURIComponent(escape(decodedName)),
       treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
       rateAmount: decodedData.rate_amount,
       rateIntervalInSeconds: rateIntervalInSeconds,
@@ -281,6 +284,7 @@ const parseStreamTermsData = (
     return elem !== 0;
   });
 
+  const decodedName = new TextDecoder().decode(nameBuffer);
   const termsId = friendly === true ? id.toBase58() : id;
   const treasurerAddress = new PublicKey(decodedData.treasurer_address);
   const beneficiaryAddress = new PublicKey(decodedData.beneficiary_address);
@@ -290,7 +294,7 @@ const parseStreamTermsData = (
     { id: termsId },
     {
       initialized: decodedData.initialized ? true : false,
-      memo: new TextDecoder().decode(nameBuffer),
+      memo: decodeURIComponent(escape(decodedName)),
       treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
       beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
       associatedToken: associatedToken,
@@ -572,7 +576,13 @@ export async function listStreams(
 ): Promise<StreamInfo[]> {
 
   let streams: StreamInfo[] = [];
-  const accounts = await connection.getProgramAccounts(programId, commitment);
+
+  const configOrCommitment: GetProgramAccountsConfig = {
+    commitment,
+    filters: [{ dataSize: Layout.streamLayout.span }]
+  };
+  
+  const accounts = await connection.getProgramAccounts(programId, configOrCommitment);  
 
   if (accounts === null || !accounts.length) {
     return streams;
@@ -582,7 +592,7 @@ export async function listStreams(
   let currentBlockTime = await connection.getBlockTime(slot);
 
   for (let item of accounts) {
-    if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
+    if (item.account.lamports > 0 && item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
       let included = false;
       let info = Object.assign({},
         parseStreamData(

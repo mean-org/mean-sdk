@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import {
+ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID
 
@@ -78,9 +78,10 @@ export const createStreamInstruction = async (
 
   let data = Buffer.alloc(Layout.createStreamLayout.span);
   {
+    const nameStr = unescape(encodeURIComponent(streamName.trim()));
     let nameBuffer = Buffer
       .alloc(32)
-      .fill(streamName as string, 0, (streamName as string).length);
+      .fill(nameStr, 0, nameStr.length);
 
     let startDateValue = new Date();
     startDateValue.setTime(startUtcNow);
@@ -344,11 +345,10 @@ export const proposeUpdateInstruction = async (
 
   let data = Buffer.alloc(Layout.proposeUpdateLayout.span);
   {
-    let nameBuffer = Buffer.alloc(32).fill(
-      streamName as string,
-      0,
-      (streamName as string).length
-    );
+    const nameStr = unescape(encodeURIComponent((streamName as string).trim()));
+    let nameBuffer = Buffer
+      .alloc(32)
+      .fill(nameStr, 0, nameStr.length);
 
     const decodedData = {
       tag: 6,
