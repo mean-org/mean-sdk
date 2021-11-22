@@ -835,7 +835,7 @@ export class DdcaClient {
 
         const closeTxSerialized = closeTxSignedByOwner.serialize({requireAllSignatures: false});
         const b64CloseTx = base64.encode(closeTxSerialized)
-        const b64CloseTxUpdated = await this.sendCloseTxUpdateRequest(ddcaAccountAddress, b64CloseTx);
+        const b64CloseTxUpdated = await this.sendCloseTxUpdateRequest(ddcaAccountAddress.toBase58(), b64CloseTx);
         const closeTxUpdatedBytes = base64.decode(b64CloseTxUpdated);
         const closeTxUpdated = Transaction.from(closeTxUpdatedBytes);
         return closeTxUpdated;
@@ -1134,7 +1134,7 @@ export class DdcaClient {
         }
     }
 
-    private async sendCloseTxUpdateRequest(ddcaAddress: PublicKey, base64CloseTx: string): Promise<string> {
+    private async sendCloseTxUpdateRequest(ddcaAddress: string, base64CloseTx: string): Promise<string> {
         const options: RequestInit = {
             method: "POST",
             headers: tempoHeaders,
