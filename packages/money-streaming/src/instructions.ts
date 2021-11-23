@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import {
+ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID
 
@@ -24,28 +24,6 @@ import { u64Number } from "./u64n";
 import { Buffer } from "buffer";
 import { StreamInfo, StreamTermsInfo } from "./types";
 
-export const createATokenAccountInstruction = async (
-  tokenAddress: PublicKey,
-  fundingAddress: PublicKey,
-  ownerAddress: PublicKey,
-  splTokenMintAddress: PublicKey
-
-): Promise<TransactionInstruction> => {
-
-  return new TransactionInstruction({
-    keys: [
-      { pubkey: fundingAddress, isSigner: true, isWritable: true },
-      { pubkey: tokenAddress, isSigner: false, isWritable: true },
-      { pubkey: ownerAddress, isSigner: false, isWritable: false },
-      { pubkey: splTokenMintAddress, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-    ],
-    programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-  });
-};
-
 export const createStreamInstruction = async (
   programId: PublicKey,
   treasurer: PublicKey,
@@ -54,7 +32,7 @@ export const createStreamInstruction = async (
   beneficiaryMint: PublicKey,
   stream: PublicKey,
   mspOps: PublicKey,
-  streamName: String,
+  streamName: string,
   rateAmount: number,
   rateIntervalInSeconds: number,
   startUtcNow: number,
@@ -78,9 +56,10 @@ export const createStreamInstruction = async (
 
   let data = Buffer.alloc(Layout.createStreamLayout.span);
   {
+    const encodedUIntArray = new TextEncoder().encode(streamName);
     let nameBuffer = Buffer
       .alloc(32)
-      .fill(streamName as string, 0, (streamName as string).length);
+      .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
 
     let startDateValue = new Date();
     startDateValue.setTime(startUtcNow);
@@ -344,11 +323,10 @@ export const proposeUpdateInstruction = async (
 
   let data = Buffer.alloc(Layout.proposeUpdateLayout.span);
   {
-    let nameBuffer = Buffer.alloc(32).fill(
-      streamName as string,
-      0,
-      (streamName as string).length
-    );
+    const encodedUIntArray = new TextEncoder().encode(streamName);
+    let nameBuffer = Buffer
+      .alloc(32)
+      .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
 
     const decodedData = {
       tag: 6,

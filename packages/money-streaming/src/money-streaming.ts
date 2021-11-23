@@ -22,7 +22,7 @@ import * as Instructions from "./instructions";
 import * as Utils from "./utils";
 import * as Layout from "./layout";
 import { u64Number } from "./u64n";
-import { StreamInfo, StreamTermsInfo, STREAM_STATE, TreasuryInfo } from "./types";
+import { StreamInfo, StreamTermsInfo, TreasuryInfo } from "./types";
 import { Errors } from "./errors";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -196,7 +196,7 @@ export class MoneyStreaming {
     beneficiaryMint: PublicKey,
     amount: number,
     startUtc?: Date,
-    streamName?: String
+    streamName?: string
 
   ): Promise<Transaction> {
 
@@ -218,7 +218,7 @@ export class MoneyStreaming {
     rateAmount?: number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    streamName?: String,
+    streamName?: string,
     fundingAmount?: number,
     rateCliffInSeconds?: number,
     cliffVestAmount?: number,
@@ -495,11 +495,13 @@ export class MoneyStreaming {
 
     if (!beneficiaryTokenAccountInfo) {
       tx.add(
-        await Instructions.createATokenAccountInstruction(
+        Token.createAssociatedTokenAccountInstruction(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          beneficiaryMint,
           beneficiaryTokenKey,
-          initializer,
           beneficiaryKey,
-          beneficiaryMint
+          initializer
         )
       );
     }
@@ -700,7 +702,7 @@ export class MoneyStreaming {
     beneficiaryMint: PublicKey,
     amount: number,
     startUtc?: Date,
-    streamName?: String
+    streamName?: string
 
   ): Promise<Transaction> {
 
@@ -880,7 +882,7 @@ export class MoneyStreaming {
     rateAmount?: number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    streamName?: String,
+    streamName?: string,
     rateCliffInSeconds?: number,
     cliffVestAmount?: number,
     cliffVestPercent?: number,

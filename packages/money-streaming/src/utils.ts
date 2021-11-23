@@ -16,7 +16,6 @@ import {
 
 } from "@solana/spl-token";
 
-import { TokenInfo, TokenListProvider } from "@solana/spl-token-registry";
 import {
   Commitment,
   Connection,
@@ -29,6 +28,7 @@ import {
   SystemProgram,
   ParsedConfirmedTransaction,
   Keypair,
+  GetProgramAccountsConfig,
 
 } from "@solana/web3.js";
 
@@ -572,7 +572,13 @@ export async function listStreams(
 ): Promise<StreamInfo[]> {
 
   let streams: StreamInfo[] = [];
-  const accounts = await connection.getProgramAccounts(programId, commitment);
+
+  const configOrCommitment: GetProgramAccountsConfig = {
+    commitment,
+    filters: [{ dataSize: Layout.streamLayout.span }]
+  };
+  
+  const accounts = await connection.getProgramAccounts(programId, configOrCommitment);  
 
   if (accounts === null || !accounts.length) {
     return streams;
@@ -582,7 +588,7 @@ export async function listStreams(
   let currentBlockTime = await connection.getBlockTime(slot);
 
   for (let item of accounts) {
-    if (item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
+    if (item.account.lamports > 0 && item.account.data !== undefined && item.account.data.length === Layout.streamLayout.span) {
       let included = false;
       let info = Object.assign({},
         parseStreamData(
@@ -648,7 +654,7 @@ export async function listStreamsCached(
     );
   }  
 
-  return streams;
+  return streamList;
 }
 
 export async function getStreamContributors(
@@ -867,37 +873,6 @@ export function convertLocalDateToUTCIgnoringTimezone(date: Date) {
   );
 
   return new Date(timestamp);
-}
-
-export async function getTokenList(
-  cluster: string | number
-): Promise<TokenInfo[]> {
-  let chainId = 0;
-
-  switch (cluster) {
-    case "https://api.mainnet-beta.solana.com" || 101: {
-      chainId = 101;
-      break;
-    }
-    case "https://api.testnet.solana.com" || 102: {
-      chainId = 102;
-      break;
-    }
-    case "https://api.devnet.solana.com" || 103: {
-      chainId = 103;
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-
-  if (chainId === 0) return [] as Array<TokenInfo>;
-
-  const tokenListContainer = await new TokenListProvider().resolve();
-  const tokenList = tokenListContainer.filterByChainId(chainId).getList();
-
-  return tokenList;
 }
 
 export const calculateActionFees = async (
