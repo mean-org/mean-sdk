@@ -22,7 +22,7 @@ import * as Instructions from "./instructions";
 import * as Utils from "./utils";
 import * as Layout from "./layout";
 import { u64Number } from "./u64n";
-import { StreamInfo, StreamTermsInfo, STREAM_STATE, TreasuryInfo } from "./types";
+import { StreamInfo, StreamTermsInfo, TreasuryInfo } from "./types";
 import { Errors } from "./errors";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -495,11 +495,13 @@ export class MoneyStreaming {
 
     if (!beneficiaryTokenAccountInfo) {
       tx.add(
-        await Instructions.createATokenAccountInstruction(
+        Token.createAssociatedTokenAccountInstruction(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          beneficiaryMint,
           beneficiaryTokenKey,
-          initializer,
           beneficiaryKey,
-          beneficiaryMint
+          initializer
         )
       );
     }

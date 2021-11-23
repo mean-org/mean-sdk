@@ -16,7 +16,6 @@ import {
 
 } from "@solana/spl-token";
 
-import { TokenInfo, TokenListProvider } from "@solana/spl-token-registry";
 import {
   Commitment,
   Connection,
@@ -655,7 +654,7 @@ export async function listStreamsCached(
     );
   }  
 
-  return streams;
+  return streamList;
 }
 
 export async function getStreamContributors(
@@ -874,37 +873,6 @@ export function convertLocalDateToUTCIgnoringTimezone(date: Date) {
   );
 
   return new Date(timestamp);
-}
-
-export async function getTokenList(
-  cluster: string | number
-): Promise<TokenInfo[]> {
-  let chainId = 0;
-
-  switch (cluster) {
-    case "https://api.mainnet-beta.solana.com" || 101: {
-      chainId = 101;
-      break;
-    }
-    case "https://api.testnet.solana.com" || 102: {
-      chainId = 102;
-      break;
-    }
-    case "https://api.devnet.solana.com" || 103: {
-      chainId = 103;
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-
-  if (chainId === 0) return [] as Array<TokenInfo>;
-
-  const tokenListContainer = await new TokenListProvider().resolve();
-  const tokenList = tokenListContainer.filterByChainId(chainId).getList();
-
-  return tokenList;
 }
 
 export const calculateActionFees = async (
