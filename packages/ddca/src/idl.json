@@ -310,6 +310,11 @@
           "isSigner": true
         },
         {
+          "name": "wakeAccount",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "ownerFromTokenAccount",
           "isMut": true,
           "isSigner": false
@@ -351,6 +356,11 @@
         },
         {
           "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -482,6 +492,16 @@
       "code": 305,
       "name": "InvalidSwapSlippage",
       "msg": "Invalid swap slippage"
+    },
+    {
+      "code": 306,
+      "name": "InvalidInterval",
+      "msg": "Invalid interval"
+    },
+    {
+      "code": 307,
+      "name": "SwapAlreadyCompleted",
+      "msg": "A swap for this time window was already completed"
     }
   ],
   "metadata": {

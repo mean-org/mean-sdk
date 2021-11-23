@@ -1,6 +1,6 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Account, Connection, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
-import { WRAPPED_SOL_MINT } from "../types";
+import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
 import { TokenAmount } from "../safe-math";
 import { ACCOUNT_LAYOUT } from "../layouts";
 import BN from "bn.js";
@@ -50,6 +50,21 @@ export const getSwapTx = async (
     signers.push(wrappedSolAccount);
   }
 
+  const fromTokenAccountInfo = await connection.getAccountInfo(fromTokenAccount);
+
+  if (!fromTokenAccountInfo) {
+    tx.add(
+      Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        fromCoinMint,
+        fromTokenAccount,
+        owner,
+        owner
+      )
+    );
+  }
+
   if (toCoinMint.equals(WRAPPED_SOL_MINT)) {
 
     wrappedSolAccount2 = new Account();
@@ -71,21 +86,6 @@ export const getSwapTx = async (
     );
 
     signers.push(wrappedSolAccount2);
-  }
-
-  const fromTokenAccountInfo = await connection.getAccountInfo(fromTokenAccount);
-
-  if (!fromTokenAccountInfo) {
-    tx.add(
-      Token.createAssociatedTokenAccountInstruction(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        fromCoinMint,
-        fromTokenAccount,
-        owner,
-        owner
-      )
-    );
   }
 
   const toTokenAccountInfo = await connection.getAccountInfo(toTokenAccount);
@@ -129,11 +129,17 @@ export const getSwapTx = async (
     )
   )
 
+  let fromMint = fromCoinMint;
+
+  if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
+    fromMint = WRAPPED_SOL_MINT;
+  }
+
   // Transfer fees
   const feeAccountToken = await Token.getAssociatedTokenAddress(
     ASSOCIATED_TOKEN_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
-    fromCoinMint,
+    fromMint,
     feeAccount,
     true
   );
@@ -145,7 +151,7 @@ export const getSwapTx = async (
       Token.createAssociatedTokenAccountInstruction(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
-        fromCoinMint,
+        fromMint,
         feeAccountToken,
         feeAccount,
         owner

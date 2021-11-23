@@ -16,45 +16,22 @@ const initialize = () => {
 
   // init chains
   for (const chain of Chains) {
-    CHAINS.push({
-      id: chain.id,
-      name: chain.name,
-    });
+    CHAINS.push(Object.assign({}, chain));
   }
   
   // init tokens
   for (const token of Tokens) {
-    TOKENS.push({
-      chainId: token.chainId,
-      address: token.address,
-      name: token.name,
-      decimals: token.decimals,
-      symbol: token.symbol,
-      logoURI: token.logoURI
-    });
+    TOKENS.push(Object.assign({}, token));
   }
 
   // init protocols
   for (const protocol of Protocols) {
-    PROTOCOLS.push({
-      address: protocol.address,
-      name: protocol.name
-    });
+    PROTOCOLS.push(Object.assign({}, protocol));
   }
 
   // init amm pools
   for (const pool of Amm_Pools) {
-    if (pool as AmmPoolInfo) {
-      const ammPoolInfo = pool as AmmPoolInfo;
-      AMM_POOLS.push({
-        chainId: ammPoolInfo.chainId,
-        address: ammPoolInfo.address,
-        name: ammPoolInfo.name,
-        protocolAddress: ammPoolInfo.protocolAddress,
-        ammAddress: ammPoolInfo.ammAddress,
-        tokenAddresses: ammPoolInfo.tokenAddresses
-      });
-    }
+    AMM_POOLS.push(Object.assign({}, pool));
   }
 };
 

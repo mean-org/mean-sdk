@@ -12,7 +12,7 @@ export interface DdcaAccount {
     fromMint: string;
     toMint: string;
     totalDepositsAmount: number;
-    startTs?: number;
+    startTs: number;
     createdSlot: number;
     amountPerSwap: number;
     intervalInSeconds: number;
@@ -87,6 +87,7 @@ export type HlaInfo = {
  * DDCA activity
  */
 export type DdcaActivity = {
+    succeeded: boolean
     transactionSignature: string,
     action: DdcaAction;
     fromMint: string | null;
@@ -98,6 +99,7 @@ export type DdcaActivity = {
 }
 
 export const tempoHeaders = new Headers();
+tempoHeaders.append('content-type', 'application/json;charset=UTF-8');
 tempoHeaders.append('X-Api-Version', '1.0');
 // export const tempoRequestOptions: RequestInit = {
 //     headers: tempoHeaders
@@ -105,4 +107,8 @@ tempoHeaders.append('X-Api-Version', '1.0');
 
 export type CrankAccount = {
     crankAddress: string;
+}
+
+export type UpdateTransactionResponse = {
+    base64CloseTransaction: string;
 }

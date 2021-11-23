@@ -1,21 +1,21 @@
 import { Market, Orderbook } from "@project-serum/serum";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { AccountMeta, Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { AccountMeta, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import { getMultipleAccounts } from "../utils";
-import { NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
+import { HLA_PROGRAM, NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
 import { TokenAmount } from "../safe-math";
 import { PROTOCOLS } from "../data";
 import { ExchangeInfo, SERUM } from "../types";
 import { getOutAmount, placeOrderTx } from "./swap";
 import { SerumClient as Client } from "./types";
-import BN from "bn.js";
+import { _OPEN_ORDERS_LAYOUT_V2 } from "@project-serum/serum/lib/market";
 
 export class SerumClient implements Client {
 
   private connection: Connection;
   private marketAddress: string;
   private currentMarket: any;
-  private currentOrderbooks: any;
+  private currentOrderbooks: Orderbook[];
   private exchangeInfo: ExchangeInfo | undefined;
   private exchangeAccounts: AccountMeta[];
 
@@ -23,6 +23,7 @@ export class SerumClient implements Client {
     this.connection = connection;
     this.marketAddress = marketAddress;
     this.exchangeAccounts = [];
+    this.currentOrderbooks = [];
   }
 
   public get protocol() : PublicKey {
@@ -67,15 +68,12 @@ export class SerumClient implements Client {
       throw new Error('Serum market info not found');
     }
 
+    // console.log('this.currentMarket', this.currentMarket);
     await this.updateOrderbooks(this.currentMarket);
 
     const fromMint = from === this.currentMarket.baseMintAddress.toBase58() 
       ? this.currentMarket.baseMintAddress.toBase58() 
       : this.currentMarket.quoteMintAddress.toBase58();
-    
-    const fromDecimals = to === this.currentMarket.baseMintAddress.toBase58() 
-      ? this.currentMarket._quoteSplTokenDecimals 
-      : this.currentMarket._baseSplTokenDecimals;
 
     const toMint = to === this.currentMarket.quoteMintAddress.toBase58() 
       ? this.currentMarket.quoteMintAddress.toBase58() 
@@ -87,8 +85,8 @@ export class SerumClient implements Client {
 
     const priceAmount = 1;
     // always calculate the price based on the unit
-    const bids = (this.currentOrderbooks.filter((ob: any) => ob.isBids)[0]).slab;
     const asks = (this.currentOrderbooks.filter((ob: any) => !ob.isBids)[0]).slab;
+    const bids = (this.currentOrderbooks.filter((ob: any) => ob.isBids)[0]).slab;
 
     const { amountOut, amountOutWithSlippage, priceImpact } = getOutAmount(
       this.currentMarket,
@@ -96,7 +94,7 @@ export class SerumClient implements Client {
       bids,
       fromMint,
       toMint,
-      priceAmount.toString(),
+      priceAmount,
       slippage
     );
 
@@ -111,7 +109,7 @@ export class SerumClient implements Client {
       amountIn: amount,
       amountOut: !out.isNullOrZero() ? (+out.fixed() * amount): 0,
       minAmountOut: +outWithSlippage.fixed() * amount,
-      networkFees: 0.00001 + 3 * await Token.getMinBalanceRentForExemptAccount(this.connection) / (10 ** fromDecimals),
+      networkFees: 0.00001 + 3 * await Token.getMinBalanceRentForExemptAccount(this.connection) / LAMPORTS_PER_SOL,
       protocolFees: 0.3 * amount / 100
     };
 
@@ -130,10 +128,6 @@ export class SerumClient implements Client {
   ): Promise<Transaction> => {
     
     const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT.toBase58() : from;
-    const fromDecimals = fromMint === this.currentMarket.baseMintAddress.toBase58() 
-      ? this.currentMarket._baseSplTokenDecimals 
-      : this.currentMarket._quoteSplTokenDecimals;
-
     const fromAccount = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -164,10 +158,11 @@ export class SerumClient implements Client {
       new PublicKey(to),
       fromAccount,
       toAccount,
-      new BN(amountIn * 10 ** fromDecimals),
+      amountIn,
+      amountOut,
       slippage,
       new PublicKey(feeAddress),
-      new BN(feeAmount * 10 ** fromDecimals)
+      feeAmount
     );
 
     transaction.feePayer = owner;
@@ -225,8 +220,41 @@ export class SerumClient implements Client {
   private updateExchangeAccounts = async (from: string, to: string): Promise<void> => {
 
     try {
-      //TODO: Implement
-      this.exchangeAccounts = [] as AccountMeta[];
+      
+      if (!this.marketAddress || !this.currentMarket) {
+        throw new Error("Serum market not found.");
+      }
+
+      const marketAddressKey = new PublicKey(this.marketAddress);
+      const [vaultSigner] = await PublicKey.findProgramAddress(
+        [marketAddressKey.toBuffer()],
+        SERUM_PROGRAM_ID_V3,
+      );
+
+      const [openOrdersAccount] = await PublicKey.findProgramAddress(
+        [marketAddressKey.toBuffer()],
+        SERUM_PROGRAM_ID_V3,
+      );
+
+      this.exchangeAccounts = [
+        { pubkey: marketAddressKey, isSigner: false, isWritable: false },
+        { pubkey: SERUM_PROGRAM_ID_V3, isSigner: false, isWritable: false },
+        { pubkey: openOrdersAccount, isSigner: false, isWritable: true },
+        { pubkey: this.currentMarket.decoded.requestQueue, isSigner: false, isWritable: false },
+        { pubkey: this.currentMarket.decoded.eventQueue, isSigner: false, isWritable: false },
+        { pubkey: this.currentMarket.bidsAddress, isSigner: false, isWritable: false },
+        { pubkey: this.currentMarket.asksAddress, isSigner: false, isWritable: false },
+        { pubkey: this.currentMarket.decoded.baseVault, isSigner: false, isWritable: false },
+        { pubkey: this.currentMarket.decoded.quoteVault, isSigner: false, isWritable: false },
+        { pubkey: vaultSigner, isSigner: false, isWritable: false },
+        { pubkey: HLA_PROGRAM, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+
+      ] as AccountMeta[];
+
+      // console.log('this.exchangeAccounts', this.exchangeAccounts);
+
     } catch (_error) {
       throw _error;
     }

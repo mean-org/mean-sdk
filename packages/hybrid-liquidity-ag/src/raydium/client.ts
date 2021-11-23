@@ -7,7 +7,7 @@ import { LiquidityPoolInfo } from "./types";
 import { LIQUIDITY_POOL_PROGRAM_ID_V4, NATIVE_SOL_MINT, SERUM_PROGRAM_ID_V3, WRAPPED_SOL_MINT } from "../types";
 import { LP_TOKENS, TOKENS } from "./tokens";
 import { TokenAmount } from "../safe-math";
-import { getAmmPools, getMultipleAccounts } from "../utils";
+import { getMultipleAccounts } from "../utils";
 import { ACCOUNT_LAYOUT, AMM_INFO_LAYOUT, AMM_INFO_LAYOUT_V3, AMM_INFO_LAYOUT_V4, MINT_LAYOUT } from "../layouts";
 import { OpenOrders } from "@project-serum/serum";
 import { PROTOCOLS } from "../data";
@@ -128,16 +128,7 @@ export class RaydiumClient implements LPClient {
       throw new Error('Raydium pool info not found');
     }
 
-    if (from === WRAPPED_SOL_MINT.toBase58()) {
-      from = NATIVE_SOL_MINT.toBase58()
-    }
-
-    if (to === WRAPPED_SOL_MINT.toBase58()) {
-      to = NATIVE_SOL_MINT.toBase58();
-    }
-
     const fromMintToken = getTokenByMintAddress(from);
-    const toMintToken = getTokenByMintAddress(to);
     const fromDecimals = fromMintToken ? fromMintToken.decimals : 6;
     const fromMint = from === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(from);
 
@@ -149,6 +140,7 @@ export class RaydiumClient implements LPClient {
       true
     );
 
+    const toMintToken = getTokenByMintAddress(to);
     const toDecimals = toMintToken ? toMintToken.decimals : 6;
     const toMint = to === NATIVE_SOL_MINT.toBase58() ? WRAPPED_SOL_MINT : new PublicKey(to);
     const toAccount = await Token.getAssociatedTokenAddress(
@@ -392,18 +384,12 @@ export class RaydiumClient implements LPClient {
 
     try {
 
-      const ammPool = getAmmPools(
-        from, 
-        to, 
-        RAYDIUM.toBase58()
-      );
-      
-      if (!ammPool || ammPool.length === 0 || !this.currentPool) {
+      if (!this.poolAddress || !this.currentPool) {
         throw new Error("Raydium pool not found.");
       }
 
       this.exchangeAccounts = [
-        { pubkey: new PublicKey(ammPool[0].address), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(this.poolAddress), isSigner: false, isWritable: true },
         { pubkey: new PublicKey(this.currentPool.programId), isSigner: false, isWritable: false },
         { pubkey: new PublicKey(this.currentPool.ammId), isSigner: false, isWritable: true },
         { pubkey: new PublicKey(this.currentPool.ammAuthority), isSigner: false, isWritable: false },

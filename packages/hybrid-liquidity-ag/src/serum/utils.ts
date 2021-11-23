@@ -9,7 +9,7 @@ export const startMarkets = () => {
   for (const market of SERUM_MARKETS) {
     const address = market.address.toBase58();
     if (!market.deprecated && !markets.includes(address)) {
-      markets.push(address);
+      markets.push(market);
     }
   }
   return markets;
@@ -20,11 +20,11 @@ export const getMarkets = async (connection: Connection) => {
   try {
 
     let markets: any = { };
-    const marketAddresses = startMarkets();
+    const marketItems = startMarkets();
 
     const marketInfos = await getMultipleAccounts(
       connection,
-      marketAddresses.map((m) => new PublicKey(m)),
+      marketItems.map((m) => new PublicKey(m.address)),
       connection.commitment
     );
 

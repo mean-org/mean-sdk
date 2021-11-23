@@ -1,4 +1,4 @@
-import { AccountMeta, Connection, Keypair, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { AccountMeta, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Signer, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { ExchangeInfo, LPClient, MERCURIAL } from "../types";
 import { AMM_POOLS, PROTOCOLS } from "../data";
 import { MercurialPoolInfo } from "./types";
@@ -76,7 +76,7 @@ export class MercurialClient implements LPClient {
       amountIn: amount,
       amountOut: (outAmount + protocolFeeAmount) / this.USDX_POW,
       minAmountOut: minOutAmount / this.USDX_POW,
-      networkFees: 0,  
+      networkFees: 0.00005 + 2 * await Token.getMinBalanceRentForExemptAccount(this.connection) / LAMPORTS_PER_SOL,  
       protocolFees: protocolFeeAmount / this.USDX_POW
 
     } as ExchangeInfo;

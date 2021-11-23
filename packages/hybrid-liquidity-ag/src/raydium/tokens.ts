@@ -75,6 +75,34 @@ export const TOKENS: Tokens = {
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt/logo.png",
     tags: ['raydium']
   },
+  SLRS: {
+    symbol: 'SLRS',
+    name: 'SLRS',
+    address: 'SLRSSpSLUTP7okbCUBYStWCo1vUgyt775faPqz8HUMr',
+    decimals: 6,
+    referrer: 'AmqeHgTdm6kBzy5ewZFKuMAfbynZmhve1GQxbJzQFLbP',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/SLRSSpSLUTP7okbCUBYStWCo1vUgyt775faPqz8HUMr/logo.png",
+    tags: ['raydium']
+  },
+  GRAPE: {
+    symbol: 'GRAPE',
+    name: 'GRAPE',
+    address: '8upjSpvjcdpuzhfR1zriwg5NXkwDruejqNE9WNbPRtyA',
+    decimals: 6,
+    referrer: 'M4nDMB9krXbaNFPVu1DjrBTfqPUHbKEQLZSSDNH2JrL',
+    logoURI: "https://lh3.googleusercontent.com/y7Wsemw9UVBc9dtjtRfVilnS1cgpDt356PPAjne5NvMXIwWz9_x7WKMPH99teyv8vXDmpZinsJdgiFQ16_OAda1dNcsUxlpw9DyMkUk=s0",
+    tags: ['raydium']
+  },
+  SNY: {
+    symbol: 'SNY',
+    name: 'SNY',
+    address: '4dmKkXNHdgYsXqBHCuMikNQWwVomZURhYvkkX5c4pQ7y',
+    decimals: 6,
+    referrer: 'G7gyaTNn2hgjF67SWs4Ee9PEaFU2xadhtXL8HmkJ2cNL',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4dmKkXNHdgYsXqBHCuMikNQWwVomZURhYvkkX5c4pQ7y/logo.png",
+    tags: ['raydium']
+  }
+
 }
 
 export const LP_TOKENS: Tokens = {
@@ -221,5 +249,50 @@ export const LP_TOKENS: Tokens = {
 
     address: 'AKJHspCwDhABucCxNLXUSfEzb7Ny62RqFtC9uNjJi4fq',
     decimals: TOKENS.SRM.decimals
+  },
+  'SLRS-USDC-V4': {
+    symbol: 'SLRS-USDC',
+    name: 'SLRS-USDC LP',
+    coin: { ...TOKENS.SLRS },
+    pc: { ...TOKENS.USDC },
+
+    address: '2Xxbm1hdv5wPeen5ponDSMT3VqhGMTQ7mH9stNXm9shU',
+    decimals: TOKENS.SLRS.decimals
+  },
+  'SLRS-RAY-V4': {
+    symbol: 'SLRS-RAY',
+    name: 'SLRS-RAY LP',
+    coin: { ...TOKENS.SLRS },
+    pc: { ...TOKENS.RAY },
+
+    address: '2pk78vsKT3jfJAcN2zbpMUnrR57SZrxHqaZYyFgp92mM',
+    decimals: TOKENS.SLRS.decimals
+  },
+  'GRAPE-USDC-V4': {
+    symbol: 'GRAPE-USDC',
+    name: 'GRAPE-USDC LP',
+    coin: { ...TOKENS.GRAPE },
+    pc: { ...TOKENS.USDC },
+
+    address: 'A8ZYmnZ1vwxUa4wpJVUaJgegsuTEz5TKy5CiJXffvmpt',
+    decimals: TOKENS.GRAPE.decimals
+  },
+  'SNY-USDC-V4': {
+    symbol: 'SNY-USDC',
+    name: 'SNY-USDC LP',
+    coin: { ...TOKENS.SNY },
+    pc: { ...TOKENS.USDC },
+
+    address: 'G8qcfeFqxwbCqpxv5LpLWxUCd1PyMB5nWb5e5YyxLMKg',
+    decimals: TOKENS.SNY.decimals
+  },
+  'SNY-RAY-V4': {
+    symbol: 'SNY-RAY',
+    name: 'SNY-RAY LP',
+    coin: { ...TOKENS.SNY },
+    pc: { ...TOKENS.RAY },
+
+    address: '2k4quTuuLUxrSEhFH99qcoZzvgvVEc3b5sz3xz3qstfS',
+    decimals: TOKENS.SNY.decimals
   }
 }
