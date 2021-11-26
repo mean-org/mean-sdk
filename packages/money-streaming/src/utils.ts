@@ -457,14 +457,14 @@ export const getStreamCached = (
   let copyStreamInfo = Object.assign({}, streamInfo);
 
   const startDate = new Date();
-  startDate.setTime(parseFloat(
+  startDate.setTime(
     copyStreamInfo.startUtc !== undefined && 
     typeof copyStreamInfo.startUtc !== 'string'
-      ? copyStreamInfo.startUtc.toUTCString()
+      ? copyStreamInfo.startUtc.getTime()
       : copyStreamInfo.startUtc === undefined
-      ? new Date().toUTCString()
-      : copyStreamInfo.startUtc
-  ));
+      ? new Date().getTime()
+      : Date.parse(copyStreamInfo.startUtc)
+  );
 
   // refresh copy stream info
   let isStreaming = copyStreamInfo.streamResumedBlockTime >= copyStreamInfo.escrowVestedAmountSnapBlockTime ? 1 : 0;
