@@ -110,6 +110,15 @@ export const TOKENS: Tokens = {
     referrer: '5Ve8q9fb7R2DhdqGV4o1RVy7xxo4D6ifQfbxGiASdxEH',
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y/PORT.png",
     tags: ['raydium']
+  },
+  SLIM: {
+    symbol: 'SLIM',
+    name: 'SLIM',
+    address: 'xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW',
+    decimals: 6,
+    referrer: '',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW/logo.png",
+    tags: ['raydium']
   }
 }
 
@@ -311,5 +320,14 @@ export const LP_TOKENS: Tokens = {
 
     address: '9tmNtbUCrLS15qC4tEfr5NNeqcqpZ4uiGgi2vS5CLQBS',
     decimals: TOKENS.PORT.decimals
+  },
+  'SLIM-SOL-V4': {
+    symbol: 'SLIM-SOL',
+    name: 'SLIM-SOL LP',
+    coin: { ...TOKENS.SLIM },
+    pc: { ...NATIVE_SOL },
+
+    address: '9X4EK8E59VAVi6ChnNvvd39m6Yg9RtkBbAPq1mDVJT57',
+    decimals: TOKENS.SLIM.decimals
   }
 }

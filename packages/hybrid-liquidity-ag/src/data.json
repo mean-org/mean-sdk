@@ -164,6 +164,15 @@
       "extensions": {
         "serumV3Usdc": "8x8jf7ikJwgP9UthadtiGFgfFuyyyYPHL3obJAuxFWko"
       }
+    },
+    {
+      "chainId": 101,
+      "address": "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
+      "symbol": "SLIM",
+      "name": "Solanium",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW/logo.png",
+      "extensions": { }
     }
   ],
   "PROTOCOLS": [
@@ -618,6 +627,28 @@
       "name": "PORT_USDC",
       "tokenAddresses": [
         "PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y",
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "8idN93ZBpdtMp4672aS4GGMDy7LdVWCCXH7FKFdMw9P4",
+      "address": "9X4EK8E59VAVi6ChnNvvd39m6Yg9RtkBbAPq1mDVJT57",
+      "name": "SLIM-SOL LP",
+      "tokenAddresses": [
+        "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
+        "11111111111111111111111111111111"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "8JPid6GtND2tU3A7x7GDfPPEWwS36rMtzF7YoHU44UoA",
+      "address": "BVWwyiHVHZQMPHsiW7dZH7bnBVKmbxdeEjWqVRciHCyo",
+      "name": "SLIM_USDC",
+      "tokenAddresses": [
+        "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
         "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
       ]
     }
