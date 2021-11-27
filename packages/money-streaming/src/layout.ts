@@ -24,7 +24,7 @@ export const string = (property: string = "string"): Object => {
 /**
  * Stream layout
  */
-export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
+export const streamV0Layout: typeof BufferLayout.Structure = BufferLayout.struct([
   BufferLayout.u8("initialized"),
   string("stream_name"),
   publicKey("treasurer_address"),
@@ -52,7 +52,7 @@ export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
 /**
  * StreamV2 layout
  */
-export const streamV1Layout: typeof BufferLayout.Structure = BufferLayout.struct([
+export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
   BufferLayout.u8("initialized"),
   string("stream_name"),
   publicKey("treasurer_address"),
@@ -199,7 +199,7 @@ export const closeStreamLayout: typeof BufferLayout.Structure =
 /**
  * Treasury layout
  */
-export const treasuryLayout: typeof BufferLayout.Structure =
+export const treasuryV0Layout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("initialized"),
     uint64("treasury_block_height"),
@@ -210,7 +210,7 @@ export const treasuryLayout: typeof BufferLayout.Structure =
 /**
  * TreasuryV2 layout
  */
-export const treasuryV1Layout: typeof BufferLayout.Structure =
+export const treasuryLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("initialized"),
     uint64("slot"),

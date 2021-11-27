@@ -20,7 +20,7 @@
  */
 import * as Layout from "./layout";
 import { u64Number } from "./u64n";
-import { StreamInfo, ListStreamParams, StreamTermsInfo, StreamV1Info, TreasuryInfo, TreasuryV1Info } from "./types";
+import { StreamInfo, ListStreamParams, StreamTermsInfo, TreasuryInfo } from "./types";
 import { Errors } from "./errors";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -33,6 +33,7 @@ import { Constants } from "./constants";
 import { BN } from "bn.js";
 import { addFundsInstruction, answerUpdateInstruction, closeStreamInstruction, createStreamInstruction, createTreasuryInstruction, pauseStreamInstruction, proposeUpdateInstruction, resumeStreamInstruction, withdrawInstruction } from "./instructions";
 import { getMintAccount, getStream, getStreamCached, getStreamTerms, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
+import { listTreasuries } from ".";
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -96,7 +97,7 @@ export class MoneyStreaming {
     hardUpdate: boolean = false,
     friendly: boolean = true
 
-  ): Promise<StreamInfo | StreamV1Info> {
+  ): Promise<StreamInfo> {
 
     let copyStreamV1Info = Object.assign({}, streamInfo);
     const currentTime = Date.parse(new Date().toUTCString()) / 1000;
@@ -118,7 +119,7 @@ export class MoneyStreaming {
     commitment?: Commitment | undefined,
     friendly: boolean = true
 
-  ): Promise<TreasuryInfo | TreasuryV1Info> {
+  ): Promise<TreasuryInfo> {
 
     return await getTreasury(
       this.connection,
@@ -136,7 +137,7 @@ export class MoneyStreaming {
     commitment = "confirmed",
     friendly = true
 
-  }: ListStreamParams): Promise<(StreamInfo | StreamV1Info)[]> {
+  }: ListStreamParams): Promise<StreamInfo[]> {
     
     return await listStreams(
       this.connection,
@@ -150,7 +151,7 @@ export class MoneyStreaming {
   }
 
   public async refreshStreams(
-    streams: (StreamInfo | StreamV1Info)[],
+    streams: StreamInfo[],
     treasurer?: PublicKey | undefined,
     treasury?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
@@ -158,7 +159,7 @@ export class MoneyStreaming {
     hardUpdate: boolean = false,
     friendly: boolean = true
 
-  ): Promise<(StreamInfo | StreamV1Info)[]> {
+  ): Promise<StreamInfo[]> {
 
     if (hardUpdate) {
 
@@ -189,6 +190,22 @@ export class MoneyStreaming {
     return await listStreamActivity(
       this.connection,
       id,
+      commitment,
+      friendly
+    );
+  }
+
+  public async listTreasuries(
+    treasurer: PublicKey,
+    commitment?: Commitment | undefined,
+    friendly: boolean = true
+
+  ): Promise<TreasuryInfo[]> {
+
+    return listTreasuries(
+      this.programId,
+      this.connection,
+      treasurer,
       commitment,
       friendly
     );
@@ -314,6 +331,33 @@ export class MoneyStreaming {
         )
       );
 
+      if (amount && amount > 0) {
+        // Get the treasury token account
+        const treasuryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          associatedToken,
+          treasury,
+          true
+        );
+
+        ixs.push(
+          await addFundsInstruction(
+            this.programId,
+            treasurer,
+            treasurerToken,
+            treasurerTreasuryPoolToken,
+            treasury,
+            treasuryToken,
+            associatedToken,
+            treasuryPoolMint,
+            this.mspOps,
+            amount,
+            true
+          )
+        );
+      }
+
       // Create stream account since the OTP is scheduled
       const streamAccount = Keypair.generate();
       txSigners.push(streamAccount);
@@ -342,35 +386,6 @@ export class MoneyStreaming {
           0
         )
       );
-
-      if (amount && amount > 0) {
-
-        // Get the treasury token account
-        const treasuryToken = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          associatedToken,
-          treasury,
-          true
-        );
-
-        ixs.push(
-          await addFundsInstruction(
-            this.programId,
-            treasurer,
-            treasurerToken,
-            PublicKey.default,
-            associatedToken,
-            treasury,
-            treasuryToken,
-            PublicKey.default,
-            streamAccount.publicKey,
-            this.mspOps,
-            amount,
-            true
-          )
-        );
-      }
     }
 
     let tx = new Transaction().add(...ixs);
@@ -453,7 +468,7 @@ export class MoneyStreaming {
     treasurer: PublicKey,
     treasury: PublicKey | undefined,
     beneficiary: PublicKey,
-    beneficiaryMint: PublicKey,
+    associatedToken: PublicKey,
     rateAmount?: number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
@@ -472,7 +487,24 @@ export class MoneyStreaming {
       treasuryPoolMint: PublicKey = PublicKey.default,
       treasurerTreasuryPoolToken: PublicKey = PublicKey.default;
 
-    if (!treasury) {
+    if (treasury) {
+
+      const treasuryInfo: any = await getTreasury(
+        this.connection,
+        treasury
+      );
+
+      if (!treasuryInfo) {
+        throw Error(Errors.AccountNotFound);
+      }
+
+      if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+        throw Error(Errors.TokensDoNotMatch);
+      }
+
+      treasuryPoolMint = new PublicKey(treasuryInfo.mintAddress);
+
+    } else {
 
       const slot = await this.connection.getSlot(this.commitment as Commitment);
       const blockHeightBuffer = new u64Number(slot).toBuffer();
@@ -516,39 +548,12 @@ export class MoneyStreaming {
       );
     }
 
-    const streamAccount = Keypair.generate();
-    txSigners.push(streamAccount);
-    const startDate = startUtc ? startUtc : new Date();
-
-    // Create stream contract
-    ixs.push(
-      await createStreamInstruction(
-        this.programId,
-        treasurer,
-        treasury,
-        beneficiary,
-        beneficiaryMint,
-        streamAccount.publicKey,
-        this.mspOps,
-        streamName || "",
-        rateAmount || 0.0,
-        rateIntervalInSeconds || 0,
-        fundingAmount || 0,
-        fundingAmount || 0,
-        startDate.getTime(),
-        rateCliffInSeconds || 0,
-        cliffVestAmount || 0,
-        cliffVestPercent || 100,
-        autoPauseInSeconds || (rateAmount || 0) * (rateIntervalInSeconds || 0)
-      )
-    );
-
     if (fundingAmount && fundingAmount > 0) {
       // Get the treasurer token account
       const treasurerToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
-        beneficiaryMint,
+        associatedToken,
         treasurer,
         true
       );
@@ -566,7 +571,7 @@ export class MoneyStreaming {
       treasuryToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
-        beneficiaryMint,
+        associatedToken,
         treasury,
         true
       );
@@ -577,17 +582,43 @@ export class MoneyStreaming {
           treasurer,
           treasurerToken,
           treasurerTreasuryPoolToken,
-          beneficiaryMint,
           treasury,
           treasuryToken,
+          associatedToken,
           treasuryPoolMint,
-          streamAccount.publicKey,
           this.mspOps,
           fundingAmount,
           true
         )
       );
     }
+
+    const streamAccount = Keypair.generate();
+    txSigners.push(streamAccount);
+    const startDate = startUtc ? startUtc : new Date();
+
+    // Create stream contract
+    ixs.push(
+      await createStreamInstruction(
+        this.programId,
+        treasurer,
+        treasury,
+        beneficiary,
+        associatedToken,
+        streamAccount.publicKey,
+        this.mspOps,
+        streamName || "",
+        rateAmount || 0.0,
+        rateIntervalInSeconds || 0,
+        fundingAmount || 0,
+        fundingAmount || 0,
+        startDate.getTime(),
+        rateCliffInSeconds || 0,
+        cliffVestAmount || 0,
+        cliffVestPercent || 100,
+        autoPauseInSeconds || (rateAmount || 0) * (rateIntervalInSeconds || 0)
+      )
+    );
 
     let tx = new Transaction().add(...ixs);
     tx.feePayer = treasurer;
@@ -604,7 +635,6 @@ export class MoneyStreaming {
   public async addFunds(
     contributor: PublicKey,
     treasury: PublicKey,
-    stream: PublicKey,
     amount: number,
     resume = false
 
@@ -612,7 +642,10 @@ export class MoneyStreaming {
 
     let ixs: TransactionInstruction[] = [];
 
-    const treasuryInfo: any = getTreasury(this.connection, treasury);
+    const treasuryInfo: any = getTreasury(
+      this.connection, 
+      treasury
+    );
 
     if (!treasuryInfo) {
       throw Error(`${Errors.AccountNotFound}: Treasury account not found`);
@@ -651,11 +684,10 @@ export class MoneyStreaming {
         contributor,
         contributorToken,
         contributorTreasuryToken,
-        associatedToken,
         treasury,
         treasuryToken,
+        associatedToken,
         treasuryPoolMint,
-        stream,
         this.mspOps,
         amount,
         resume

@@ -80,20 +80,9 @@ export type StreamActivity = {
 };
 
 /**
- * Treasury info
- */
-export type TreasuryInfo = {
-  id: PublicKey | string | undefined;
-  initialized: boolean;
-  treasuryBlockHeight: number;
-  treasuryMintAddress: PublicKey | string | undefined;
-  treasuryBaseAddress: PublicKey | string | undefined;
-};
-
-/**
  * TreasuryV2 info
  */
- export type TreasuryV1Info = {
+ export type TreasuryInfo = {
   id: PublicKey | string;
   initialized: boolean;
   slot: number;
@@ -103,7 +92,8 @@ export type TreasuryInfo = {
   label: string;
   balance: number;
   allocationReserved: number;
-  allocationCommitted: number
+  allocationCommitted: number;
+  upgradeRequired: boolean
 };
 
 /**
@@ -138,46 +128,10 @@ export enum STREAM_STATE {
 /**
  * Stream info
  */
-export type StreamInfo = {
+ export type StreamInfo = {
   id: PublicKey | string | undefined;
   initialized: boolean;
-  memo: String;
-  treasurerAddress: PublicKey | string | undefined;
-  rateAmount: number;
-  rateIntervalInSeconds: number;
-  fundedOnUtc: Date | string | undefined;
-  startUtc: Date | string | undefined;
-  rateCliffInSeconds: number;
-  cliffVestAmount: number;
-  cliffVestPercent: number;
-  beneficiaryAddress: PublicKey | string | undefined;
-  associatedToken: PublicKey | string | undefined;
-  escrowVestedAmount: number;
-  escrowUnvestedAmount: number;
-  treasuryAddress: PublicKey | string | undefined;
-  escrowEstimatedDepletionUtc: Date | string | undefined;
-  totalDeposits: number;
-  totalWithdrawals: number;
-  escrowVestedAmountSnap: number;
-  escrowVestedAmountSnapBlockHeight: number;
-  escrowVestedAmountSnapBlockTime: number;
-  streamResumedBlockHeight: number;
-  streamResumedBlockTime: number;
-  autoPauseInSeconds: number;
-  isUpdatePending: boolean;
-  transactionSignature: string | undefined;
-  createdBlockTime: number;
-  lastRetrievedBlockTime: number;
-  state: STREAM_STATE;
-};
-
-/**
- * StreamV2 info
- */
- export type StreamV1Info = {
-  id: PublicKey | string | undefined;
-  initialized: boolean;
-  stream_name: String;
+  streamName: String;
   treasurerAddress: PublicKey | string | undefined;
   rateAmount: number;
   rateIntervalInSeconds: number;
@@ -204,5 +158,6 @@ export type StreamInfo = {
   transactionSignature: string | undefined;
   createdBlockTime: number;
   lastRetrievedBlockTime: number;
+  upgradeRequired: boolean,
   state: STREAM_STATE;
 };
