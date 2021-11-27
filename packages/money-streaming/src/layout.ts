@@ -50,6 +50,34 @@ export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
 ]);
 
 /**
+ * StreamV2 layout
+ */
+export const streamV1Layout: typeof BufferLayout.Structure = BufferLayout.struct([
+  BufferLayout.u8("initialized"),
+  string("stream_name"),
+  publicKey("treasurer_address"),
+  BufferLayout.f64("rate_amount"),
+  uint64("rate_interval_in_seconds"),
+  uint64("funded_on_utc"),
+  uint64("start_utc"),
+  uint64("rate_cliff_in_seconds"),
+  BufferLayout.f64("cliff_vest_amount"),
+  BufferLayout.f64("cliff_vest_percent"),
+  publicKey("beneficiary_address"),
+  publicKey("beneficiary_associated_token"),
+  publicKey("treasury_address"),
+  uint64("escrow_estimated_depletion_utc"),
+  BufferLayout.f64("allocation_reserved"),
+  BufferLayout.f64("allocation_committed"),  
+  BufferLayout.f64("escrow_vested_amount_snap"),
+  uint64("escrow_vested_amount_snap_slot"),
+  uint64("escrow_vested_amount_snap_block_time"),
+  uint64("stream_resumed_slot"),
+  uint64("stream_resumed_block_time"),
+  uint64("auto_pause_in_seconds"),
+]);
+
+/**
  * Create stream instruction layout
  */
 export const createStreamLayout: typeof BufferLayout.Structure =
@@ -60,6 +88,26 @@ export const createStreamLayout: typeof BufferLayout.Structure =
     BufferLayout.f64("rate_amount"),
     uint64("rate_interval_in_seconds"),
     BufferLayout.nu64("start_utc"),
+    uint64("rate_cliff_in_seconds"),
+    BufferLayout.f64("cliff_vest_amount"),
+    BufferLayout.f64("cliff_vest_percent"),
+    uint64("auto_off_clock_in_seconds"),
+  ]);
+
+/**
+ * Create stream instruction layout
+ */
+export const createStreamV1Layout: typeof BufferLayout.Structure =
+  BufferLayout.struct([
+    BufferLayout.u8("tag"),
+    publicKey("beneficiary_address"),
+    string("stream_name"),
+    BufferLayout.f64("rate_amount"),
+    uint64("rate_interval_in_seconds"),
+    BufferLayout.f64("allocation_reserved"),
+    BufferLayout.f64("allocation_committed"),
+    uint64("funded_on_utc"),
+    uint64("start_utc"),
     uint64("rate_cliff_in_seconds"),
     BufferLayout.f64("cliff_vest_amount"),
     BufferLayout.f64("cliff_vest_percent"),
@@ -113,7 +161,7 @@ export const streamTermsLayout: typeof BufferLayout.Structure =
   ]);
 
 /**
- * Create stream instruction layout
+ * Propose update instruction layout
  */
 export const proposeUpdateLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
@@ -135,14 +183,22 @@ export const proposeUpdateLayout: typeof BufferLayout.Structure =
  * Answer update instruction layout
  */
 export const answerUpdateLayout: typeof BufferLayout.Structure =
-  BufferLayout.struct([BufferLayout.u8("tag"), BufferLayout.u8("approve")]);
+  BufferLayout.struct([
+    BufferLayout.u8("tag"), 
+    BufferLayout.u8("approve")
+  ]);
 
 /**
  * Close stream instruction layout
  */
 export const closeStreamLayout: typeof BufferLayout.Structure =
-  BufferLayout.struct([BufferLayout.u8("tag")]);
+  BufferLayout.struct([
+    BufferLayout.u8("tag")
+  ]);
 
+/**
+ * Treasury layout
+ */
 export const treasuryLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("initialized"),
@@ -151,12 +207,28 @@ export const treasuryLayout: typeof BufferLayout.Structure =
     publicKey("treasury_base_address"),
   ]);
 
+/**
+ * TreasuryV2 layout
+ */
+export const treasuryV1Layout: typeof BufferLayout.Structure =
+  BufferLayout.struct([
+    BufferLayout.u8("initialized"),
+    uint64("slot"),
+    publicKey("treasurer_address"),
+    publicKey("associated_token_address"),
+    publicKey("mint_address"),
+    string("label"),
+    BufferLayout.f64("balance"),
+    BufferLayout.f64("allocation_reserved"),
+    BufferLayout.f64("allocation_committed")
+  ]);
+
+/**
+ * Create Treasury layout
+ */
 export const createTreasuryLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("tag"),
-    uint64("treasury_block_height"),
-    publicKey("treasury_base_address"),
+    uint64("slot"),
+    string("label")
   ]);
-
-export const transferLayout: typeof BufferLayout.Structure =
-  BufferLayout.struct([BufferLayout.u8("tag"), BufferLayout.f64("amount")]);

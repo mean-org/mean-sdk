@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import { PublicKey } from "@solana/web3.js";
+import { Commitment, PublicKey } from "@solana/web3.js";
 
 declare global {
   export interface String {
@@ -58,6 +58,14 @@ export type TransactionMessage = {
   fees: TransactionFees;
 };
 
+export interface ListStreamParams {
+  treasurer?: PublicKey | undefined,
+  treasury?: PublicKey | undefined,
+  beneficiary?: PublicKey | undefined,
+  commitment?: Commitment,
+  friendly?: boolean
+}
+
 /**
  * Stream activity
  */
@@ -80,6 +88,22 @@ export type TreasuryInfo = {
   treasuryBlockHeight: number;
   treasuryMintAddress: PublicKey | string | undefined;
   treasuryBaseAddress: PublicKey | string | undefined;
+};
+
+/**
+ * TreasuryV2 info
+ */
+ export type TreasuryV1Info = {
+  id: PublicKey | string;
+  initialized: boolean;
+  slot: number;
+  treasurerAddress: PublicKey | string;
+  associatedTokenAddress: PublicKey | string;
+  mintAddress: PublicKey | string;  
+  label: string;
+  balance: number;
+  allocationReserved: number;
+  allocationCommitted: number
 };
 
 /**
@@ -138,6 +162,42 @@ export type StreamInfo = {
   escrowVestedAmountSnapBlockHeight: number;
   escrowVestedAmountSnapBlockTime: number;
   streamResumedBlockHeight: number;
+  streamResumedBlockTime: number;
+  autoPauseInSeconds: number;
+  isUpdatePending: boolean;
+  transactionSignature: string | undefined;
+  createdBlockTime: number;
+  lastRetrievedBlockTime: number;
+  state: STREAM_STATE;
+};
+
+/**
+ * StreamV2 info
+ */
+ export type StreamV1Info = {
+  id: PublicKey | string | undefined;
+  initialized: boolean;
+  stream_name: String;
+  treasurerAddress: PublicKey | string | undefined;
+  rateAmount: number;
+  rateIntervalInSeconds: number;
+  allocationReserved: number,
+  allocationCommitted: number,
+  fundedOnUtc: Date | string | undefined;
+  startUtc: Date | string | undefined;
+  rateCliffInSeconds: number;
+  cliffVestAmount: number;
+  cliffVestPercent: number;
+  beneficiaryAddress: PublicKey | string | undefined;
+  associatedToken: PublicKey | string | undefined;
+  escrowVestedAmount: number;
+  escrowUnvestedAmount: number;
+  treasuryAddress: PublicKey | string | undefined;
+  escrowEstimatedDepletionUtc: Date | string | undefined;
+  escrowVestedAmountSnap: number;
+  escrowVestedAmountSnapSlot: number;
+  escrowVestedAmountSnapBlockTime: number;
+  streamResumedSlot: number;
   streamResumedBlockTime: number;
   autoPauseInSeconds: number;
   isUpdatePending: boolean;

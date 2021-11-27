@@ -32,9 +32,11 @@ export const createStreamInstruction = async (
   beneficiaryMint: PublicKey,
   stream: PublicKey,
   mspOps: PublicKey,
-  streamName: string,
+  stream_name: string,
   rateAmount: number,
   rateIntervalInSeconds: number,
+  allocationReserved: number,
+  allocationCommitted: number,
   startUtcNow: number,
   rateCliffInSeconds?: number,
   cliffVestAmount?: number,
@@ -54,37 +56,31 @@ export const createStreamInstruction = async (
     { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
   ];
 
-  let data = Buffer.alloc(Layout.createStreamLayout.span);
-  {
-    const encodedUIntArray = new TextEncoder().encode(streamName);
-    let nameBuffer = Buffer
-      .alloc(32)
-      .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
+  const encodedUIntArray = new TextEncoder().encode(stream_name);
+  let nameBuffer = Buffer
+    .alloc(32)
+    .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
 
-    let startDateValue = new Date();
-    startDateValue.setTime(startUtcNow);
-    let utcNow = Utils.convertLocalDateToUTCIgnoringTimezone(new Date());
+  const fundedNow = new Date();
+  let data = Buffer.alloc(Layout.createStreamV1Layout.span);
+  const decodedData = {
+    tag: 11,
+    beneficiary_address: beneficiary.toBuffer(),
+    stream_name: nameBuffer,
+    rate_amount: rateAmount,
+    rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
+    allocation_reserved: allocationReserved,
+    allocation_committed: allocationCommitted,
+    funded_on_utc: new u64Number(fundedNow.getTime()).toBuffer(),
+    start_utc: new u64Number(startUtcNow).toBuffer(),
+    rate_cliff_in_seconds: new u64Number(rateCliffInSeconds || 0).toBuffer(),
+    cliff_vest_amount: cliffVestAmount || 0,
+    cliff_vest_percent: cliffVestPercent || 0,
+    auto_pause_in_seconds: new u64Number(autoPauseInSeconds || 0).toBuffer(),
+  };
 
-    if (startDateValue.getTime() < utcNow.getTime()) {
-      startDateValue = utcNow;
-    }
-
-    const decodedData = {
-      tag: 0,
-      beneficiary_address: beneficiary.toBuffer(),
-      stream_name: nameBuffer,
-      rate_amount: rateAmount,
-      rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
-      start_utc: startDateValue.getTime(),
-      rate_cliff_in_seconds: new u64Number(rateCliffInSeconds as number).toBuffer(),
-      cliff_vest_amount: cliffVestAmount as number,
-      cliff_vest_percent: cliffVestPercent as number,
-      auto_pause_in_seconds: new u64Number(autoPauseInSeconds as number).toBuffer(),
-    };
-
-    const encodeLength = Layout.createStreamLayout.encode(decodedData, data);
-    data = data.slice(0, encodeLength);
-  }
+  const encodeLength = Layout.createStreamV1Layout.encode(decodedData, data);
+  data = data.slice(0, encodeLength);
 
   return new TransactionInstruction({
     keys,
@@ -98,10 +94,10 @@ export const addFundsInstruction = async (
   contributor: PublicKey,
   contributorToken: PublicKey,
   contributorTreasuryToken: PublicKey,
-  contributorMintToken: PublicKey,
+  contributorMint: PublicKey,
   treasury: PublicKey,
   treasuryToken: PublicKey,
-  treasuryMintToken: PublicKey,
+  treasuryPoolMint: PublicKey,
   stream: PublicKey,
   mspOps: PublicKey,
   amount: number,
@@ -113,10 +109,10 @@ export const addFundsInstruction = async (
     { pubkey: contributor, isSigner: true, isWritable: false },
     { pubkey: contributorToken, isSigner: false, isWritable: true },
     { pubkey: contributorTreasuryToken, isSigner: false, isWritable: true },
-    { pubkey: contributorMintToken, isSigner: false, isWritable: true },
+    { pubkey: contributorMint, isSigner: false, isWritable: true },
     { pubkey: treasury, isSigner: false, isWritable: false },
     { pubkey: treasuryToken, isSigner: false, isWritable: true },
-    { pubkey: treasuryMintToken, isSigner: false, isWritable: true },
+    { pubkey: treasuryPoolMint, isSigner: false, isWritable: true },
     { pubkey: stream, isSigner: false, isWritable: true },
     { pubkey: mspOps, isSigner: false, isWritable: true },
     { pubkey: programId, isSigner: false, isWritable: false },
@@ -152,24 +148,23 @@ export const withdrawInstruction = async (
   programId: PublicKey,
   beneficiary: PublicKey,
   beneficiaryToken: PublicKey,
-  beneficiaryMint: PublicKey,
+  beneficiaryTokenMint: PublicKey,
   treasury: PublicKey,
   treasuryToken: PublicKey,
   stream: PublicKey,
-  mspOps: PublicKey,
   mspOpsToken: PublicKey,
-  withdrawal_amount: number
+  amount: number,
+  version: number
 
 ): Promise<TransactionInstruction> => {
 
   const keys = [
     { pubkey: beneficiary, isSigner: true, isWritable: false },
     { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
-    { pubkey: beneficiaryMint, isSigner: false, isWritable: true },
+    { pubkey: beneficiaryTokenMint, isSigner: false, isWritable: true },
     { pubkey: treasury, isSigner: false, isWritable: true },
     { pubkey: treasuryToken, isSigner: false, isWritable: true },
     { pubkey: stream, isSigner: false, isWritable: true },
-    { pubkey: mspOps, isSigner: false, isWritable: true },
     { pubkey: mspOpsToken, isSigner: false, isWritable: true },
     { pubkey: programId, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -179,7 +174,8 @@ export const withdrawInstruction = async (
   {
     const decodedData = {
       tag: 3,
-      withdrawal_amount,
+      amount,
+      version
     };
 
     const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
@@ -398,40 +394,42 @@ export const answerUpdateInstruction = async (
 export const createTreasuryInstruction = async (
   programId: PublicKey,
   treasurer: PublicKey,
+  treasurerTreasuryPoolToken: PublicKey,
   treasury: PublicKey,
-  treasuryToken: PublicKey,
-  treasuryTokenMint: PublicKey,
-  treasuryMint: PublicKey,
+  treasuryPoolMint: PublicKey,
   mspOps: PublicKey,
-  treasuryBlockHeight: number
+  label: string,
+  slot: number
 
 ): Promise<TransactionInstruction> => {
     
   const keys = [
     { pubkey: treasurer, isSigner: true, isWritable: false },
+    { pubkey: treasurerTreasuryPoolToken, isSigner: false, isWritable: true },
     { pubkey: treasury, isSigner: false, isWritable: true },
-    { pubkey: treasuryToken, isSigner: false, isWritable: true },
-    { pubkey: treasuryTokenMint, isSigner: false, isWritable: true },
-    { pubkey: treasuryMint, isSigner: false, isWritable: true },
-    { pubkey: programId, isSigner: false, isWritable: false },
+    { pubkey: treasuryPoolMint, isSigner: false, isWritable: true },
     { pubkey: mspOps, isSigner: false, isWritable: true },
+    { pubkey: programId, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
   ];
 
-  let data = Buffer.alloc(Layout.createTreasuryLayout.span);
-  {
-    const decodedData = {
-      tag: 9,
-      treasury_block_height: new u64Number(treasuryBlockHeight).toBuffer(),
-      treasury_base_address: treasurer.toBuffer(), // treasury accounts base address
-    };
+  const encodedUIntArray = new TextEncoder().encode(label.trim());
+  let labelBuffer = Buffer
+    .alloc(32)
+    .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
 
-    const encodeLength = Layout.createTreasuryLayout.encode(decodedData, data);
-    data = data.slice(0, encodeLength);
-  }
+  let data = Buffer.alloc(Layout.createTreasuryLayout.span);
+  const decodedData = {
+    tag: 9,
+    slot: new u64Number(slot).toBuffer(),
+    label: labelBuffer
+  };
+
+  const encodeLength = Layout.createTreasuryLayout.encode(decodedData, data);
+  data = data.slice(0, encodeLength);
 
   return new TransactionInstruction({
     keys,
