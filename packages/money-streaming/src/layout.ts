@@ -220,7 +220,9 @@ export const treasuryLayout: typeof BufferLayout.Structure =
     string("label"),
     BufferLayout.f64("balance"),
     BufferLayout.f64("allocation_reserved"),
-    BufferLayout.f64("allocation_committed")
+    BufferLayout.f64("allocation_committed"),
+    uint64("streams_amount"),
+    uint64("created_on_utc")
   ]);
 
 /**

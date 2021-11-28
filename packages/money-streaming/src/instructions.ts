@@ -29,7 +29,7 @@ export const createStreamInstruction = async (
   treasurer: PublicKey,
   treasury: PublicKey,
   beneficiary: PublicKey,
-  beneficiaryMint: PublicKey,
+  associatedToken: PublicKey,
   stream: PublicKey,
   mspOps: PublicKey,
   stream_name: string,
@@ -48,7 +48,7 @@ export const createStreamInstruction = async (
   const keys = [
     { pubkey: treasurer, isSigner: true, isWritable: false },
     { pubkey: treasury, isSigner: false, isWritable: true },
-    { pubkey: beneficiaryMint, isSigner: false, isWritable: false },
+    { pubkey: associatedToken, isSigner: false, isWritable: false },
     { pubkey: stream, isSigner: true, isWritable: true },
     { pubkey: mspOps, isSigner: false, isWritable: true },
     { pubkey: programId, isSigner: false, isWritable: false },
@@ -93,7 +93,7 @@ export const addFundsInstruction = async (
   programId: PublicKey,
   contributor: PublicKey,
   contributorToken: PublicKey,
-  contributorTreasuryToken: PublicKey,
+  contributorTreasuryPoolToken: PublicKey,
   treasury: PublicKey,
   treasuryToken: PublicKey,
   associatedToken: PublicKey,  
@@ -107,15 +107,15 @@ export const addFundsInstruction = async (
   const keys = [
     { pubkey: contributor, isSigner: true, isWritable: false },
     { pubkey: contributorToken, isSigner: false, isWritable: true },
-    { pubkey: contributorTreasuryToken, isSigner: false, isWritable: true },
-    { pubkey: treasury, isSigner: false, isWritable: false },
+    { pubkey: contributorTreasuryPoolToken, isSigner: false, isWritable: true },
+    { pubkey: treasury, isSigner: false, isWritable: true },
     { pubkey: treasuryToken, isSigner: false, isWritable: true },
+    { pubkey: associatedToken, isSigner: false, isWritable: false },
     { pubkey: treasuryPoolMint, isSigner: false, isWritable: true },
-    { pubkey: associatedToken, isSigner: false, isWritable: true },
     { pubkey: mspOps, isSigner: false, isWritable: true },
     { pubkey: programId, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
   ];
@@ -126,7 +126,7 @@ export const addFundsInstruction = async (
 
     const decodedData = {
       tag: 1,
-      contribution_amount: amount,
+      amount,
       funded_on_utc: fundedOnUtcDate.getTime(),
       resume: resume && resume === true ? resume : false,
     };
@@ -134,6 +134,47 @@ export const addFundsInstruction = async (
     const encodeLength = Layout.addFundsLayout.encode(decodedData, data);
     data = data.slice(0, encodeLength);
   }
+
+  return new TransactionInstruction({
+    keys,
+    programId,
+    data,
+  });
+};
+
+export const recoverFundsInstruction = async (
+  programId: PublicKey,
+  contributor: PublicKey,
+  contributorToken: PublicKey,
+  contributorTreasuryPoolTokenMint: PublicKey,
+  associatedToken: PublicKey,
+  treasury: PublicKey,
+  treasuryToken: PublicKey,
+  treasuryPoolMint: PublicKey,
+  mspOps: PublicKey,
+  mspOpsToken: PublicKey,
+  amount: number
+
+): Promise<TransactionInstruction> => {
+
+  const keys = [
+    { pubkey: contributor, isSigner: true, isWritable: false },
+    { pubkey: contributorToken, isSigner: false, isWritable: true },
+    { pubkey: contributorTreasuryPoolTokenMint, isSigner: false, isWritable: true },
+    { pubkey: associatedToken, isSigner: false, isWritable: false },
+    { pubkey: treasury, isSigner: false, isWritable: true },
+    { pubkey: treasuryToken, isSigner: false, isWritable: true },
+    { pubkey: treasuryPoolMint, isSigner: false, isWritable: true },
+    { pubkey: mspOps, isSigner: false, isWritable: false },
+    { pubkey: mspOpsToken, isSigner: false, isWritable: true },
+    { pubkey: programId, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ];
+
+  let data = Buffer.alloc(Layout.withdrawLayout.span);
+  const decodedData = { tag: 2, amount }
+  const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
+  data = data.slice(0, encodeLength);
 
   return new TransactionInstruction({
     keys,
@@ -151,8 +192,7 @@ export const withdrawInstruction = async (
   treasuryToken: PublicKey,
   stream: PublicKey,
   mspOpsToken: PublicKey,
-  amount: number,
-  version: number
+  amount: number
 
 ): Promise<TransactionInstruction> => {
 
@@ -169,16 +209,9 @@ export const withdrawInstruction = async (
   ];
 
   let data = Buffer.alloc(Layout.withdrawLayout.span);
-  {
-    const decodedData = {
-      tag: 3,
-      amount,
-      version
-    };
-
-    const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
-    data = data.slice(0, encodeLength);
-  }
+  const decodedData = { tag: 3, amount };
+  const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
+  data = data.slice(0, encodeLength);
 
   return new TransactionInstruction({
     keys,
@@ -250,7 +283,7 @@ export const closeStreamInstruction = async (
   initializer: PublicKey,
   treasurerToken: PublicKey,
   beneficiaryToken: PublicKey,
-  beneficiaryMint: PublicKey,
+  associatedToken: PublicKey,
   treasury: PublicKey,
   treasuryToken: PublicKey,
   stream: PublicKey,
@@ -263,7 +296,7 @@ export const closeStreamInstruction = async (
     { pubkey: initializer, isSigner: true, isWritable: false },
     { pubkey: treasurerToken, isSigner: false, isWritable: true },
     { pubkey: beneficiaryToken, isSigner: false, isWritable: true },
-    { pubkey: beneficiaryMint, isSigner: false, isWritable: false },
+    { pubkey: associatedToken, isSigner: false, isWritable: false },
     { pubkey: treasury, isSigner: false, isWritable: false },
     { pubkey: treasuryToken, isSigner: false, isWritable: true },
     { pubkey: stream, isSigner: false, isWritable: true },

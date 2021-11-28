@@ -48,6 +48,7 @@ import {
   TreasuryInfo
 
 } from "./types";
+import { SSL_OP_TLS_BLOCK_PADDING_BUG } from "constants";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -114,7 +115,9 @@ let defaultTreasuryInfo: TreasuryInfo = {
   balance: 0,
   allocationReserved: 0,
   allocationCommitted: 0,
-  upgradeRequired: false
+  streamsAmount: 0,
+  upgradeRequired: false,
+  createdOnUtc: "",
 };
 
 let defaultStreamActivity: StreamActivity = {
@@ -136,7 +139,7 @@ const parseStreamV0Data = (
 ): StreamInfo => {
 
   let stream: StreamInfo = defaultStreamInfo;
-  let decodedData = Layout.streamLayout.decode(streamData);
+  let decodedData = Layout.streamV0Layout.decode(streamData);
   let fundedOnTimeUtc = decodedData.funded_on_utc;
   let startTimeUtc = decodedData.start_utc;
 
@@ -529,12 +532,12 @@ const parseActivityData = (
   return streamActivity;
 };
 
-const parseTreasuryV0Data = async(
+const parseTreasuryV0Data = (
   id: PublicKey,
   treasuryData: Buffer,
   friendly: boolean = true
 
-): Promise<TreasuryInfo> => {
+): TreasuryInfo => {
 
   let treasury: TreasuryInfo = defaultTreasuryInfo;
   let decodedData = Layout.treasuryV0Layout.decode(treasuryData);
@@ -554,7 +557,13 @@ const parseTreasuryV0Data = async(
       slot: treasuryBlockHeight,
       label: "",
       treasurerAddress: treasuryBaseAddress,
+      associatedTokenAddress: "",
       mintAddress: treasuryMintAddress,
+      balance: 0,
+      allocationReserved: 0,
+      allocationCommitted: 0,
+      streamsAmount: 0,
+      createdOnUtc: "",
       upgradeRequired: true
     }
   );
@@ -579,7 +588,15 @@ const parseTreasuryData = (
   const associatedToken = new PublicKey(decodedData.associated_token_address);
   const associatedTokenAddress = friendly === true ? associatedToken.toBase58() : associatedToken;
   const mint = new PublicKey(decodedData.mint_address);
-  const mintAddress = friendly === true ? mint.toBase58() : mint;  
+  const mintAddress = friendly === true ? mint.toBase58() : mint;
+  const streamsAmount = decodedData.streams_amount 
+    ? parseFloat(u64Number.fromBuffer(decodedData.streams_amount).toString())
+    : 0;
+
+  const createdOnUtc = decodedData.created_on_utc
+    ? parseFloat(u64Number.fromBuffer(decodedData.created_on_utc).toString())
+    : 0;
+
   const labelBuffer = Buffer.alloc(
     decodedData.label.length,
     decodedData.label
@@ -600,6 +617,8 @@ const parseTreasuryData = (
       balance: decodedData.balance,
       allocationReserved: decodedData.allocation_reserved,
       allocationCommitted: decodedData.allocation_committed,
+      streamsAmount,
+      createdOnUtc: createdOnUtc === 0 ? "" : new Date(createdOnUtc),
       upgradeRequired: false
     }
   );
@@ -851,9 +870,6 @@ export async function listStreams(
               )
 
         let info = Object.assign({}, parsedStreamData);
-        let startDateUtc = new Date(info.startUtc as string);
-        let threeDaysAgo = new Date();
-        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
         if ((treasurer && treasurer.toBase58() === info.treasurerAddress) || !treasurer) {
           included = true;
@@ -861,30 +877,23 @@ export async function listStreams(
           included = true;
         }
 
-        if (treasury && treasury.toBase58() === info.treasuryAddress) {
-          included = true;
-        }
-  
-        if (included && (info.startUtc as Date) !== undefined) {
-          let startDateUtc = new Date(info.startUtc as string);
-          let threeDaysAgo = new Date();
-          threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-  
-          if (startDateUtc.getTime() > threeDaysAgo.getTime()) {
-            let signatures = await connection.getConfirmedSignaturesForAddress2(
-              friendly ? (info.id as string).toPublicKey() : (info.id as PublicKey),
-              {},
-              "finalized"
-            );
-  
-            if (signatures.length > 0) {
-              info.createdBlockTime = signatures[0].blockTime as number;
-              info.transactionSignature = signatures[0].signature;
-            }
-          }
+        if (treasury && treasury.toBase58() !== info.treasuryAddress) {
+          included = false;
         }
   
         if (included) {
+
+          let signatures = await connection.getConfirmedSignaturesForAddress2(
+            friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
+            { limit: 5 }, 
+            'confirmed'
+          );
+  
+          if (signatures.length > 0) {
+            info.createdBlockTime = signatures[0].blockTime as number;
+            info.transactionSignature = signatures[0].signature;
+          }
+
           streams.push(info);
         }
       }
@@ -1021,7 +1030,7 @@ export async function listTreasuries(
       if (item.account.data !== undefined) {
         let parsedTreasury: any = 
           item.account.data.length === Layout.treasuryV0Layout.span
-            ? await parseTreasuryV0Data(
+            ? parseTreasuryV0Data(
                 item.pubkey, 
                 item.account.data, 
                 friendly
@@ -1035,17 +1044,41 @@ export async function listTreasuries(
         let info = Object.assign({}, parsedTreasury);
 
         if ((treasurer && treasurer.toBase58() === info.treasurerAddress) || !treasurer) {
+
+          if (!info.createdOnUtc) {
+            try {
+              const blockTime = await connection.getBlockTime(info.slot) || 0;
+              info.createdOnUtc = blockTime === 0 
+                ? "" 
+                : friendly === true 
+                ? new Date(blockTime * 1000).toString()
+                : new Date(blockTime * 1000);
+
+            } catch {}
+          }
+
           treasuries.push(info);
         }
       }
     }
   }
 
-  return treasuries;
+  const sortedTreasuries = treasuries.sort((a, b) => {
+    const aTime = typeof a.createdOnUtc === "string" 
+      ? new Date(a.createdOnUtc).getTime() 
+      : a.createdOnUtc.getTime();
+    const bTime = typeof b.createdOnUtc === "string" 
+      ? new Date(b.createdOnUtc).getTime() 
+      : b.createdOnUtc.getTime();
+    return bTime - aTime;
+  });
+
+  return sortedTreasuries;
 }
 
 export async function getTreasury(
   connection: Connection,
+  programId: PublicKey,
   id: PublicKey,
   commitment?: any,
   friendly: boolean = true
@@ -1073,7 +1106,29 @@ export async function getTreasury(
             id, 
             accountInfo.data.slice(0, Layout.treasuryLayout.span), 
             friendly
-          );
+          ); 
+
+    if (!parsedTreasury.createdOnUtc) {
+      try {
+        const blockTime = await connection.getBlockTime(parsedTreasury.slot) || 0;
+        parsedTreasury.createdOnUtc = blockTime === 0 
+          ? "" 
+          : friendly === true 
+          ? new Date(blockTime * 1000).toString()
+          : new Date(blockTime * 1000);
+          
+      } catch {}
+    }
+
+    if (parsedTreasury.streamsAmount === 0) {
+      const treasuryStreams = await listStreams(
+        connection,
+        programId,
+        undefined,
+        new PublicKey(parsedTreasury.id)
+      );
+      parsedTreasury.streamsAmount = treasuryStreams.length;
+    }
 
     treasury = Object.assign({}, parsedTreasury);
   }

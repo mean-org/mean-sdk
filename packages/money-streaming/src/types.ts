@@ -93,7 +93,9 @@ export type StreamActivity = {
   balance: number;
   allocationReserved: number;
   allocationCommitted: number;
-  upgradeRequired: boolean
+  streamsAmount: number;
+  upgradeRequired: boolean,
+  createdOnUtc: Date | string,
 };
 
 /**
