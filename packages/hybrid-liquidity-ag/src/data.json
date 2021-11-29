@@ -173,6 +173,18 @@
       "decimals": 6,
       "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW/logo.png",
       "extensions": { }
+    },
+    {
+      "chainId": 101,
+      "address": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+      "symbol": "mSOL",
+      "name": "Marinade staked SOL (mSOL)",
+      "decimals": 9,
+      "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png",
+      "extensions": {
+        "coingeckoId": "msol",
+        "serumV3Usdc": "6oGsL2puUgySccKzn9XA9afqF217LfxP5ocq4B3LWsjy"
+      }
     }
   ],
   "PROTOCOLS": [
@@ -650,6 +662,127 @@
       "tokenAddresses": [
         "xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW",
         "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "EGyhb2uLAsRUbRx9dNFBjMVYnFaASWMvD6RE1aEf2LxL",
+      "address": "5ijRoAHVgd5T5CNtK5KDRUBZ7Bffb69nktMj5n6ks6m4",
+      "name": "mSOL-SOL LP",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "11111111111111111111111111111111"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "ZfvDXXUhZDzDVsapffUyXHj9ByCoPjP4thL6YXcZ9ix",
+      "address": "4xTpJ4p76bAeggXoYywpCCNKfJspbuRzZ79R7pRhbqSf",
+      "name": "mSOL-USDC LP",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "BhuMVCzwFVZMSuc1kBbdcAnXwFg9p4HJp7A9ddwYjsaF",
+      "address": "69NCmEW9mGpiWLjAcAWHq51k4ionJZmzgRfRT3wQaCCf",
+      "name": "mSOL-USDT LP",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "6gpZ9JkLoYvpA5cwdyPZFsDw6tkbPyyXM5FqRqHxMCny",
+      "address": "De2EHBAdkgfc72DpShqDGG42cV3iDWh8wvvZdPsiEcqP",
+      "name": "mSOL-RAY LP",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "Ghj3v2qYbSp6XqmH4NV4KRu4Rrgqoh2Ra7L9jEdsbNzF",
+      "address": "HYv3grQfi8QbV7nG7EFgNK1aJSrsJ7HynXJKJVPLL2Uh",
+      "name": "ETH-mSOL LP",
+      "tokenAddresses": [
+        "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
+      "ammAddress": "ynV2H2b7FcRBho2TvE25Zc4gDeuu2N45rUw9DuJYjJ9",
+      "address": "92bcERNtUmuaJ6mwLSxYHZYSph37jdKxRdoYNxpcYNPp",
+      "name": "BTC-mSOL LP",
+      "tokenAddresses": [
+        "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "9EQMEzJdE2LDAY1hw1RytpufdwAXzatYfQ3M2UuT9b88",
+      "address": "29cdoMgu6MS2VXpcMo1sqRdWEzdUR9tjvoh8fcK8Z87R",
+      "name": "mSOL_SOL",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "So11111111111111111111111111111111111111112"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "Hme4Jnqhdz2jAPUMnS7jGE5zv6Y1ynqrUEhmUAWkXmzn",
+      "address": "8PSfyiTVwPb6Rr2iZ8F3kNpbg65BCfJM9v8LfB916r44",
+      "name": "mSOL_USDC",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "Afofkb7JTc32rdpqiyc3RDmGF5s9N6W1ujcdYVfGZ5Je",
+      "address": "9cMWe4UYRPGAUUsTkjShJWVM7bk8DUBgxtwwH8asFJoV",
+      "name": "mSOL_USDT",
+      "tokenAddresses": [
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "49tTgthTYLMPEqozZNyEQifqkGYxHqqDie9YxVczS3iB",
+      "address": "CVapmQn7HaU1yMDW3q6oUV4hx6XoYv54T4zfGXkuJqkA",
+      "name": "ORCA_mSOL",
+      "tokenAddresses": [
+        "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "8DRw5wQE1pyg6RB1UwypGNFgb2Pzp2hpyDDNwo76Lcc8",
+      "address": "8nKJ4z9FSw6wrVZKASqBiS9DS1CiNsRnqwCCKVQjqdkB",
+      "name": "BTC_mSOL",
+      "tokenAddresses": [
+        "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
       ]
     }
   ]

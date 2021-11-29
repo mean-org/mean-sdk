@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/hybrid-liquidity-ag",
-  "version": "1.1.23",
+  "version": "1.1.24",
   "description": "Typescript library to interact with the Hybrid Liquidity Aggregator program",
   "private": false,
   "repository": {
@@ -27,8 +27,8 @@
     "@project-serum/serum": "^0.13.60",
     "@project-serum/sol-wallet-adapter": "^0.2.5",
     "@project-serum/tokens": "^0.0.7",
-    "@saberhq/stableswap-sdk": "^1.7.1",
-    "@saberhq/token-utils": "^1.7.1",
+    "@saberhq/stableswap-sdk": "^1.9.0",
+    "@saberhq/token-utils": "^1.9.0",
     "@solana/spl-token": "^0.1.8",
     "@solana/spl-token-registry": "^0.2",
     "@solana/spl-token-swap": "^0.1.2",

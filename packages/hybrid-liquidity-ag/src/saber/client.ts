@@ -16,7 +16,7 @@ import {
   makeExchange,
   loadExchangeInfo,
   calculateSwapPrice,
-  calculateEstimatedSwapOutputAmount
+  calculateEstimatedSwapOutputAmount,
 
 } from "@saberhq/stableswap-sdk";
 
