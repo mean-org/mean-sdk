@@ -45,10 +45,10 @@ import {
   StreamTermsInfo,
   STREAM_STATE,
   TransactionFees,
-  TreasuryInfo
+  TreasuryInfo,
+  TreasuryType
 
 } from "./types";
-import { SSL_OP_TLS_BLOCK_PADDING_BUG } from "constants";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -89,7 +89,7 @@ let defaultStreamInfo: StreamInfo = {
   treasuryAddress: undefined,
   escrowEstimatedDepletionUtc: undefined,
   allocationReserved: 0,
-  allocationCommitted: 0,
+  allocation: 0,
   escrowVestedAmountSnap: 0,
   escrowVestedAmountSnapSlot: 0,
   escrowVestedAmountSnapBlockTime: 0,
@@ -102,6 +102,7 @@ let defaultStreamInfo: StreamInfo = {
   lastRetrievedBlockTime: 0,
   upgradeRequired: false,
   state: STREAM_STATE.Schedule,
+  version: 1
 };
 
 let defaultTreasuryInfo: TreasuryInfo = {
@@ -114,10 +115,12 @@ let defaultTreasuryInfo: TreasuryInfo = {
   label: "",
   balance: 0,
   allocationReserved: 0,
-  allocationCommitted: 0,
+  allocation: 0,
   streamsAmount: 0,
   upgradeRequired: false,
   createdOnUtc: "",
+  depletionRate: 0,
+  type: TreasuryType.Open
 };
 
 let defaultStreamActivity: StreamActivity = {
@@ -196,9 +199,9 @@ const parseStreamV0Data = (
   }
 
   let escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals - escrowVestedAmount;
-  let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc);
+  let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc); 
 
-  if (decodedData.escrow_estimated_depletion_utc === 0) {
+  if (!decodedData.escrow_estimated_depletion_utc) {
     let depletionTimeInSeconds = rate ? decodedData.total_deposits / rate : 0;
     escrowEstimatedDepletionDateUtc.setTime(startTimeUtc + depletionTimeInSeconds * 1000);
   }
@@ -221,12 +224,10 @@ const parseStreamV0Data = (
 
   if (startTimeUtc > now.getTime()) {
     state = STREAM_STATE.Schedule;
-  } else if (escrowVestedAmount < decodedData.total_deposits - decodedData.total_withdrawals) {
+  } else if (escrowVestedAmount < decodedData.total_deposits - decodedData.total_withdrawals && isStreaming) {
     state = STREAM_STATE.Running;
-  } else if (escrowVestedAmount >= decodedData.total_deposits - decodedData.total_withdrawals && elapsedTime < threeDays) {
+  } else {
     state = STREAM_STATE.Paused;
-  } else if (escrowVestedAmount >= decodedData.total_deposits - decodedData.total_withdrawals && elapsedTime >= threeDays) {
-    state = STREAM_STATE.Ended;
   }
 
   Object.assign(
@@ -248,9 +249,9 @@ const parseStreamV0Data = (
       escrowVestedAmount: escrowVestedAmount,
       escrowUnvestedAmount: escrowUnvestedAmount,
       treasuryAddress: friendly !== undefined ? treasuryAddress.toBase58() : treasuryAddress,
-      escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
+      escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toString(),
       allocationReserved: decodedData.total_deposits - decodedData.total_withdrawals,
-      allocationCommitted: decodedData.total_deposits,
+      allocation: decodedData.total_deposits - decodedData.total_withdrawals,
       escrowVestedAmountSnap: escrowVestedAmountSnap,
       escrowVestedAmountSnapSlot: escrowVestedAmountSnapBlockHeight,
       escrowVestedAmountSnapBlockTime: escrowVestedAmountSnapBlockTime,
@@ -263,6 +264,7 @@ const parseStreamV0Data = (
       lastRetrievedBlockTime: currentBlockTime,
       upgradeRequired: true,
       state,
+      version: 0
     }
   );
 
@@ -279,6 +281,9 @@ const parseStreamData = (
 
   let stream: StreamInfo = defaultStreamInfo;
   let decodedData = Layout.streamLayout.decode(streamData);
+
+  // console.log(decodedData);
+
   let fundedOnTimeUtc = parseFloat(u64Number
     .fromBuffer(decodedData.funded_on_utc)
     .toString()
@@ -325,7 +330,7 @@ const parseStreamData = (
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
-    : 1;
+    : 0;
 
   const elapsedTime = currentBlockTime - lastTimeSnap;
   const escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
@@ -337,21 +342,21 @@ const parseStreamData = (
   if (currentBlockTime >= lastTimeSnap) {
     escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
 
-    if (decodedData.allocation_reserved && escrowVestedAmount > decodedData.allocation_reserved) {
-      escrowVestedAmount = decodedData.allocation_reserved;
+    if (escrowVestedAmount > decodedData.allocation) {
+      escrowVestedAmount = decodedData.allocation;
     }
   }
 
-  let escrowUnvestedAmount = 
-    decodedData.allocation_reserved 
-      ? decodedData.allocation_reserved - escrowVestedAmount
-      : 0;
+  let escrowUnvestedAmount = decodedData.allocation - escrowVestedAmount;
+  let escrowEstimatedDepletionDateUtcValue = parseFloat(
+    u64Number.fromBuffer(decodedData.escrow_estimated_depletion_utc).toString()
+  );
 
-  let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc);
+  let escrowEstimatedDepletionDateUtc = new Date(escrowEstimatedDepletionDateUtcValue);
 
-  if (decodedData.escrow_estimated_depletion_utc === 0) {
-    let depletionTimeInSeconds = rate ? decodedData.allocation_reserved / rate : 0;
-    escrowEstimatedDepletionDateUtc.setTime(startTimeUtc + depletionTimeInSeconds * 1000);
+  if (escrowEstimatedDepletionDateUtcValue === 0) {
+    let depletionTimeInSeconds = rate ? decodedData.allocation / rate : decodedData.allocation / 60;
+    escrowEstimatedDepletionDateUtc = new Date(startTimeUtc + depletionTimeInSeconds * 1000);
   }
 
   let nameBuffer = Buffer.alloc(
@@ -372,12 +377,10 @@ const parseStreamData = (
 
   if (startTimeUtc > now.getTime()) {
     state = STREAM_STATE.Schedule;
-  } else if (escrowVestedAmount < decodedData.allocation_reserved) {
+  } else if (escrowVestedAmount < decodedData.allocation && isStreaming) {
     state = STREAM_STATE.Running;
-  } else if (escrowVestedAmount >= decodedData.allocation_reserved && elapsedTime < threeDays) {
+  } else {
     state = STREAM_STATE.Paused;
-  } else if (escrowVestedAmount >= decodedData.allocation_reserved && elapsedTime >= threeDays) {
-    state = STREAM_STATE.Ended;
   }
 
   Object.assign(
@@ -385,12 +388,12 @@ const parseStreamData = (
     { id: id },
     {
       initialized: decodedData.initialized ? true : false,
-      stream_name: new TextDecoder().decode(nameBuffer),
+      streamName: new TextDecoder().decode(nameBuffer),
       treasurerAddress: friendly !== undefined ? treasurerAddress.toBase58() : treasurerAddress,
       rateAmount: decodedData.rate_amount,
       rateIntervalInSeconds: rateIntervalInSeconds,
       allocationReserved: decodedData.allocation_reserved,
-      allocationCommitted: decodedData.allocation_committed,
+      allocation: decodedData.allocation,
       fundedOnUtc: new Date(fundedOnTimeUtc).toString(),
       startUtc: new Date(startTimeUtc).toString(),
       rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
@@ -401,7 +404,7 @@ const parseStreamData = (
       escrowVestedAmount: escrowVestedAmount,
       escrowUnvestedAmount: escrowUnvestedAmount,
       treasuryAddress: friendly !== undefined ? treasuryAddress.toBase58() : treasuryAddress,
-      escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toUTCString(),
+      escrowEstimatedDepletionUtc: escrowEstimatedDepletionDateUtc.toString(),
       escrowVestedAmountSnap: escrowVestedAmountSnap,
       escrowVestedAmountSnapSlot: escrowVestedAmountSnapSlot,
       escrowVestedAmountSnapBlockTime: escrowVestedAmountSnapBlockTime,
@@ -414,6 +417,7 @@ const parseStreamData = (
       lastRetrievedBlockTime: currentBlockTime,
       upgradeRequired: false,
       state,
+      version: 1
     }
   );
 
@@ -490,13 +494,13 @@ const parseActivityData = (
 
     if (actionIndex === 1) {
       data = Layout.addFundsLayout.decode(layoutBuffer);
-      amount = data.contribution_amount;
+      amount = data.amount;
     } else if (actionIndex === 2) {
       // data = Layout.recoverFunds.decode(layoutBuffer);
-      // amount = data.recover_amount;
+      // amount = data.amount;
     } else {
       data = Layout.withdrawLayout.decode(layoutBuffer);
-      amount = data.withdrawal_amount;
+      amount = data.amount;
     }
 
     let mint: PublicKey | string;
@@ -561,9 +565,11 @@ const parseTreasuryV0Data = (
       mintAddress: treasuryMintAddress,
       balance: 0,
       allocationReserved: 0,
-      allocationCommitted: 0,
+      allocation: 0,
       streamsAmount: 0,
       createdOnUtc: "",
+      depletionRate: 0,
+      type: TreasuryType.Open,
       upgradeRequired: true
     }
   );
@@ -585,8 +591,6 @@ const parseTreasuryData = (
   const slot = parseFloat(u64Number.fromBuffer(decodedData.slot).toString());
   const treasurer = new PublicKey(decodedData.treasurer_address);
   const treasurerAddress = friendly === true ? treasurer.toBase58() : treasurer;
-  const associatedToken = new PublicKey(decodedData.associated_token_address);
-  const associatedTokenAddress = friendly === true ? associatedToken.toBase58() : associatedToken;
   const mint = new PublicKey(decodedData.mint_address);
   const mintAddress = friendly === true ? mint.toBase58() : mint;
   const streamsAmount = decodedData.streams_amount 
@@ -596,6 +600,13 @@ const parseTreasuryData = (
   const createdOnUtc = decodedData.created_on_utc
     ? parseFloat(u64Number.fromBuffer(decodedData.created_on_utc).toString())
     : 0;
+
+  const associatedToken = new PublicKey(decodedData.associated_token_address);
+  const associatedTokenAddress = associatedToken.equals(PublicKey.default)
+    ? "" 
+    : friendly === true 
+    ? associatedToken.toBase58() 
+    : associatedToken;
 
   const labelBuffer = Buffer.alloc(
     decodedData.label.length,
@@ -616,9 +627,11 @@ const parseTreasuryData = (
       mintAddress,
       balance: decodedData.balance,
       allocationReserved: decodedData.allocation_reserved,
-      allocationCommitted: decodedData.allocation_committed,
+      allocation: decodedData.allocation_committed,
       streamsAmount,
       createdOnUtc: createdOnUtc === 0 ? "" : new Date(createdOnUtc),
+      depletionRate: decodedData.depletion_rate,
+      type: decodedData.type == 0 ? TreasuryType.Open : TreasuryType.Lock,
       upgradeRequired: false
     }
   );
@@ -681,62 +694,61 @@ export const getStream = async (
   return stream;
 };
 
-export const getStreamCached = (
+export const getStreamV0Cached = (
   streamInfo: StreamInfo,
   currentBlocktime: number,
   friendly: boolean = true
 
 ): StreamInfo => {
 
-  let copyStreamInfo = Object.assign({}, streamInfo);
-
+  const copyStreamV1Info = Object.assign({}, streamInfo);
   const startDate = new Date();
   startDate.setTime(
-    copyStreamInfo.startUtc !== undefined && 
-    typeof copyStreamInfo.startUtc !== 'string'
-      ? copyStreamInfo.startUtc.getTime()
-      : copyStreamInfo.startUtc === undefined
+    copyStreamV1Info.startUtc !== undefined && 
+    typeof copyStreamV1Info.startUtc !== 'string'
+      ? copyStreamV1Info.startUtc.getTime()
+      : copyStreamV1Info.startUtc === undefined
       ? new Date().getTime()
-      : Date.parse(copyStreamInfo.startUtc)
+      : Date.parse(copyStreamV1Info.startUtc)
   );
 
-
   // refresh copy stream info
-  let isStreaming = copyStreamInfo.streamResumedBlockTime >= copyStreamInfo.escrowVestedAmountSnapBlockTime ? 1 : 0;
-  let lastTimeSnap = Math.max(copyStreamInfo.streamResumedBlockTime, copyStreamInfo.escrowVestedAmountSnapBlockTime);
+  let isStreaming = copyStreamV1Info.streamResumedBlockTime >= copyStreamV1Info.escrowVestedAmountSnapBlockTime ? 1 : 0;
+  let lastTimeSnap = Math.max(copyStreamV1Info.streamResumedBlockTime, copyStreamV1Info.escrowVestedAmountSnapBlockTime);
 
-  const rate = copyStreamInfo.rateIntervalInSeconds > 0
-    ? (copyStreamInfo.rateAmount / copyStreamInfo.rateIntervalInSeconds) * isStreaming
-    : 1;
+  const rate = copyStreamV1Info.rateIntervalInSeconds > 0
+    ? (copyStreamV1Info.rateAmount / copyStreamV1Info.rateIntervalInSeconds) * isStreaming
+    : 0;
 
   const elapsedTime = currentBlocktime - lastTimeSnap;
-  copyStreamInfo.associatedToken = 
+  copyStreamV1Info.associatedToken = 
     friendly === true &&
-    copyStreamInfo.associatedToken !== undefined &&
-    typeof copyStreamInfo.associatedToken !== 'string'
-      ? copyStreamInfo.associatedToken.toBase58()
-      : copyStreamInfo.associatedToken
+    copyStreamV1Info.associatedToken !== undefined &&
+    typeof copyStreamV1Info.associatedToken !== 'string'
+      ? copyStreamV1Info.associatedToken.toBase58()
+      : copyStreamV1Info.associatedToken;
 
+  const allocationAmount = 
+    copyStreamV1Info.allocationReserved > 0 
+      ? copyStreamV1Info.allocationReserved 
+      : copyStreamV1Info.allocation;
+  
   if (currentBlocktime >= lastTimeSnap) {
-    copyStreamInfo.escrowVestedAmount = copyStreamInfo.escrowVestedAmountSnap + rate * elapsedTime;
+    copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
 
-    if (copyStreamInfo.allocationReserved && copyStreamInfo.escrowVestedAmount > copyStreamInfo.allocationReserved) {
-      copyStreamInfo.escrowVestedAmount = copyStreamInfo.allocationReserved;
+    if (copyStreamV1Info.escrowVestedAmount > allocationAmount) {
+      copyStreamV1Info.escrowVestedAmount = allocationAmount;
     }
   }
 
-  copyStreamInfo.escrowUnvestedAmount = 
-    copyStreamInfo.allocationReserved 
-      ? copyStreamInfo.allocationReserved - copyStreamInfo.escrowVestedAmount
-      : 0;
-
+  copyStreamV1Info.escrowUnvestedAmount = allocationAmount - copyStreamV1Info.escrowVestedAmount;
   let escrowEstimatedDepletionDateUtc = new Date();
-  escrowEstimatedDepletionDateUtc.setTime(Date.parse(copyStreamInfo.escrowEstimatedDepletionUtc as string));
+  escrowEstimatedDepletionDateUtc.setTime(Date.parse(copyStreamV1Info.escrowEstimatedDepletionUtc as string));
 
   if (escrowEstimatedDepletionDateUtc.getTime() === 0) {
-    let depletionTimeInSeconds = rate ? copyStreamInfo.allocationReserved / rate : 0;
+    let depletionTimeInSeconds = rate ? copyStreamV1Info.allocation / rate : 0;
     escrowEstimatedDepletionDateUtc.setTime(startDate.getTime() + depletionTimeInSeconds * 1000);
-    copyStreamInfo.escrowEstimatedDepletionUtc = 
+    copyStreamV1Info.escrowEstimatedDepletionUtc = 
       friendly === true 
         ? escrowEstimatedDepletionDateUtc.toUTCString()
         : escrowEstimatedDepletionDateUtc;
@@ -744,27 +756,104 @@ export const getStreamCached = (
 
   const id = 
     friendly === true && 
-    copyStreamInfo.id !== undefined && 
-    typeof copyStreamInfo.id !== 'string' 
-      ? copyStreamInfo.id.toBase58() 
-      : copyStreamInfo.id;
+    copyStreamV1Info.id !== undefined && 
+    typeof copyStreamV1Info.id !== 'string' 
+      ? copyStreamV1Info.id.toBase58() 
+      : copyStreamV1Info.id;
 
-  let state: STREAM_STATE | undefined;
   const threeDays = 3 * 24 * 3600;
   const nowUtc = Date.parse(new Date().toUTCString());
-  
 
   if (startDate.getTime() > nowUtc) {
-    copyStreamInfo.state = STREAM_STATE.Schedule;
-  } else if (copyStreamInfo.escrowVestedAmount < copyStreamInfo.allocationReserved) {
-    copyStreamInfo.state = STREAM_STATE.Running;
-  } else if (copyStreamInfo.escrowVestedAmount >= copyStreamInfo.allocationReserved && elapsedTime < threeDays) {
-    copyStreamInfo.state = STREAM_STATE.Paused;
-  } else if (copyStreamInfo.escrowVestedAmount >= copyStreamInfo.allocationReserved && elapsedTime >= threeDays) {
-    copyStreamInfo.state = STREAM_STATE.Ended;
+    copyStreamV1Info.state = STREAM_STATE.Schedule;
+  } else if (copyStreamV1Info.escrowVestedAmount < allocationAmount && isStreaming) {
+    copyStreamV1Info.state = STREAM_STATE.Running;
+  } else {
+    copyStreamV1Info.state = STREAM_STATE.Paused;
   }
 
-  return copyStreamInfo;
+  return copyStreamV1Info;
+}
+
+export const getStreamCached = (
+  streamInfo: StreamInfo,
+  currentBlocktime: number,
+  friendly: boolean = true
+
+): StreamInfo => {
+
+  const copyStreamV1Info = Object.assign({}, streamInfo);
+  const startDate = new Date();
+  startDate.setTime(
+    copyStreamV1Info.startUtc !== undefined && 
+    typeof copyStreamV1Info.startUtc !== 'string'
+      ? copyStreamV1Info.startUtc.getTime()
+      : copyStreamV1Info.startUtc === undefined
+      ? new Date().getTime()
+      : Date.parse(copyStreamV1Info.startUtc)
+  );
+
+  // refresh copy stream info
+  let isStreaming = copyStreamV1Info.streamResumedBlockTime >= copyStreamV1Info.escrowVestedAmountSnapBlockTime ? 1 : 0;
+  let lastTimeSnap = Math.max(copyStreamV1Info.streamResumedBlockTime, copyStreamV1Info.escrowVestedAmountSnapBlockTime);
+
+  const rate = copyStreamV1Info.rateIntervalInSeconds > 0
+    ? (copyStreamV1Info.rateAmount / copyStreamV1Info.rateIntervalInSeconds) * isStreaming
+    : 0;
+
+  const elapsedTime = currentBlocktime - lastTimeSnap;
+  copyStreamV1Info.associatedToken = 
+    friendly === true &&
+    copyStreamV1Info.associatedToken !== undefined &&
+    typeof copyStreamV1Info.associatedToken !== 'string'
+      ? copyStreamV1Info.associatedToken.toBase58()
+      : copyStreamV1Info.associatedToken;
+
+  const allocationAmount = 
+    copyStreamV1Info.allocationReserved > 0 
+      ? copyStreamV1Info.allocationReserved 
+      : copyStreamV1Info.allocation;
+  
+  if (currentBlocktime >= lastTimeSnap) {
+    copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
+
+    if (copyStreamV1Info.escrowVestedAmount > allocationAmount) {
+      copyStreamV1Info.escrowVestedAmount = allocationAmount;
+    }
+  }
+
+  copyStreamV1Info.escrowUnvestedAmount = allocationAmount - copyStreamV1Info.escrowVestedAmount;
+  let escrowEstimatedDepletionDateUtc = new Date();
+  escrowEstimatedDepletionDateUtc.setTime(Date.parse(copyStreamV1Info.escrowEstimatedDepletionUtc as string));
+
+  if (escrowEstimatedDepletionDateUtc.getTime() === 0) {
+    let depletionTimeInSeconds = rate ? copyStreamV1Info.allocation / rate : 0;
+    escrowEstimatedDepletionDateUtc.setTime(startDate.getTime() + depletionTimeInSeconds * 1000);
+    copyStreamV1Info.escrowEstimatedDepletionUtc = 
+      friendly === true 
+        ? escrowEstimatedDepletionDateUtc.toUTCString()
+        : escrowEstimatedDepletionDateUtc;
+  }
+
+  const id = 
+    friendly === true && 
+    copyStreamV1Info.id !== undefined && 
+    typeof copyStreamV1Info.id !== 'string' 
+      ? copyStreamV1Info.id.toBase58() 
+      : copyStreamV1Info.id;
+
+  const threeDays = 3 * 24 * 3600;
+  const nowUtc = Date.parse(new Date().toUTCString());
+
+  if (startDate.getTime() > nowUtc) {
+    copyStreamV1Info.state = STREAM_STATE.Schedule;
+  } else if (copyStreamV1Info.escrowVestedAmount < allocationAmount && isStreaming) {
+    copyStreamV1Info.state = STREAM_STATE.Running;
+  } else {
+    copyStreamV1Info.state = STREAM_STATE.Paused;
+  }
+
+  return copyStreamV1Info;
 }
 
 export const getStreamTerms = async (
@@ -827,10 +916,6 @@ export async function listStreams(
   // Lookup treasuries v1
   const configOrCommitmentV1: GetProgramAccountsConfig = {
     commitment,
-    dataSlice: {
-      offset: 0,
-      length: Layout.streamLayout.span
-    },
     filters: [
       { dataSize: Constants.STREAM_SIZE }
     ]
@@ -849,7 +934,7 @@ export async function listStreams(
     if (item.account.lamports > 0 && 
         item.account.data !== undefined && (
           item.account.data.length === Layout.streamV0Layout.span ||
-          item.account.data.length === Layout.streamLayout.span
+          item.account.data.length === Constants.STREAM_SIZE
         )
       ) {
 
@@ -864,7 +949,7 @@ export async function listStreams(
               )
             : parseStreamData(
                 item.pubkey,
-                item.account.data,
+                item.account.data.slice(0, Layout.streamLayout.span),
                 currentBlockTime as number,
                 friendly
               )
@@ -885,7 +970,7 @@ export async function listStreams(
 
           let signatures = await connection.getConfirmedSignaturesForAddress2(
             friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
-            { limit: 5 }, 
+            { limit: 1 }, 
             'confirmed'
           );
   
@@ -915,11 +1000,17 @@ export async function listStreamsCached(
 
   for (let stream of streams) {
     streamList.push(
-      getStreamCached(
-        Object.assign({}, stream),
-        currentTime,
-        friendly
-      )
+      stream.version === 0 
+        ? getStreamCached(
+          Object.assign({}, stream),
+          currentTime,
+          friendly
+        )
+        : getStreamCached(
+          Object.assign({}, stream),
+          currentTime,
+          friendly
+        )
     );
   }  
 
@@ -935,10 +1026,9 @@ export async function getStreamContributors(
 
   let contributors: PublicKey[] = [];
   let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, commitment);
+  let txs = await connection.getParsedConfirmedTransactions(signatures.map(s => s.signature), commitment);
 
-  for (let sign of signatures) {
-    let tx = await connection.getParsedConfirmedTransaction(sign.signature, commitment);
-
+  txs.forEach(tx => {
     if (tx !== null) {
       let lastIxIndex = tx.transaction.message.instructions.length - 1;
       let lastIx = tx.transaction.message.instructions[
@@ -949,7 +1039,7 @@ export async function getStreamContributors(
         contributors.push(lastIx.accounts[0]);
       }
     }
-  }
+  });
 
   return contributors;
 }
@@ -965,15 +1055,16 @@ export async function listStreamActivity(
   let activity: any = [];
   let finality = commitment !== undefined ? commitment : "confirmed";
   let signatures = await connection.getConfirmedSignaturesForAddress2(streamId, {}, finality);
+  let txs = await connection.getParsedConfirmedTransactions(signatures.map(s => s.signature), finality);
 
-  for (let sign of signatures) {
-    let tx = await connection.getParsedConfirmedTransaction(sign.signature, finality);
-
-    if (tx !== null) {
-      activity.push(
-        Object.assign({}, parseActivityData(sign.signature, tx, friendly))
-      );
-    }
+  if (txs && txs.length) {
+    txs.forEach(tx => {
+      if (tx) {
+        activity.push(
+          Object.assign({}, parseActivityData(tx.transaction.signatures[0], tx, friendly))
+        );
+      }
+    });
   }
 
   return activity.sort(
@@ -1045,17 +1136,17 @@ export async function listTreasuries(
 
         if ((treasurer && treasurer.toBase58() === info.treasurerAddress) || !treasurer) {
 
-          if (!info.createdOnUtc) {
-            try {
-              const blockTime = await connection.getBlockTime(info.slot) || 0;
-              info.createdOnUtc = blockTime === 0 
-                ? "" 
-                : friendly === true 
-                ? new Date(blockTime * 1000).toString()
-                : new Date(blockTime * 1000);
+          // if (!info.createdOnUtc) {
+          //   try {
+          //     const blockTime = await connection.getBlockTime(info.slot) || 0;
+          //     info.createdOnUtc = blockTime === 0 
+          //       ? "" 
+          //       : friendly === true 
+          //       ? new Date(blockTime * 1000).toString()
+          //       : new Date(blockTime * 1000);
 
-            } catch {}
-          }
+          //   } catch {}
+          // }
 
           treasuries.push(info);
         }
@@ -1063,15 +1154,7 @@ export async function listTreasuries(
     }
   }
 
-  const sortedTreasuries = treasuries.sort((a, b) => {
-    const aTime = typeof a.createdOnUtc === "string" 
-      ? new Date(a.createdOnUtc).getTime() 
-      : a.createdOnUtc.getTime();
-    const bTime = typeof b.createdOnUtc === "string" 
-      ? new Date(b.createdOnUtc).getTime() 
-      : b.createdOnUtc.getTime();
-    return bTime - aTime;
-  });
+  const sortedTreasuries = treasuries.sort((a, b) => b.slot - a.slot);
 
   return sortedTreasuries;
 }

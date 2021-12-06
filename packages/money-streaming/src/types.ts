@@ -80,6 +80,14 @@ export type StreamActivity = {
 };
 
 /**
+ * Treasury type
+ */
+export enum TreasuryType {
+  Open = 0,
+  Lock = 1
+}
+
+/**
  * TreasuryV2 info
  */
  export type TreasuryInfo = {
@@ -92,10 +100,12 @@ export type StreamActivity = {
   label: string;
   balance: number;
   allocationReserved: number;
-  allocationCommitted: number;
+  allocation: number;
   streamsAmount: number;
   upgradeRequired: boolean,
   createdOnUtc: Date | string,
+  depletionRate: number,
+  type: TreasuryType
 };
 
 /**
@@ -123,8 +133,16 @@ export type StreamTermsInfo = {
 export enum STREAM_STATE {
   Schedule = 1,
   Running = 2,
-  Paused = 3,
-  Ended = 4,
+  Paused = 3
+}
+
+/**
+ * Allocation type
+ */
+ export enum AllocationType {
+  All = 0,
+  Specific = 1,
+  None = 2
 }
 
 /**
@@ -138,7 +156,7 @@ export enum STREAM_STATE {
   rateAmount: number;
   rateIntervalInSeconds: number;
   allocationReserved: number,
-  allocationCommitted: number,
+  allocation: number,
   fundedOnUtc: Date | string | undefined;
   startUtc: Date | string | undefined;
   rateCliffInSeconds: number;
@@ -162,4 +180,5 @@ export enum STREAM_STATE {
   lastRetrievedBlockTime: number;
   upgradeRequired: boolean,
   state: STREAM_STATE;
+  version: number;
 };

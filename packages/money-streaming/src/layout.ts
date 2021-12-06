@@ -68,7 +68,7 @@ export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
   publicKey("treasury_address"),
   uint64("escrow_estimated_depletion_utc"),
   BufferLayout.f64("allocation_reserved"),
-  BufferLayout.f64("allocation_committed"),  
+  BufferLayout.f64("allocation"),  
   BufferLayout.f64("escrow_vested_amount_snap"),
   uint64("escrow_vested_amount_snap_slot"),
   uint64("escrow_vested_amount_snap_block_time"),
@@ -87,25 +87,8 @@ export const createStreamLayout: typeof BufferLayout.Structure =
     string("stream_name"),
     BufferLayout.f64("rate_amount"),
     uint64("rate_interval_in_seconds"),
-    BufferLayout.nu64("start_utc"),
-    uint64("rate_cliff_in_seconds"),
-    BufferLayout.f64("cliff_vest_amount"),
-    BufferLayout.f64("cliff_vest_percent"),
-    uint64("auto_off_clock_in_seconds"),
-  ]);
-
-/**
- * Create stream instruction layout
- */
-export const createStreamV1Layout: typeof BufferLayout.Structure =
-  BufferLayout.struct([
-    BufferLayout.u8("tag"),
-    publicKey("beneficiary_address"),
-    string("stream_name"),
-    BufferLayout.f64("rate_amount"),
-    uint64("rate_interval_in_seconds"),
     BufferLayout.f64("allocation_reserved"),
-    BufferLayout.f64("allocation_committed"),
+    BufferLayout.f64("allocation"),
     uint64("funded_on_utc"),
     uint64("start_utc"),
     uint64("rate_cliff_in_seconds"),
@@ -120,9 +103,9 @@ export const createStreamV1Layout: typeof BufferLayout.Structure =
 export const addFundsLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("tag"),
-    BufferLayout.f64("contribution_amount"),
-    BufferLayout.nu64("funded_on_utc"),
-    BufferLayout.u8("resume"),
+    BufferLayout.f64("amount"),
+    BufferLayout.u8("allocation_type"),
+    publicKey("allocation_stream_address")
   ]);
 
 /**
@@ -131,7 +114,7 @@ export const addFundsLayout: typeof BufferLayout.Structure =
 export const withdrawLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("tag"),
-    BufferLayout.f64("withdrawal_amount"),
+    BufferLayout.f64("amount"),
   ]);
 
 /**
@@ -222,7 +205,9 @@ export const treasuryLayout: typeof BufferLayout.Structure =
     BufferLayout.f64("allocation_reserved"),
     BufferLayout.f64("allocation_committed"),
     uint64("streams_amount"),
-    uint64("created_on_utc")
+    uint64("created_on_utc"),
+    BufferLayout.f64("depletion_rate"),
+    BufferLayout.u8("treasury_type"),
   ]);
 
 /**
@@ -232,5 +217,22 @@ export const createTreasuryLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("tag"),
     uint64("slot"),
-    string("label")
+    string("label"),
+    BufferLayout.u8("treasury_type")
+  ]);
+
+/**
+ * Close treasury instruction layout
+ */
+export const closeTreasuryLayout: typeof BufferLayout.Structure =
+  BufferLayout.struct([
+    BufferLayout.u8("tag")
+  ]);
+
+/**
+ * Upgrade treasury instruction layout
+ */
+ export const upgradeTreasuryLayout: typeof BufferLayout.Structure =
+  BufferLayout.struct([
+    BufferLayout.u8("tag")
   ]);
