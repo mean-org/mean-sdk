@@ -101,8 +101,34 @@ export const TOKENS: Tokens = {
     referrer: 'G7gyaTNn2hgjF67SWs4Ee9PEaFU2xadhtXL8HmkJ2cNL',
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4dmKkXNHdgYsXqBHCuMikNQWwVomZURhYvkkX5c4pQ7y/logo.png",
     tags: ['raydium']
+  },
+  PORT: {
+    symbol: "PORT",
+    name: "Port Finance Token",
+    address: "PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y",  
+    decimals: 6,
+    referrer: '5Ve8q9fb7R2DhdqGV4o1RVy7xxo4D6ifQfbxGiASdxEH',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/PoRTjZMPXb9T7dyU7tpLEZRQj7e6ssfAE62j2oQuc6y/PORT.png",
+    tags: ['raydium']
+  },
+  SLIM: {
+    symbol: 'SLIM',
+    name: 'SLIM',
+    address: 'xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW',
+    decimals: 6,
+    referrer: '',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/xxxxa1sKNGwFtw2kFn8XauW9xq8hBZ5kVtcSesTT9fW/logo.png",
+    tags: ['raydium']
+  },
+  mSOL: {
+    symbol: 'mSOL',
+    name: 'Marinade staked SOL (mSOL)',
+    address: 'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
+    decimals: 9,
+    referrer: '7h5bckf8P29RdviNoKjDyH3Ky3uwdrBiPgYuSCD4asV5',
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png",
+    tags: ['raydium']
   }
-
 }
 
 export const LP_TOKENS: Tokens = {
@@ -294,5 +320,77 @@ export const LP_TOKENS: Tokens = {
 
     address: '2k4quTuuLUxrSEhFH99qcoZzvgvVEc3b5sz3xz3qstfS',
     decimals: TOKENS.SNY.decimals
+  },
+  'PORT-USDC-V4': {
+    symbol: 'PORT-USDC',
+    name: 'PORT-USDC LP',
+    coin: { ...TOKENS.PORT },
+    pc: { ...TOKENS.USDC },
+
+    address: '9tmNtbUCrLS15qC4tEfr5NNeqcqpZ4uiGgi2vS5CLQBS',
+    decimals: TOKENS.PORT.decimals
+  },
+  'SLIM-SOL-V4': {
+    symbol: 'SLIM-SOL',
+    name: 'SLIM-SOL LP',
+    coin: { ...TOKENS.SLIM },
+    pc: { ...NATIVE_SOL },
+
+    address: '9X4EK8E59VAVi6ChnNvvd39m6Yg9RtkBbAPq1mDVJT57',
+    decimals: TOKENS.SLIM.decimals
+  },
+  'mSOL-SOL-V4': {
+    symbol: 'mSOL-SOL',
+    name: 'mSOL-SOL LP',
+    coin: { ...TOKENS.mSOL },
+    pc: { ...NATIVE_SOL },
+
+    address: '5ijRoAHVgd5T5CNtK5KDRUBZ7Bffb69nktMj5n6ks6m4',
+    decimals: TOKENS.mSOL.decimals
+  },
+  'mSOL-USDC-V4': {
+    symbol: 'mSOL-USDC',
+    name: 'mSOL-USDC LP',
+    coin: { ...TOKENS.mSOL },
+    pc: { ...TOKENS.USDC },
+
+    address: '4xTpJ4p76bAeggXoYywpCCNKfJspbuRzZ79R7pRhbqSf',
+    decimals: TOKENS.mSOL.decimals
+  },
+  'mSOL-USDT-V4': {
+    symbol: 'mSOL-USDT',
+    name: 'mSOL-USDT LP',
+    coin: { ...TOKENS.mSOL },
+    pc: { ...TOKENS.USDT },
+
+    address: '69NCmEW9mGpiWLjAcAWHq51k4ionJZmzgRfRT3wQaCCf',
+    decimals: TOKENS.mSOL.decimals
+  },
+  'mSOL-RAY-V4': {
+    symbol: 'mSOL-RAY',
+    name: 'mSOL-RAY LP',
+    coin: { ...TOKENS.mSOL },
+    pc: { ...TOKENS.RAY },
+
+    address: 'De2EHBAdkgfc72DpShqDGG42cV3iDWh8wvvZdPsiEcqP',
+    decimals: TOKENS.mSOL.decimals
+  },
+  'ETH-mSOL-V4': {
+    symbol: 'ETH-mSOL',
+    name: 'ETH-mSOL LP',
+    coin: { ...TOKENS.ETH },
+    pc: { ...TOKENS.mSOL },
+
+    address: 'HYv3grQfi8QbV7nG7EFgNK1aJSrsJ7HynXJKJVPLL2Uh',
+    decimals: TOKENS.ETH.decimals
+  },
+  'BTC-mSOL-V4': {
+    symbol: 'BTC-mSOL',
+    name: 'BTC-mSOL LP',
+    coin: { ...TOKENS.BTC },
+    pc: { ...TOKENS.mSOL },
+
+    address: '92bcERNtUmuaJ6mwLSxYHZYSph37jdKxRdoYNxpcYNPp',
+    decimals: TOKENS.BTC.decimals
   }
 }
