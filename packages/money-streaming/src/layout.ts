@@ -83,7 +83,6 @@ export const streamLayout: typeof BufferLayout.Structure = BufferLayout.struct([
 export const createStreamLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
     BufferLayout.u8("tag"),
-    publicKey("beneficiary_address"),
     string("stream_name"),
     BufferLayout.f64("rate_amount"),
     uint64("rate_interval_in_seconds"),
@@ -176,7 +175,8 @@ export const answerUpdateLayout: typeof BufferLayout.Structure =
  */
 export const closeStreamLayout: typeof BufferLayout.Structure =
   BufferLayout.struct([
-    BufferLayout.u8("tag")
+    BufferLayout.u8("tag"),
+    BufferLayout.u8("auto_close_treasury")
   ]);
 
 /**
@@ -207,7 +207,7 @@ export const treasuryLayout: typeof BufferLayout.Structure =
     uint64("streams_amount"),
     uint64("created_on_utc"),
     BufferLayout.f64("depletion_rate"),
-    BufferLayout.u8("treasury_type"),
+    BufferLayout.u8("type"),
   ]);
 
 /**

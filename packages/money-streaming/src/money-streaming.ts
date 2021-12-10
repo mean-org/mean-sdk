@@ -44,13 +44,8 @@ export class MoneyStreaming {
   private connection: Connection;
   private programId: PublicKey;
   private commitment: Commitment | ConnectionConfig | undefined;
-  private mspOps: PublicKey;
-
-  private mspOpsAddress: PublicKey = new PublicKey(
-    "CLazQV1BhSrxfgRHko4sC8GYBU3DoHcX4xxRZd12Kohr"
-  );
-  private mspOpsDevAddress: PublicKey = new PublicKey(
-    "BgxJuujLZDR27SS41kYZhsHkXx6CP2ELaVyg1qBxWYNU"
+  private mspOps: PublicKey = new PublicKey(
+    "3TD6SWY9M1mLY2kZWJNavPLhwXvcRsWdnZLRaMzERJBw"
   );
 
   /**
@@ -71,16 +66,6 @@ export class MoneyStreaming {
       this.programId = new PublicKey(programId);
     } else {
       this.programId = programId;
-    }
-
-    if (typeof programId === "string") {
-      this.mspOps = programId === Constants.MSP_PROGRAM.toBase58()
-        ? this.mspOpsAddress
-        : this.mspOpsDevAddress;
-    } else {
-      this.mspOps = programId === Constants.MSP_PROGRAM
-        ? this.mspOpsAddress
-        : this.mspOpsDevAddress;
     }
   }
 
@@ -124,7 +109,6 @@ export class MoneyStreaming {
 
     return await getTreasury(
       this.connection,
-      this.programId,
       id,
       commitment,
       friendly
@@ -481,7 +465,6 @@ export class MoneyStreaming {
 
       const treasuryInfo: any = await getTreasury(
         this.connection,
-        this.programId,
         treasury
       );
 
@@ -489,7 +472,7 @@ export class MoneyStreaming {
         throw Error(Errors.AccountNotFound);
       }
 
-      if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+      if (treasuryInfo.associatedTokenAddress !== associatedToken.toBase58()) {
         throw Error(Errors.TokensDoNotMatch);
       }
 
@@ -538,52 +521,52 @@ export class MoneyStreaming {
           slot
         )
       );
-    }
 
-    if (allocation && allocation > 0) {
-      // Get the treasurer token account
-      const treasurerToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        associatedToken,
-        treasurer,
-        true
-      );
-
-      // Get the treasurer treasury token account
-      treasurerTreasuryPoolToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        treasuryPoolMint,
-        treasurer,
-        true
-      );
-
-      // Get the treasury token account
-      treasuryToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        associatedToken,
-        treasury,
-        true
-      );
-
-      ixs.push(
-        await addFundsInstruction(
-          this.programId,
-          treasurer,
-          treasurerToken,
-          treasurerTreasuryPoolToken,
-          treasury,
-          treasuryToken,
+      if (allocation && allocation > 0) {
+        // Get the treasurer token account
+        const treasurerToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
           associatedToken,
+          treasurer,
+          true
+        );
+  
+        // Get the treasurer treasury token account
+        treasurerTreasuryPoolToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
           treasuryPoolMint,
-          undefined,
-          this.mspOps,
-          allocation,
-          AllocationType.All
-        )
-      );
+          treasurer,
+          true
+        );
+  
+        // Get the treasury token account
+        treasuryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          associatedToken,
+          treasury,
+          true
+        );
+  
+        ixs.push(
+          await addFundsInstruction(
+            this.programId,
+            treasurer,
+            treasurerToken,
+            treasurerTreasuryPoolToken,
+            treasury,
+            treasuryToken,
+            associatedToken,
+            treasuryPoolMint,
+            undefined,
+            this.mspOps,
+            allocation,
+            AllocationType.All
+          )
+        );
+      }  
     }
 
     const streamAccount = Keypair.generate();
@@ -639,7 +622,6 @@ export class MoneyStreaming {
 
     const treasuryInfo: any = await getTreasury(
       this.connection,
-      this.programId,
       treasury
     );
 
@@ -708,7 +690,6 @@ export class MoneyStreaming {
 
     const treasuryInfo: any = getTreasury(
       this.connection, 
-      this.programId,
       treasury
     );
 
@@ -941,7 +922,8 @@ export class MoneyStreaming {
 
   public async closeStream(
     initializer: PublicKey,
-    stream: PublicKey
+    stream: PublicKey,
+    autoCloseTreasury: boolean = false
 
   ): Promise<Transaction> {
 
@@ -968,21 +950,6 @@ export class MoneyStreaming {
       true
     );
 
-    const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryToken);
-
-    if (!beneficiaryTokenAccountInfo) {
-      tx.add(
-        Token.createAssociatedTokenAccountInstruction(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          associatedToken,
-          beneficiaryToken,
-          beneficiary,
-          initializer
-        )
-      );
-    }
-
     const treasurer = new PublicKey(streamInfo.treasurerAddress as string);
     const treasurerToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -993,6 +960,24 @@ export class MoneyStreaming {
     );
 
     const treasury = new PublicKey(streamInfo.treasuryAddress as string);
+    const treasuryInfo = await getTreasury(
+      this.connection,
+      treasury
+    );
+
+    if (!treasuryInfo) {
+      throw Error(Errors.AccountNotFound);
+    }
+
+    const treasuryPoolMint = new PublicKey(treasuryInfo.mintAddress as string);
+    const trasurerTreasuryPoolToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      treasuryPoolMint,
+      treasurer,
+      true
+    );
+
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -1015,14 +1000,19 @@ export class MoneyStreaming {
       await closeStreamInstruction(
         this.programId,
         initializer,
+        treasurer,
         treasurerToken,
+        trasurerTreasuryPoolToken,
+        beneficiary,
         beneficiaryToken,
         associatedToken,
         treasury,
         treasuryToken,
+        treasuryPoolMint,
         streamAddress,
         this.mspOps,
-        mspOpsToken
+        mspOpsToken,
+        autoCloseTreasury
       )
     );
 
@@ -1042,7 +1032,6 @@ export class MoneyStreaming {
     let tx = new Transaction();
     let treasuryInfo = await getTreasury(
       this.connection,
-      this.programId,
       treasury
     );
 
