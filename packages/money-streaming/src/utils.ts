@@ -174,39 +174,47 @@ const parseStreamV0Data = (
     u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString()
   );
 
+  let now = new Date();
+  let isScheduled = startTimeUtc > now.getTime();
   let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
   let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
   let escrowVestedAmount = 0.0;
+  let escrowUnvestedAmount = 0.0; 
+  let escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
   let rateAmount = decodedData.rate_amount;
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
     : 0;
 
-  const elapsedTime = currentBlockTime - lastTimeSnap;
-  const escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
-  const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
-  const associatedToken = friendly === true
-      ? beneficiaryAssociatedToken.toBase58()
-      : beneficiaryAssociatedToken;
-
-  if (rate === 0) {
-    escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
-  } else if (currentBlockTime >= lastTimeSnap) {
-    escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
-
-    if (escrowVestedAmount > decodedData.total_deposits - decodedData.total_withdrawals) {
+  if (isScheduled) {
+    escrowVestedAmount = 0;
+    escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
+  } else {
+    const elapsedTime = currentBlockTime - lastTimeSnap;
+    if (rate === 0) {
       escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
+    } else if (currentBlockTime >= lastTimeSnap) {
+      escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
+
+      if (escrowVestedAmount > decodedData.total_deposits - decodedData.total_withdrawals) {
+        escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
+      }
     }
+    escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals - escrowVestedAmount; 
   }
 
-  let escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals - escrowVestedAmount;
   let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc); 
 
   if (!decodedData.escrow_estimated_depletion_utc) {
     let depletionTimeInSeconds = rate ? decodedData.total_deposits / rate : 0;
     escrowEstimatedDepletionDateUtc.setTime(startTimeUtc + depletionTimeInSeconds * 1000);
   }
+
+  const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
+  const associatedToken = friendly === true
+      ? beneficiaryAssociatedToken.toBase58()
+      : beneficiaryAssociatedToken;
 
   let nameBuffer = Buffer.alloc(
     decodedData.stream_name.length,
@@ -221,7 +229,6 @@ const parseStreamV0Data = (
   const treasuryAddress = new PublicKey(decodedData.treasury_address);
 
   let state: STREAM_STATE | undefined;
-  const now = new Date();
 
   if (startTimeUtc > now.getTime()) {
     state = STREAM_STATE.Schedule;
@@ -324,33 +331,36 @@ const parseStreamData = (
     u64Number.fromBuffer(decodedData.rate_interval_in_seconds).toString()
   );
 
+  let now = new Date();
+  let isScheduled = startTimeUtc > now.getTime();
   let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
   let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
   let escrowVestedAmount = 0.0;
+  let escrowUnvestedAmount = 0.0;
+  let escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
   let rateAmount = decodedData.rate_amount;
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
     : 0;
 
-  const elapsedTime = currentBlockTime - lastTimeSnap;
-  const escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
-  const beneficiaryAssociatedToken = new PublicKey(decodedData.beneficiary_associated_token);
-  const associatedToken = friendly === true
-      ? beneficiaryAssociatedToken.toBase58()
-      : beneficiaryAssociatedToken;
-
-  if (rate === 0) {
-    escrowVestedAmount = decodedData.allocation;
-  } else if (currentBlockTime >= lastTimeSnap) {
-    escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
-
-    if (escrowVestedAmount > decodedData.allocation) {
+  if (isScheduled) {
+    escrowVestedAmount = 0;
+    escrowUnvestedAmount = decodedData.allocation;
+  } else {
+    const elapsedTime = currentBlockTime - lastTimeSnap;
+    if (rate === 0) {
       escrowVestedAmount = decodedData.allocation;
+    } else if (currentBlockTime >= lastTimeSnap) {
+      escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
+
+      if (escrowVestedAmount > decodedData.allocation) {
+        escrowVestedAmount = decodedData.allocation;
+      }
     }
+    escrowUnvestedAmount = decodedData.allocation - escrowVestedAmount;
   }
 
-  let escrowUnvestedAmount = decodedData.allocation - escrowVestedAmount;
   let escrowEstimatedDepletionDateUtcValue = parseFloat(
     u64Number.fromBuffer(decodedData.escrow_estimated_depletion_utc).toString()
   );
@@ -361,6 +371,11 @@ const parseStreamData = (
     let depletionTimeInSeconds = rate ? decodedData.allocation / rate : decodedData.allocation / 60;
     escrowEstimatedDepletionDateUtc = new Date(startTimeUtc + depletionTimeInSeconds * 1000);
   }
+
+  const beneficiaryAssociatedToken = new PublicKey(decodedData.beneficiary_associated_token);
+  const associatedToken = friendly === true
+      ? beneficiaryAssociatedToken.toBase58()
+      : beneficiaryAssociatedToken;
 
   let nameBuffer = Buffer.alloc(
     decodedData.stream_name.length,
@@ -375,7 +390,6 @@ const parseStreamData = (
   const treasuryAddress = new PublicKey(decodedData.treasury_address);
 
   let state: STREAM_STATE | undefined;
-  const now = new Date();
 
   if (startTimeUtc > now.getTime()) {
     state = STREAM_STATE.Schedule;
@@ -710,87 +724,6 @@ export const getStream = async (
   return stream;
 };
 
-export const getStreamV0Cached = (
-  streamInfo: StreamInfo,
-  currentBlocktime: number,
-  friendly: boolean = true
-
-): StreamInfo => {
-
-  const copyStreamV1Info = Object.assign({}, streamInfo);
-  const startDate = new Date();
-  startDate.setTime(
-    copyStreamV1Info.startUtc !== undefined && 
-    typeof copyStreamV1Info.startUtc !== 'string'
-      ? copyStreamV1Info.startUtc.getTime()
-      : copyStreamV1Info.startUtc === undefined
-      ? new Date().getTime()
-      : Date.parse(copyStreamV1Info.startUtc)
-  );
-
-  // refresh copy stream info
-  let isStreaming = copyStreamV1Info.streamResumedBlockTime >= copyStreamV1Info.escrowVestedAmountSnapBlockTime ? 1 : 0;
-  let lastTimeSnap = Math.max(copyStreamV1Info.streamResumedBlockTime, copyStreamV1Info.escrowVestedAmountSnapBlockTime);
-
-  const rate = copyStreamV1Info.rateIntervalInSeconds > 0
-    ? (copyStreamV1Info.rateAmount / copyStreamV1Info.rateIntervalInSeconds) * isStreaming
-    : 0;
-
-  const elapsedTime = currentBlocktime - lastTimeSnap;
-  copyStreamV1Info.associatedToken = 
-    friendly === true &&
-    copyStreamV1Info.associatedToken !== undefined &&
-    typeof copyStreamV1Info.associatedToken !== 'string'
-      ? copyStreamV1Info.associatedToken.toBase58()
-      : copyStreamV1Info.associatedToken;
-
-  const allocationAmount = 
-    copyStreamV1Info.allocationReserved > 0 
-      ? copyStreamV1Info.allocationReserved 
-      : copyStreamV1Info.allocation;
-  
-  if (currentBlocktime >= lastTimeSnap) {
-    copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
-
-    if (copyStreamV1Info.escrowVestedAmount > allocationAmount) {
-      copyStreamV1Info.escrowVestedAmount = allocationAmount;
-    }
-  }
-
-  copyStreamV1Info.escrowUnvestedAmount = allocationAmount - copyStreamV1Info.escrowVestedAmount;
-  let escrowEstimatedDepletionDateUtc = new Date();
-  escrowEstimatedDepletionDateUtc.setTime(Date.parse(copyStreamV1Info.escrowEstimatedDepletionUtc as string));
-
-  if (escrowEstimatedDepletionDateUtc.getTime() === 0) {
-    let depletionTimeInSeconds = rate ? copyStreamV1Info.allocation / rate : 0;
-    escrowEstimatedDepletionDateUtc.setTime(startDate.getTime() + depletionTimeInSeconds * 1000);
-    copyStreamV1Info.escrowEstimatedDepletionUtc = 
-      friendly === true 
-        ? escrowEstimatedDepletionDateUtc.toUTCString()
-        : escrowEstimatedDepletionDateUtc;
-  }
-
-  const id = 
-    friendly === true && 
-    copyStreamV1Info.id !== undefined && 
-    typeof copyStreamV1Info.id !== 'string' 
-      ? copyStreamV1Info.id.toBase58() 
-      : copyStreamV1Info.id;
-
-  const threeDays = 3 * 24 * 3600;
-  const nowUtc = Date.parse(new Date().toUTCString());
-
-  if (startDate.getTime() > nowUtc) {
-    copyStreamV1Info.state = STREAM_STATE.Schedule;
-  } else if (copyStreamV1Info.escrowVestedAmount < allocationAmount && isStreaming) {
-    copyStreamV1Info.state = STREAM_STATE.Running;
-  } else {
-    copyStreamV1Info.state = STREAM_STATE.Paused;
-  }
-
-  return copyStreamV1Info;
-}
-
 export const getStreamCached = (
   streamInfo: StreamInfo,
   currentBlocktime: number,
@@ -809,6 +742,8 @@ export const getStreamCached = (
       : Date.parse(copyStreamV1Info.startUtc)
   );
 
+  let nowUtc = Date.parse(new Date().toUTCString());
+  let isScheduled = startDate.getTime() > nowUtc;
   // refresh copy stream info
   let isStreaming = copyStreamV1Info.streamResumedBlockTime >= copyStreamV1Info.escrowVestedAmountSnapBlockTime ? 1 : 0;
   let lastTimeSnap = Math.max(copyStreamV1Info.streamResumedBlockTime, copyStreamV1Info.escrowVestedAmountSnapBlockTime);
@@ -817,25 +752,30 @@ export const getStreamCached = (
     ? (copyStreamV1Info.rateAmount / copyStreamV1Info.rateIntervalInSeconds) * isStreaming
     : 0;
 
-  const elapsedTime = currentBlocktime - lastTimeSnap;
-  copyStreamV1Info.associatedToken = 
-    friendly === true &&
-    copyStreamV1Info.associatedToken !== undefined &&
-    typeof copyStreamV1Info.associatedToken !== 'string'
-      ? copyStreamV1Info.associatedToken.toBase58()
-      : copyStreamV1Info.associatedToken;
+  if (isScheduled) {
+    copyStreamV1Info.escrowVestedAmount = 0;
+    copyStreamV1Info.escrowUnvestedAmount = copyStreamV1Info.allocation;
+  } else {
+    const elapsedTime = currentBlocktime - lastTimeSnap;
+    copyStreamV1Info.associatedToken = 
+      friendly === true &&
+      copyStreamV1Info.associatedToken !== undefined &&
+      typeof copyStreamV1Info.associatedToken !== 'string'
+        ? copyStreamV1Info.associatedToken.toBase58()
+        : copyStreamV1Info.associatedToken;
 
-  if (rate === 0) {
-    copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.allocation;
-  } else if (currentBlocktime >= lastTimeSnap) {
-    copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
-
-    if (copyStreamV1Info.escrowVestedAmount > copyStreamV1Info.allocation) {
+    if (rate === 0) {
       copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.allocation;
+    } else if (currentBlocktime >= lastTimeSnap) {
+      copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
+
+      if (copyStreamV1Info.escrowVestedAmount > copyStreamV1Info.allocation) {
+        copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.allocation;
+      }
     }
+    copyStreamV1Info.escrowUnvestedAmount = copyStreamV1Info.allocation - copyStreamV1Info.escrowVestedAmount;
   }
 
-  copyStreamV1Info.escrowUnvestedAmount = copyStreamV1Info.allocation - copyStreamV1Info.escrowVestedAmount;
   let escrowEstimatedDepletionDateUtc = new Date();
   escrowEstimatedDepletionDateUtc.setTime(Date.parse(copyStreamV1Info.escrowEstimatedDepletionUtc as string));
 
@@ -854,9 +794,6 @@ export const getStreamCached = (
     typeof copyStreamV1Info.id !== 'string' 
       ? copyStreamV1Info.id.toBase58() 
       : copyStreamV1Info.id;
-
-  const threeDays = 3 * 24 * 3600;
-  const nowUtc = Date.parse(new Date().toUTCString());
 
   if (startDate.getTime() > nowUtc) {
     copyStreamV1Info.state = STREAM_STATE.Schedule;
