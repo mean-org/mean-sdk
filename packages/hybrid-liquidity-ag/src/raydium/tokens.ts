@@ -150,15 +150,15 @@ export const LP_TOKENS: Tokens = {
     address: '2hMdRdVWZqetQsaHG8kQjdZinEMBz75vsoWTCob1ijXu',
     decimals: TOKENS.BTC.decimals
   },
-  'ETH-USDC-V4': {
-    symbol: 'ETH-USDC',
-    name: 'ETH-USDC LP',
-    coin: { ...TOKENS.ETH },
-    pc: { ...TOKENS.USDC },
+  // 'ETH-USDC-V4': {
+  //   symbol: 'ETH-USDC',
+  //   name: 'ETH-USDC LP',
+  //   coin: { ...TOKENS.ETH },
+  //   pc: { ...TOKENS.USDC },
 
-    address: '13PoKid6cZop4sj2GfoBeujnGfthUbTERdE5tpLCDLEY',
-    decimals: TOKENS.ETH.decimals
-  },
+  //   address: '13PoKid6cZop4sj2GfoBeujnGfthUbTERdE5tpLCDLEY',
+  //   decimals: TOKENS.ETH.decimals
+  // },
   'SOL-USDT-V4': {
     symbol: 'SOL-USDT',
     name: 'SOL-USDT LP',
@@ -177,15 +177,15 @@ export const LP_TOKENS: Tokens = {
     address: 'DgGuvR9GSHimopo3Gc7gfkbKamLKrdyzWkq5yqA6LqYS',
     decimals: TOKENS.BTC.decimals
   },
-  'ETH-USDT-V4': {
-    symbol: 'ETH-USDT',
-    name: 'ETH-USDT LP',
-    coin: { ...TOKENS.ETH },
-    pc: { ...TOKENS.USDT },
+  // 'ETH-USDT-V4': {
+  //   symbol: 'ETH-USDT',
+  //   name: 'ETH-USDT LP',
+  //   coin: { ...TOKENS.ETH },
+  //   pc: { ...TOKENS.USDT },
 
-    address: 'nPrB78ETY8661fUgohpuVusNCZnedYCgghzRJzxWnVb',
-    decimals: TOKENS.ETH.decimals
-  },
+  //   address: 'nPrB78ETY8661fUgohpuVusNCZnedYCgghzRJzxWnVb',
+  //   decimals: TOKENS.ETH.decimals
+  // },
   'RAY-USDT-V4': {
     symbol: 'RAY-USDT',
     name: 'RAY-USDT LP',
@@ -213,15 +213,15 @@ export const LP_TOKENS: Tokens = {
     address: '7P5Thr9Egi2rvMmEuQkLn8x8e8Qro7u2U7yLD2tU2Hbe',
     decimals: TOKENS.RAY.decimals
   },
-  'RAY-ETH-V4': {
-    symbol: 'RAY-ETH',
-    name: 'RAY-ETH LP',
-    coin: { ...TOKENS.RAY },
-    pc: { ...TOKENS.ETH },
+  // 'RAY-ETH-V4': {
+  //   symbol: 'RAY-ETH',
+  //   name: 'RAY-ETH LP',
+  //   coin: { ...TOKENS.RAY },
+  //   pc: { ...TOKENS.ETH },
 
-    address: 'mjQH33MqZv5aKAbKHi8dG3g3qXeRQqq1GFcXceZkNSr',
-    decimals: TOKENS.RAY.decimals
-  },
+  //   address: 'mjQH33MqZv5aKAbKHi8dG3g3qXeRQqq1GFcXceZkNSr',
+  //   decimals: TOKENS.RAY.decimals
+  // },
   'RAY-SOL-V4': {
     symbol: 'RAY-SOL',
     name: 'RAY-SOL LP',
@@ -258,15 +258,15 @@ export const LP_TOKENS: Tokens = {
     address: 'HYSAu42BFejBS77jZAZdNAWa3iVcbSRJSzp3wtqCbWwv',
     decimals: TOKENS.SRM.decimals
   },
-  'ETH-SRM-V4': {
-    symbol: 'ETH-SRM',
-    name: 'ETH-SRM LP',
-    coin: { ...TOKENS.ETH },
-    pc: { ...TOKENS.SRM },
+  // 'ETH-SRM-V4': {
+  //   symbol: 'ETH-SRM',
+  //   name: 'ETH-SRM LP',
+  //   coin: { ...TOKENS.ETH },
+  //   pc: { ...TOKENS.SRM },
 
-    address: '9VoY3VERETuc2FoadMSYYizF26mJinY514ZpEzkHMtwG',
-    decimals: TOKENS.ETH.decimals
-  },
+  //   address: '9VoY3VERETuc2FoadMSYYizF26mJinY514ZpEzkHMtwG',
+  //   decimals: TOKENS.ETH.decimals
+  // },
   'SRM-SOL-V4': {
     symbol: 'SRM-SOL',
     name: 'SRM-SOL LP',
@@ -375,15 +375,15 @@ export const LP_TOKENS: Tokens = {
     address: 'De2EHBAdkgfc72DpShqDGG42cV3iDWh8wvvZdPsiEcqP',
     decimals: TOKENS.mSOL.decimals
   },
-  'ETH-mSOL-V4': {
-    symbol: 'ETH-mSOL',
-    name: 'ETH-mSOL LP',
-    coin: { ...TOKENS.ETH },
-    pc: { ...TOKENS.mSOL },
+  // 'ETH-mSOL-V4': {
+  //   symbol: 'ETH-mSOL',
+  //   name: 'ETH-mSOL LP',
+  //   coin: { ...TOKENS.ETH },
+  //   pc: { ...TOKENS.mSOL },
 
-    address: 'HYv3grQfi8QbV7nG7EFgNK1aJSrsJ7HynXJKJVPLL2Uh',
-    decimals: TOKENS.ETH.decimals
-  },
+  //   address: 'HYv3grQfi8QbV7nG7EFgNK1aJSrsJ7HynXJKJVPLL2Uh',
+  //   decimals: TOKENS.ETH.decimals
+  // },
   'BTC-mSOL-V4': {
     symbol: 'BTC-mSOL',
     name: 'BTC-mSOL LP',

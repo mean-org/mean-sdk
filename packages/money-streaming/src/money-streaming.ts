@@ -7,7 +7,6 @@
   ConnectionConfig,
   Keypair,
   PublicKey,
-  SystemProgram,
   Transaction,
   Signer,
   TransactionInstruction,
@@ -18,9 +17,8 @@
 /**
  * MSP
  */
-import * as Layout from "./layout";
 import { u64Number } from "./u64n";
-import { StreamInfo, ListStreamParams, StreamTermsInfo, TreasuryInfo } from "./types";
+import { StreamInfo, ListStreamParams, TreasuryInfo } from "./types";
 import { Errors } from "./errors";
 import {
   AccountLayout,
@@ -30,11 +28,10 @@ import {
 
 } from "@solana/spl-token";
 
-import { Constants } from "./constants";
 import { BN } from "bn.js";
-import { addFundsInstruction, answerUpdateInstruction, closeStreamInstruction, closeTreasuryInstruction, createStreamInstruction, createTreasuryInstruction, pauseStreamInstruction, proposeUpdateInstruction, resumeStreamInstruction, withdrawInstruction } from "./instructions";
-import { getMintAccount, getStream, getStreamCached, getStreamTerms, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
-import { AllocationType, listTreasuries, recoverFundsInstruction, TreasuryType, upgradeTreasuryInstruction } from ".";
+import { addFundsInstruction, closeStreamInstruction, closeTreasuryInstruction, createStreamInstruction, createTreasuryInstruction, pauseStreamInstruction, resumeStreamInstruction, withdrawInstruction } from "./instructions";
+import { getMintAccount, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
+import { AllocationType, listTreasuries, TreasuryType } from ".";
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -313,37 +310,36 @@ export class MoneyStreaming {
           this.mspOps,
           "",
           TreasuryType.Open,
-          slot
+          slot,
+          true
         )
       );
 
-      if (amount && amount > 0) {
-        // Get the treasury token account
-        const treasuryToken = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          associatedToken,
-          treasury,
-          true
-        );
+      // Get the treasury token account
+      const treasuryToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        treasury,
+        true
+      );
 
-        ixs.push(
-          await addFundsInstruction(
-            this.programId,
-            treasurer,
-            treasurerToken,
-            treasurerTreasuryPoolToken,
-            treasury,
-            treasuryToken,
-            associatedToken,
-            treasuryPoolMint,
-            undefined,
-            this.mspOps,
-            amount,
-            AllocationType.All
-          )
-        );
-      }
+      ixs.push(
+        await addFundsInstruction(
+          this.programId,
+          treasurer,
+          treasurerToken,
+          treasurerTreasuryPoolToken,
+          treasury,
+          treasuryToken,
+          associatedToken,
+          treasuryPoolMint,
+          undefined,
+          this.mspOps,
+          amount,
+          AllocationType.All
+        )
+      );
 
       // Create stream account since the OTP is scheduled
       const streamAccount = Keypair.generate();
@@ -360,14 +356,14 @@ export class MoneyStreaming {
           streamAccount.publicKey,
           this.mspOps,
           streamName || "",
+          amount,
           0,
           0,
-          amount || 0,
-          amount || 0,
+          0,
           start.getTime(),
           0,
           0,
-          100,
+          0,
           0
         )
       );
@@ -388,7 +384,8 @@ export class MoneyStreaming {
   public async createTreasury(
     treasurer: PublicKey,
     label: string,
-    type: TreasuryType
+    type: TreasuryType,
+    autoClose: boolean = false
 
   ): Promise<Transaction> {
 
@@ -423,7 +420,8 @@ export class MoneyStreaming {
         this.mspOps,
         label,
         type,
-        slot
+        slot,
+        autoClose
       )
     );
 
@@ -441,12 +439,12 @@ export class MoneyStreaming {
     treasury: PublicKey | undefined,
     beneficiary: PublicKey,
     associatedToken: PublicKey,
+    streamName: string,
+    allocationAssigned: number,
+    allocationReserved?: number,
     rateAmount?: number,
     rateIntervalInSeconds?: number,
     startUtc?: Date,
-    streamName?: string,
-    allocation?: number,
-    allocationReserved?: number,
     rateCliffInSeconds?: number,
     cliffVestAmount?: number,
     cliffVestPercent?: number,
@@ -516,13 +514,14 @@ export class MoneyStreaming {
           treasury,
           treasuryPoolMint,
           this.mspOps,
-          "",
+          streamName,
           treasuryType,
-          slot
+          slot,
+          true
         )
       );
 
-      if (allocation && allocation > 0) {
+      if (allocationAssigned && allocationAssigned > 0) {
         // Get the treasurer token account
         const treasurerToken = await Token.getAssociatedTokenAddress(
           ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -562,7 +561,7 @@ export class MoneyStreaming {
             treasuryPoolMint,
             undefined,
             this.mspOps,
-            allocation,
+            allocationAssigned,
             AllocationType.All
           )
         );
@@ -583,15 +582,15 @@ export class MoneyStreaming {
         associatedToken,
         streamAccount.publicKey,
         this.mspOps,
-        streamName || "",
+        streamName,
+        allocationAssigned,
+        allocationReserved ? allocationReserved : 0,
         rateAmount || 0.0,
         rateIntervalInSeconds || 0,
-        allocation ? allocation : 0,
-        allocationReserved ? allocationReserved : 0,
         startDate.getTime(),
         rateCliffInSeconds || 0,
         cliffVestAmount || 0,
-        cliffVestPercent || 100,
+        cliffVestPercent || 0,
         autoPauseInSeconds || (rateAmount || 0) * (rateIntervalInSeconds || 0)
       )
     );
@@ -668,84 +667,6 @@ export class MoneyStreaming {
         this.mspOps,
         amount,
         allocationType
-      )
-    );
-
-    let tx = new Transaction().add(...ixs);
-    tx.feePayer = contributor;
-    let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment || "confirmed");    
-    tx.recentBlockhash = hash.blockhash;
-
-    return tx;
-  }
-
-  public async recoverFunds(
-    contributor: PublicKey,
-    treasury: PublicKey,
-    amount: number
-
-  ): Promise<Transaction> {
-
-    let ixs: TransactionInstruction[] = [];
-
-    const treasuryInfo: any = getTreasury(
-      this.connection, 
-      treasury
-    );
-
-    if (!treasuryInfo) {
-      throw Error(`${Errors.AccountNotFound}: Treasury account not found`);
-    }
-
-    const associatedToken = new PublicKey(treasuryInfo.associatedTokenAddress as string);
-    const treasuryPoolMint = new PublicKey(treasuryInfo.mintAddress as string);
-    const contributorToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      associatedToken,
-      contributor,
-      true
-    ); 
-
-    const treasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      associatedToken,
-      treasury,
-      true
-    );
-
-    // Get the money streaming program operations token account or create a new one
-    const contributorTreasuryPoolToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      treasuryPoolMint,
-      contributor,
-      true
-    );
-
-    //
-    const mspOpsToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      associatedToken,
-      this.mspOps,
-      true
-    );
-
-    ixs.push(
-      await recoverFundsInstruction(
-        this.programId,
-        contributor,
-        contributorToken,
-        contributorTreasuryPoolToken,
-        associatedToken,
-        treasury,
-        treasuryToken,
-        treasuryPoolMint,
-        this.mspOps,
-        mspOpsToken,
-        amount
       )
     );
 
@@ -1127,141 +1048,4 @@ export class MoneyStreaming {
 
     return tx;
   }
-
-  public async proposeUpdate(
-    stream: PublicKey,
-    proposedBy: PublicKey,
-    streamName?: string,
-    associatedToken?: PublicKey,
-    rateAmount?: number,
-    rateIntervalInSeconds?: number,
-    rateCliffInSeconds?: number,
-    cliffVestAmount?: number,
-    cliffVestPercent?: number,
-    autoPauseInSeconds?: number
-
-  ): Promise<Transaction> {
-
-    let ixs: TransactionInstruction[] = [];
-    // Create stream terms account
-    const streamTermsAccount = Keypair.generate();
-    const streamTermsMinimumBalance = await this.connection.getMinimumBalanceForRentExemption(
-      Layout.streamTermsLayout.span
-    );
-
-    ixs.push(
-      SystemProgram.createAccount({
-        fromPubkey: proposedBy,
-        newAccountPubkey: streamTermsAccount.publicKey,
-        lamports: streamTermsMinimumBalance,
-        space: Layout.streamTermsLayout.span,
-        programId: this.programId,
-      })
-    );
-
-    let streamInfo: any = await getStream(
-      this.connection,
-      stream,
-      this.commitment
-    );
-
-    let initializer: PublicKey = proposedBy,
-      counterparty: string | PublicKey | undefined;
-
-    if (initializer.toBase58() === streamInfo.treasurerAddress) {
-      initializer = new PublicKey(streamInfo.treasurerAddress as string);
-      counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-    } else if (initializer.toBase58() === streamInfo.beneficiaryAddress) {
-      initializer = new PublicKey(streamInfo.beneficiaryAddress as string);
-      counterparty = new PublicKey(streamInfo.treasurerAddress as string);
-    } else {
-      throw Error(Errors.InvalidInitializer);
-    }
-
-    ixs.push(
-      await proposeUpdateInstruction(
-        this.programId,
-        streamInfo,
-        streamTermsAccount.publicKey,
-        initializer,
-        counterparty,
-        this.mspOps,
-        streamName,
-        associatedToken,
-        rateAmount,
-        rateIntervalInSeconds,
-        rateCliffInSeconds,
-        cliffVestAmount,
-        cliffVestPercent,
-        autoPauseInSeconds || (rateAmount || 0) * (rateIntervalInSeconds || 0)
-      )
-    );
-
-    let tx = new Transaction().add(...ixs);
-    tx.feePayer = proposedBy;
-
-    let hash = await this.connection.getRecentBlockhash(
-      this.commitment as Commitment
-    );
-
-    tx.recentBlockhash = hash.blockhash;
-    tx.partialSign(streamTermsAccount);
-
-    return tx;
-  }
-
-  public async answerUpdate(
-    stream: PublicKey,
-    answeredBy: PublicKey,
-    approve: true
-
-  ): Promise<Transaction> {
-
-    const streamInfo = await getStream(
-      this.connection,
-      stream,
-      this.commitment
-    );
-
-    const streamTerms = await getStreamTerms(
-      this.programId,
-      this.connection,
-      new PublicKey(streamInfo.id as string)
-    );
-
-    let initializer: PublicKey = answeredBy,
-      counterparty: string | PublicKey | undefined;
-
-    if (initializer.toBase58() === streamInfo.treasurerAddress) {
-      initializer = new PublicKey(streamInfo.treasurerAddress as string);
-      counterparty = new PublicKey(streamInfo.beneficiaryAddress as string);
-    } else if (initializer.toBase58() === streamInfo.beneficiaryAddress) {
-      initializer = new PublicKey(streamInfo.beneficiaryAddress as string);
-      counterparty = new PublicKey(streamInfo.treasurerAddress as string);
-    } else {
-      throw new Error(Errors.InvalidInitializer);
-    }
-
-    let tx = new Transaction().add(
-      await answerUpdateInstruction(
-        this.programId,
-        streamTerms as StreamTermsInfo,
-        initializer,
-        counterparty,
-        this.mspOps,
-        approve
-      )
-    );
-
-    tx.feePayer = answeredBy;
-
-    let hash = await this.connection.getRecentBlockhash(
-      this.commitment as Commitment
-    );
-
-    tx.recentBlockhash = hash.blockhash;
-
-    return tx;
-  }
-
 }
