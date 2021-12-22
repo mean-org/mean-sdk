@@ -21,7 +21,7 @@ import {
 import * as Layout from "./layout";
 import { u64Number } from "./u64n";
 import { Buffer } from "buffer";
-import { StreamInfo, StreamTermsInfo, AllocationType } from "./types";
+import { AllocationType } from "./types";
 import { TreasuryType } from ".";
 
 export const createStreamInstruction = async (
@@ -33,10 +33,10 @@ export const createStreamInstruction = async (
   stream: PublicKey,
   mspOps: PublicKey,
   stream_name: string,
+  allocationAssigned: number,
+  allocationReserved: number,
   rateAmount: number,
   rateIntervalInSeconds: number,
-  allocation: number,
-  allocationReserved: number,
   startUtcNow: number,
   rateCliffInSeconds?: number,
   cliffVestAmount?: number,
@@ -70,7 +70,7 @@ export const createStreamInstruction = async (
     rate_amount: rateAmount,
     rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
     allocation_reserved: allocationReserved,
-    allocation,
+    allocation_assigned: allocationAssigned,
     funded_on_utc: new u64Number(fundedNow.getTime()).toBuffer(),
     start_utc: new u64Number(startUtcNow).toBuffer(),
     rate_cliff_in_seconds: new u64Number(rateCliffInSeconds || 0).toBuffer(),
@@ -147,47 +147,6 @@ export const addFundsInstruction = async (
   });
 };
 
-export const recoverFundsInstruction = async (
-  programId: PublicKey,
-  contributor: PublicKey,
-  contributorToken: PublicKey,
-  contributorTreasuryPoolTokenMint: PublicKey,
-  associatedToken: PublicKey,
-  treasury: PublicKey,
-  treasuryToken: PublicKey,
-  treasuryPoolMint: PublicKey,
-  mspOps: PublicKey,
-  mspOpsToken: PublicKey,
-  amount: number
-
-): Promise<TransactionInstruction> => {
-
-  const keys = [
-    { pubkey: contributor, isSigner: true, isWritable: false },
-    { pubkey: contributorToken, isSigner: false, isWritable: true },
-    { pubkey: contributorTreasuryPoolTokenMint, isSigner: false, isWritable: true },
-    { pubkey: associatedToken, isSigner: false, isWritable: false },
-    { pubkey: treasury, isSigner: false, isWritable: true },
-    { pubkey: treasuryToken, isSigner: false, isWritable: true },
-    { pubkey: treasuryPoolMint, isSigner: false, isWritable: true },
-    { pubkey: mspOps, isSigner: false, isWritable: false },
-    { pubkey: mspOpsToken, isSigner: false, isWritable: true },
-    { pubkey: programId, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
-
-  let data = Buffer.alloc(Layout.withdrawLayout.span);
-  const decodedData = { tag: 2, amount }
-  const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
-  data = data.slice(0, encodeLength);
-
-  return new TransactionInstruction({
-    keys,
-    programId,
-    data,
-  });
-};
-
 export const withdrawInstruction = async (
   programId: PublicKey,
   beneficiary: PublicKey,
@@ -219,7 +178,7 @@ export const withdrawInstruction = async (
   ];
 
   let data = Buffer.alloc(Layout.withdrawLayout.span);
-  const decodedData = { tag: 3, amount };
+  const decodedData = { tag: 2, amount };
   const encodeLength = Layout.withdrawLayout.encode(decodedData, data);
   data = data.slice(0, encodeLength);
 
@@ -251,7 +210,7 @@ export const pauseStreamInstruction = async (
 
   let data = Buffer.alloc(1);
   {
-    const decodedData = { tag: 4 };
+    const decodedData = { tag: 3 };
     const encodeLength = Layout.pauseOrResumeLayout.encode(decodedData, data);
     data = data.slice(0, encodeLength);
   }
@@ -284,7 +243,7 @@ export const resumeStreamInstruction = async (
 
   let data = Buffer.alloc(1);
   {
-    const decodedData = { tag: 5 };
+    const decodedData = { tag: 4 };
     const encodeLength = Layout.pauseOrResumeLayout.encode(decodedData, data);
     data = data.slice(0, encodeLength);
   }
@@ -339,111 +298,10 @@ export const closeStreamInstruction = async (
   let data = Buffer.alloc(Layout.closeStreamLayout.span);
   {
     const decodedData = {
-      tag: 8,
+      tag: 5,
       auto_close_treasury: autoCloseTreasury === true ? 1 : 0
     };
     const encodeLength = Layout.closeStreamLayout.encode(decodedData, data);
-    data = data.slice(0, encodeLength);
-  }
-
-  return new TransactionInstruction({
-    keys,
-    programId,
-    data,
-  });
-};
-
-export const proposeUpdateInstruction = async (
-  programId: PublicKey,
-  streamInfo: StreamInfo,
-  streamTerms: PublicKey,
-  initializer: PublicKey,
-  counterparty: PublicKey,
-  mspOps: PublicKey,
-  streamName?: string,
-  associatedToken?: PublicKey,
-  rateAmount?: number,
-  rateIntervalInSeconds?: number,
-  rateCliffInSeconds?: number,
-  cliffVestAmount?: number,
-  cliffVestPercent?: number,
-  autoPauseInSeconds?: number
-
-): Promise<TransactionInstruction> => {
-
-  const keys = [
-    { pubkey: initializer, isSigner: true, isWritable: false },
-    { pubkey: streamTerms, isSigner: false, isWritable: true },
-    { pubkey: counterparty, isSigner: false, isWritable: false },
-    { pubkey: streamInfo.id as PublicKey, isSigner: false, isWritable: true },
-    { pubkey: mspOps, isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-  ];
-
-  let data = Buffer.alloc(Layout.proposeUpdateLayout.span);
-  {
-    const encodedUIntArray = new TextEncoder().encode(streamName);
-    let nameBuffer = Buffer
-      .alloc(32)
-      .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
-
-    const decodedData = {
-      tag: 6,
-      proposed_by: initializer,
-      stream_name: nameBuffer,
-      treasurer_address: streamInfo.treasurerAddress as PublicKey,
-      beneficiary_address: streamInfo.beneficiaryAddress as PublicKey,
-      associated_token_address: associatedToken as PublicKey,
-      rate_amount: rateAmount as number,
-      rate_interval_in_seconds: new u64Number(rateIntervalInSeconds as number).toBuffer(),
-      rate_cliff_in_seconds: new u64Number(rateCliffInSeconds as number).toBuffer(),
-      cliff_vest_amount: cliffVestAmount as number,
-      cliff_vest_percent: cliffVestPercent as number,
-      auto_pause_in_seconds: new u64Number(autoPauseInSeconds as number).toBuffer(),
-    };
-
-    const encodeLength = Layout.proposeUpdateLayout.encode(decodedData, data);
-    data = data.slice(0, encodeLength);
-  }
-
-  return new TransactionInstruction({
-    keys,
-    programId,
-    data,
-  });
-};
-
-export const answerUpdateInstruction = async (
-  programId: PublicKey,
-  streamTerms: StreamTermsInfo,
-  initializer: PublicKey,
-  counterparty: PublicKey,
-  mspOps: PublicKey,
-  approve: true
-
-): Promise<TransactionInstruction> => {
-
-  const keys = [
-    { pubkey: initializer, isSigner: true, isWritable: false },
-    { pubkey: streamTerms.id as PublicKey, isSigner: false, isWritable: true },
-    { pubkey: counterparty, isSigner: false, isWritable: false },
-    {
-      pubkey: streamTerms.streamId as PublicKey,
-      isSigner: false,
-      isWritable: true,
-    },
-    { pubkey: mspOps, isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-  ];
-
-  let data = Buffer.alloc(Layout.answerUpdateLayout.span);
-  {
-    const decodedData = {
-      tag: 7,
-      approve: approve === true ? 1 : 0,
-    };
-
-    const encodeLength = Layout.answerUpdateLayout.encode(decodedData, data);
     data = data.slice(0, encodeLength);
   }
 
@@ -462,7 +320,8 @@ export const createTreasuryInstruction = async (
   mspOps: PublicKey,
   label: string,
   type: TreasuryType,
-  slot: number
+  slot: number,
+  autoClose: boolean = false
 
 ): Promise<TransactionInstruction> => {
     
@@ -484,10 +343,11 @@ export const createTreasuryInstruction = async (
 
   let data = Buffer.alloc(Layout.createTreasuryLayout.span);
   const decodedData = {
-    tag: 9,
+    tag: 6,
     slot: new u64Number(slot).toBuffer(),
     label: labelBuffer,
-    treasury_type: parseInt(type.toString())
+    treasury_type: parseInt(type.toString()),
+    auto_close: autoClose === false ? 0 : 1
   };
 
   const encodeLength = Layout.createTreasuryLayout.encode(decodedData, data);
@@ -530,7 +390,7 @@ export const closeTreasuryInstruction = async (
 
   let data = Buffer.alloc(Layout.closeTreasuryLayout.span);
   {
-    const decodedData = { tag: 10 };
+    const decodedData = { tag: 7 };
     const encodeLength = Layout.closeTreasuryLayout.encode(decodedData, data);
     data = data.slice(0, encodeLength);
   }
@@ -542,29 +402,28 @@ export const closeTreasuryInstruction = async (
   });
 }
 
-export const upgradeTreasuryInstruction = async (
+export const refreshTreasuryBalanceInstruction = async (
   programId: PublicKey,
   treasurer: PublicKey,
-  treasury: PublicKey,
-  treasuryToken: PublicKey,
   associatedToken: PublicKey,
+  treasury: PublicKey,  
+  treasuryToken: PublicKey,
   mspOps: PublicKey
 
 ): Promise<TransactionInstruction> => {
 
   const keys = [
-    { pubkey: treasurer, isSigner: true, isWritable: true },
-    { pubkey: treasury, isSigner: false, isWritable: true },
-    { pubkey: treasuryToken, isSigner: false, isWritable: false },
+    { pubkey: treasurer, isSigner: true, isWritable: false },
     { pubkey: associatedToken, isSigner: false, isWritable: false },
-    { pubkey: mspOps, isSigner: false, isWritable: false },
-    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+    { pubkey: treasury, isSigner: false, isWritable: true },    
+    { pubkey: treasuryToken, isSigner: false, isWritable: false },
+    { pubkey: mspOps, isSigner: false, isWritable: false }
   ];
 
-  let data = Buffer.alloc(Layout.upgradeTreasuryLayout.span);
+  let data = Buffer.alloc(1);
   {
-    const decodedData = { tag: 11 };
-    const encodeLength = Layout.upgradeTreasuryLayout.encode(decodedData, data);
+    const decodedData = { tag: 8 };
+    const encodeLength = Layout.refreshTreasuryBalanceLayout.encode(decodedData, data);
     data = data.slice(0, encodeLength);
   }
 
@@ -573,4 +432,4 @@ export const upgradeTreasuryInstruction = async (
     programId,
     data,
   });
-}
+};

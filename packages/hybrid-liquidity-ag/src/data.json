@@ -267,17 +267,6 @@
     },
     {
       "chainId": 101,
-      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      "ammAddress": "AoPebtuJC4f2RweZSxcVCcdeTgaEXY64Uho8b5HdPxAR",
-      "address": "13PoKid6cZop4sj2GfoBeujnGfthUbTERdE5tpLCDLEY",
-      "name": "ETH-USDC LP",
-      "tokenAddresses": [
-        "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
-        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-      ]
-    },
-    {
-      "chainId": 101,
       "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
       "ammAddress": "Dqk7mHQBx2ZWExmyrR2S8X6UG75CrbbpK2FSBZsNYsw6",
       "address": "FZthQCuYHhcfiDma7QrX7buDHwrZEd7vL8SjS6LQa3Tx",
@@ -306,17 +295,6 @@
       "name": "BTC-USDT LP",
       "tokenAddresses": [
         "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
-        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
-      ]
-    },
-    {
-      "chainId": 101,
-      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      "ammAddress": "He3iAEV5rYjv6Xf7PxKro19eVrC3QAcdic5CF2D2obPt",
-      "address": "nPrB78ETY8661fUgohpuVusNCZnedYCgghzRJzxWnVb",
-      "name": "ETH-USDT LP",
-      "tokenAddresses": [
-        "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
         "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
       ]
     },
@@ -446,17 +424,6 @@
     {
       "chainId": 101,
       "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      "ammAddress": "8iQFhWyceGREsWnLM8NkG9GC8DvZunGZyMzuyUScgkMK",
-      "address": "mjQH33MqZv5aKAbKHi8dG3g3qXeRQqq1GFcXceZkNSr",
-      "name": "RAY-ETH LP",
-      "tokenAddresses": [
-        "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
-        "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
-      ]
-    },
-    {
-      "chainId": 101,
-      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
       "ammAddress": "AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA",
       "address": "89ZKE4aoyfLBe2RuV6jM3JGNhaV18Nxh8eNtjRcndBip",
       "name": "RAY-SOL LP",
@@ -496,17 +463,6 @@
       "tokenAddresses": [
         "SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt",
         "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
-      ]
-    },
-    {
-      "chainId": 101,
-      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      "ammAddress": "3XwxHcbyqcd1xkdczaPv3TNCZsevELD4Zux3pu4sF2D8",
-      "address": "9VoY3VERETuc2FoadMSYYizF26mJinY514ZpEzkHMtwG",
-      "name": "SRM-ETH LP",
-      "tokenAddresses": [
-        "SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt",
-        "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
       ]
     },
     {
@@ -706,17 +662,6 @@
       "tokenAddresses": [
         "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
         "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"
-      ]
-    },
-    {
-      "chainId": 101,
-      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      "ammAddress": "Ghj3v2qYbSp6XqmH4NV4KRu4Rrgqoh2Ra7L9jEdsbNzF",
-      "address": "HYv3grQfi8QbV7nG7EFgNK1aJSrsJ7HynXJKJVPLL2Uh",
-      "name": "ETH-mSOL LP",
-      "tokenAddresses": [
-        "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk",
-        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
       ]
     },
     {

@@ -91,40 +91,23 @@ export enum TreasuryType {
  * TreasuryV2 info
  */
  export type TreasuryInfo = {
-  id: PublicKey | string;
-  initialized: boolean;
-  slot: number;
-  treasurerAddress: PublicKey | string;
-  associatedTokenAddress: PublicKey | string;
-  mintAddress: PublicKey | string;  
-  label: string;
-  balance: number;
-  allocationReserved: number;
-  allocation: number;
-  streamsAmount: number;
+  id: PublicKey | string,
+  initialized: boolean,
+  slot: number,
+  treasurerAddress: PublicKey | string,
+  associatedTokenAddress: PublicKey | string,
+  mintAddress: PublicKey | string,
+  label: string,
+  balance: number,
+  allocationReserved: number,
+  allocationLeft: number,
+  allocationAssigned: number,
+  streamsAmount: number,
   upgradeRequired: boolean,
   createdOnUtc: Date | string,
   depletionRate: number,
-  type: TreasuryType
-};
-
-/**
- * Stream contract terms
- */
-export type StreamTermsInfo = {
-  id: PublicKey | string | undefined;
-  initialized: boolean;
-  streamId: PublicKey | string | undefined;
-  streamMemo: String;
-  treasurerAddress: PublicKey | string | undefined;
-  beneficiaryAddress: PublicKey | string | undefined;
-  associatedToken: PublicKey | string | undefined;
-  rateAmount: number;
-  rateIntervalInSeconds: number;
-  rateCliffInSeconds: number;
-  cliffVestAmount: number;
-  cliffVestPercent: number;
-  autoPauseInSeconds: number;
+  type: TreasuryType,
+  autoClose: boolean
 };
 
 /**
@@ -149,36 +132,37 @@ export enum STREAM_STATE {
  * Stream info
  */
  export type StreamInfo = {
-  id: PublicKey | string | undefined;
-  initialized: boolean;
-  streamName: String;
-  treasurerAddress: PublicKey | string | undefined;
-  rateAmount: number;
-  rateIntervalInSeconds: number;
+  id: PublicKey | string | undefined,
+  initialized: boolean,
+  streamName: String,
+  treasurerAddress: PublicKey | string | undefined,
+  rateAmount: number,
+  rateIntervalInSeconds: number,
   allocationReserved: number,
-  allocation: number,
-  fundedOnUtc: Date | string | undefined;
-  startUtc: Date | string | undefined;
-  rateCliffInSeconds: number;
-  cliffVestAmount: number;
-  cliffVestPercent: number;
-  beneficiaryAddress: PublicKey | string | undefined;
-  associatedToken: PublicKey | string | undefined;
-  escrowVestedAmount: number;
-  escrowUnvestedAmount: number;
-  treasuryAddress: PublicKey | string | undefined;
-  escrowEstimatedDepletionUtc: Date | string | undefined;
-  escrowVestedAmountSnap: number;
-  escrowVestedAmountSnapSlot: number;
-  escrowVestedAmountSnapBlockTime: number;
-  streamResumedSlot: number;
-  streamResumedBlockTime: number;
-  autoPauseInSeconds: number;
-  isUpdatePending: boolean;
-  transactionSignature: string | undefined;
-  createdBlockTime: number;
-  lastRetrievedBlockTime: number;
+  allocationLeft: number,
+  allocationAssigned: number,
+  fundedOnUtc: Date | string | undefined,
+  startUtc: Date | string | undefined,
+  rateCliffInSeconds: number,
+  cliffVestAmount: number,
+  cliffVestPercent: number,
+  beneficiaryAddress: PublicKey | string | undefined,
+  associatedToken: PublicKey | string | undefined,
+  escrowVestedAmount: number,
+  escrowUnvestedAmount: number,
+  treasuryAddress: PublicKey | string | undefined,
+  escrowEstimatedDepletionUtc: Date | string | undefined,
+  escrowVestedAmountSnap: number,
+  escrowVestedAmountSnapSlot: number,
+  escrowVestedAmountSnapBlockTime: number,
+  streamResumedSlot: number,
+  streamResumedBlockTime: number,
+  autoPauseInSeconds: number,
+  isUpdatePending: boolean,
+  transactionSignature: string | undefined,
+  createdBlockTime: number,
+  lastRetrievedBlockTime: number,
   upgradeRequired: boolean,
-  state: STREAM_STATE;
-  version: number;
+  state: STREAM_STATE,
+  version: number,
 };
