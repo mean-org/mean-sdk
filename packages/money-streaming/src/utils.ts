@@ -178,14 +178,9 @@ const parseStreamV0Data = (
     escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
   } else {
     const elapsedTime = currentBlockTime - lastTimeSnap;
-    if (rate === 0) {
+    escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
+    if (escrowVestedAmount > decodedData.total_deposits - decodedData.total_withdrawals) {
       escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
-    } else if (currentBlockTime >= lastTimeSnap) {
-      escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
-
-      if (escrowVestedAmount > decodedData.total_deposits - decodedData.total_withdrawals) {
-        escrowVestedAmount = decodedData.total_deposits - decodedData.total_withdrawals;
-      }
     }
     escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals - escrowVestedAmount; 
   }
@@ -277,8 +272,6 @@ const parseStreamData = (
   let stream: StreamInfo = defaultStreamInfo;
   let decodedData = Layout.streamLayout.decode(streamData);
 
-  // console.log(decodedData);
-
   let fundedOnTimeUtc = parseFloat(u64Number
     .fromBuffer(decodedData.funded_on_utc)
     .toString()
@@ -336,15 +329,10 @@ const parseStreamData = (
     escrowUnvestedAmount = decodedData.allocation_assigned;
   } else {
     const elapsedTime = currentBlockTime - lastTimeSnap;
-    if (rate === 0) {
+    escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
+    if (escrowVestedAmount > decodedData.allocation_left) {
       escrowVestedAmount = decodedData.allocation_left;
-    } else if (currentBlockTime >= lastTimeSnap) {
-      escrowVestedAmount = escrowVestedAmountSnap + rate * elapsedTime;
-
-      if (escrowVestedAmount > decodedData.allocation_left) {
-        escrowVestedAmount = decodedData.allocation_left;
-      }
-    }
+    }    
     escrowUnvestedAmount = decodedData.allocation_left - escrowVestedAmount;
   }
 
@@ -481,12 +469,11 @@ const parseActivityData = (
 
   let streamActivity: StreamActivity = defaultStreamActivity;
   let signer = tx.transaction.message.accountKeys.filter((a) => a.signer)[0];
-  // let lastIxIndex = tx.transaction.message.instructions.length - 1;
   let ix = tx.transaction.message.instructions.filter((ix: any) => {
     if (ix && ix.data) {
       let buffer = base58.decode(ix.data);
       let actionIndex = buffer.readUInt8(0);
-      return (actionIndex === 1 || actionIndex === 3);
+      return (actionIndex === 1 || actionIndex === 2 || actionIndex === 3);
     }
     return false;
   })[0] as PartiallyDecodedInstruction;
@@ -498,7 +485,7 @@ const parseActivityData = (
   let buffer = base58.decode(ix.data);
   let actionIndex = buffer.readUInt8(0);
 
-  if (actionIndex >= 1 && actionIndex <= 3) {
+  if (actionIndex === 1 || actionIndex === 2 || actionIndex === 3) {
 
     let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
     let action = actionIndex === 1 ? "deposited" : "withdrew";
@@ -506,45 +493,50 @@ const parseActivityData = (
     let data: any, amount = 0;
 
     if (actionIndex === 1) {
-      data = Layout.addFundsLayout.decode(layoutBuffer);
-      amount = data.amount;
-    } else if (actionIndex === 2) {
-      // data = Layout.recoverFunds.decode(layoutBuffer);
-      // amount = data.amount;
-    } else if (actionIndex === 3) {
+      if (layoutBuffer.length === Layout.addFundsLayoutV0.span) {
+        data = Layout.addFundsLayoutV0.decode(layoutBuffer);
+        amount = data.contribution_amount;
+      } else {
+        data = Layout.addFundsLayout.decode(layoutBuffer);
+        amount = data.amount;
+      }
+    } else if (actionIndex == 2 && layoutBuffer.length === Layout.withdrawLayout.span) {
       data = Layout.withdrawLayout.decode(layoutBuffer);
       amount = data.amount;
-    } else {
-      // return
+    } else if(actionIndex == 3 && layoutBuffer.length === Layout.withdrawLayoutV0.span) {
+      data = Layout.withdrawLayoutV0.decode(layoutBuffer);
+      amount = data.withdrawal_amount;
     }
+ 
+    if (amount) {
+      let mint: PublicKey | string;
 
-    let mint: PublicKey | string;
+      if (tx.meta?.preTokenBalances?.length) {
+        mint = friendly === true
+          ? tx.meta.preTokenBalances[0].mint
+          : new PublicKey(tx.meta.preTokenBalances[0].mint);
 
-    if (tx.meta?.preTokenBalances?.length) {
-      mint = friendly === true
-        ? tx.meta.preTokenBalances[0].mint
-        : new PublicKey(tx.meta.preTokenBalances[0].mint);
+      } else if (tx.meta?.postTokenBalances?.length) {
+        mint = friendly === true
+          ? tx.meta.postTokenBalances[0].mint
+          : new PublicKey(tx.meta.postTokenBalances[0].mint);
 
-    } else if (tx.meta?.postTokenBalances?.length) {
-      mint = friendly === true
-        ? tx.meta.postTokenBalances[0].mint
-        : new PublicKey(tx.meta.postTokenBalances[0].mint);
-
-    } else {
-      mint = "Unknown Token";
-    }
-
-    streamActivity = Object.assign(
-      {
-        signature,
-        initializer: friendly === true ? signer.pubkey.toBase58() : signer.pubkey,
-        blockTime,
-        utcDate: new Date(blockTime).toUTCString(),
-        action,
-        amount,
-        mint,
+      } else {
+        mint = "Unknown Token";
       }
-    );
+
+      streamActivity = Object.assign(
+        {
+          signature,
+          initializer: friendly === true ? signer.pubkey.toBase58() : signer.pubkey,
+          blockTime,
+          utcDate: new Date(blockTime).toUTCString(),
+          action,
+          amount: parseFloat(amount.toFixed(9)),
+          mint,
+        }
+      );
+    }
   }
 
   return streamActivity;
@@ -635,7 +627,7 @@ export const getStream = async (
     let slot = await connection.getSlot(commitment);
     let currentBlockTime = await connection.getBlockTime(slot);
     let parsedStreamData = 
-      accountInfo.data.length === Layout.streamLayout.span 
+      accountInfo.data.length === Layout.streamV0Layout.span 
         ? parseStreamV0Data(
             id,
             accountInfo.data,
@@ -710,14 +702,9 @@ export const getStreamCached = (
     copyStreamV1Info.escrowUnvestedAmount = copyStreamV1Info.allocationAssigned;
   } else {
     const elapsedTime = currentBlocktime - lastTimeSnap;
-    if (rate === 0) {
+    copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
+    if (copyStreamV1Info.escrowVestedAmount > copyStreamV1Info.allocationLeft) {
       copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.allocationLeft;
-    } else if (currentBlocktime >= lastTimeSnap) {
-      copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.escrowVestedAmountSnap + rate * elapsedTime;
-
-      if (copyStreamV1Info.escrowVestedAmount > copyStreamV1Info.allocationLeft) {
-        copyStreamV1Info.escrowVestedAmount = copyStreamV1Info.allocationLeft;
-      }
     }
     copyStreamV1Info.escrowUnvestedAmount = copyStreamV1Info.allocationLeft - copyStreamV1Info.escrowVestedAmount;
   }
@@ -994,9 +981,16 @@ export async function listStreamActivity(
 ): Promise<any[]> {
 
   let activity: any = [];
-  let finality = commitment !== undefined ? commitment : "confirmed";
+  let finality = commitment !== undefined ? commitment : "finalized";
   let signatures = await connection.getConfirmedSignaturesForAddress2(streamId, {}, finality);
   let txs = await connection.getParsedConfirmedTransactions(signatures.map(s => s.signature), finality);
+  const streamAccountInfo = await connection.getAccountInfo(streamId, commitment || "finalized");
+
+  console.log("txs amount: ", txs.length);
+
+  if (!streamAccountInfo) {
+    throw Error("Stream not found");
+  }
 
   if (txs && txs.length) {
     txs.forEach(tx => {

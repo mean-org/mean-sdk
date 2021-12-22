@@ -98,6 +98,17 @@ export const createStreamLayout: typeof BufferLayout.Structure =
   ]);
 
 /**
+ * Add funds V0 instruction layout
+ */
+ export const addFundsLayoutV0: typeof BufferLayout.Structure =
+  BufferLayout.struct([
+    BufferLayout.u8("tag"),
+    BufferLayout.f64("contribution_amount"),
+    BufferLayout.nu64("funded_on_utc"),
+    BufferLayout.u8("resume"),
+  ]);
+
+/**
  * Add funds instruction layout
  */
 export const addFundsLayout: typeof BufferLayout.Structure =
@@ -107,6 +118,15 @@ export const addFundsLayout: typeof BufferLayout.Structure =
     BufferLayout.u8("allocation_type"),
     publicKey("allocation_stream_address")
   ]);
+
+/**
+ * Withdraw Stream V0 instruction layout
+ */
+ export const withdrawLayoutV0: typeof BufferLayout.Structure =
+ BufferLayout.struct([
+   BufferLayout.u8("tag"),
+   BufferLayout.f64("withdrawal_amount"),
+ ]);
 
 /**
  * Withdraw instruction layout
@@ -186,9 +206,7 @@ export const closeTreasuryLayout: typeof BufferLayout.Structure =
   ]);
 
 /**
- * Upgrade treasury instruction layout
+ * Refresh Treasury balance instruction layout
  */
- export const upgradeTreasuryLayout: typeof BufferLayout.Structure =
-  BufferLayout.struct([
-    BufferLayout.u8("tag")
-  ]);
+export const refreshTreasuryBalanceLayout: typeof BufferLayout.Structure =
+  BufferLayout.struct([BufferLayout.u8("tag")]);

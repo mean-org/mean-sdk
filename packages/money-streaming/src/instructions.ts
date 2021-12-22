@@ -349,7 +349,7 @@ export const createTreasuryInstruction = async (
     treasury_type: parseInt(type.toString()),
     auto_close: autoClose === false ? 0 : 1
   };
-  
+
   const encodeLength = Layout.createTreasuryLayout.encode(decodedData, data);
   data = data.slice(0, encodeLength);
 
@@ -401,3 +401,35 @@ export const closeTreasuryInstruction = async (
     data,
   });
 }
+
+export const refreshTreasuryBalanceInstruction = async (
+  programId: PublicKey,
+  treasurer: PublicKey,
+  associatedToken: PublicKey,
+  treasury: PublicKey,  
+  treasuryToken: PublicKey,
+  mspOps: PublicKey
+
+): Promise<TransactionInstruction> => {
+
+  const keys = [
+    { pubkey: treasurer, isSigner: true, isWritable: false },
+    { pubkey: associatedToken, isSigner: false, isWritable: false },
+    { pubkey: treasury, isSigner: false, isWritable: true },    
+    { pubkey: treasuryToken, isSigner: false, isWritable: false },
+    { pubkey: mspOps, isSigner: false, isWritable: false }
+  ];
+
+  let data = Buffer.alloc(1);
+  {
+    const decodedData = { tag: 8 };
+    const encodeLength = Layout.refreshTreasuryBalanceLayout.encode(decodedData, data);
+    data = data.slice(0, encodeLength);
+  }
+
+  return new TransactionInstruction({
+    keys,
+    programId,
+    data,
+  });
+};
