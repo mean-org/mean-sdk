@@ -169,6 +169,14 @@ const parseStreamV0Data = (
   let escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
   let rateAmount = decodedData.rate_amount;
 
+  if (decodedData.cliff_vest_amount > 0) {
+    escrowVestedAmountSnap += decodedData.cliff_vest_amount;
+  }
+
+  if (decodedData.cliff_vest_percent > 0) {
+    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
+  }
+
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
     : 0;
@@ -319,6 +327,14 @@ const parseStreamData = (
   let escrowUnvestedAmount = 0.0;
   let escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
   let rateAmount = decodedData.rate_amount;
+
+  if (decodedData.cliff_vest_amount > 0) {
+    escrowVestedAmountSnap += decodedData.cliff_vest_amount;
+  }
+
+  if (decodedData.cliff_vest_percent > 0) {
+    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
+  }
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
