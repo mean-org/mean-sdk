@@ -27,7 +27,7 @@ export const getSwapTx = async (
   let wrappedSolAccount: Account | null = null;
   let wrappedSolAccount2: Account | null = null;
 
-  if (fromCoinMint.equals(WRAPPED_SOL_MINT)) {
+  if (fromCoinMint.equals(NATIVE_SOL_MINT)) {
 
     wrappedSolAccount = new Account();
 
@@ -65,7 +65,7 @@ export const getSwapTx = async (
     );
   }
 
-  if (toCoinMint.equals(WRAPPED_SOL_MINT)) {
+  if (toCoinMint.equals(NATIVE_SOL_MINT)) {
 
     wrappedSolAccount2 = new Account();
 
@@ -136,7 +136,7 @@ export const getSwapTx = async (
   }
 
   // Transfer fees
-  const feeAccountToken = await Token.getAssociatedTokenAddress(
+  const feeTokenAccount = await Token.getAssociatedTokenAddress(
     ASSOCIATED_TOKEN_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
     fromMint,
@@ -144,7 +144,7 @@ export const getSwapTx = async (
     true
   );
 
-  const feeAccountTokenInfo = await connection.getAccountInfo(feeAccountToken);
+  const feeAccountTokenInfo = await connection.getAccountInfo(feeTokenAccount);
 
   if (!feeAccountTokenInfo) {
     tx.add(
@@ -152,7 +152,7 @@ export const getSwapTx = async (
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
         fromMint,
-        feeAccountToken,
+        feeTokenAccount,
         feeAccount,
         owner
       )
@@ -164,7 +164,7 @@ export const getSwapTx = async (
       Token.createTransferInstruction(
         TOKEN_PROGRAM_ID,
         wrappedSolAccount.publicKey,
-        feeAccountToken,
+        feeTokenAccount,
         owner,
         [],
         fee.toNumber()
@@ -182,7 +182,7 @@ export const getSwapTx = async (
       Token.createTransferInstruction(
         TOKEN_PROGRAM_ID,
         fromTokenAccount,
-        feeAccountToken,
+        feeTokenAccount,
         owner,
         [],
         fee.toNumber()
