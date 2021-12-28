@@ -433,3 +433,68 @@ export const refreshTreasuryBalanceInstruction = async (
     data,
   });
 };
+
+export const createStream2Instruction = async (
+  programId: PublicKey,
+  treasurer: PublicKey,
+  treasury: PublicKey,
+  beneficiary: PublicKey,
+  associatedToken: PublicKey,
+  stream: PublicKey,
+  mspOps: PublicKey,
+  stream_name: string,
+  allocationAssigned: number,
+  allocationReserved: number,
+  rateAmount: number,
+  rateIntervalInSeconds: number,
+  startUtcNow: number,
+  rateCliffInSeconds?: number,
+  cliffVestAmount?: number,
+  cliffVestPercent?: number,
+  autoPauseInSeconds?: number
+
+): Promise<TransactionInstruction> => {
+
+  const keys = [
+    { pubkey: treasurer, isSigner: true, isWritable: false },
+    { pubkey: beneficiary, isSigner: true, isWritable: false },
+    { pubkey: treasury, isSigner: false, isWritable: true },
+    { pubkey: associatedToken, isSigner: false, isWritable: false },
+    { pubkey: stream, isSigner: true, isWritable: true },
+    { pubkey: mspOps, isSigner: false, isWritable: true },
+    { pubkey: programId, isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+  ];
+
+  const encodedUIntArray = new TextEncoder().encode(stream_name);
+  let nameBuffer = Buffer
+    .alloc(32)
+    .fill(encodedUIntArray, 0, encodedUIntArray.byteLength);
+
+  const fundedNow = new Date();
+  let data = Buffer.alloc(Layout.createStreamLayout.span);
+  const decodedData = {
+    tag: 9,
+    stream_name: nameBuffer,
+    rate_amount: rateAmount,
+    rate_interval_in_seconds: new u64Number(rateIntervalInSeconds).toBuffer(), // default = MIN
+    allocation_reserved: allocationReserved,
+    allocation_assigned: allocationAssigned,
+    funded_on_utc: new u64Number(fundedNow.getTime()).toBuffer(),
+    start_utc: new u64Number(startUtcNow).toBuffer(),
+    rate_cliff_in_seconds: new u64Number(rateCliffInSeconds || 0).toBuffer(),
+    cliff_vest_amount: cliffVestAmount || 0,
+    cliff_vest_percent: cliffVestPercent || 0,
+    auto_pause_in_seconds: new u64Number(autoPauseInSeconds || 0).toBuffer(),
+  };
+
+  const encodeLength = Layout.createStreamLayout.encode(decodedData, data);
+  data = data.slice(0, encodeLength);
+
+  return new TransactionInstruction({
+    keys,
+    programId,
+    data,
+  });
+};

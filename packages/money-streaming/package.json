@@ -1,6 +1,10 @@
 {
   "name": "@mean-dao/money-streaming",
+<<<<<<< Updated upstream
   "version": "1.7.5",
+=======
+  "version": "1.7.8",
+>>>>>>> Stashed changes
   "description": "",
   "private": false,
   "repository": {
