@@ -141,15 +141,6 @@ export const TOKENS: Tokens = {
 }
 
 export const LP_TOKENS: Tokens = {
-  'MEAN-USDC-V4': {
-    symbol: 'MEAN-USDC',
-    name: 'MEAN-USDC LP',
-    coin: { ...TOKENS.MEAN },
-    pc: { ...TOKENS.USDC },
-
-    address: '7meGAxvVvBsUrFobS4prWVz1dnMZNvRRE2tJoVjFGjFc',
-    decimals: TOKENS.MEAN.decimals
-  },
   'SOL-USDC-V4': {
     symbol: 'SOL-USDC',
     name: 'SOL-USDC LP',

@@ -744,20 +744,9 @@
     {
       "chainId": 101,
       "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
-      "ammAddress": "AW1ibYCXMiJEWCvdaQqrZoKXsHcpbzAgkryfKuoxkXb3",
+      "ammAddress": "4jhCSYuGkLCiB8uvCaS34QCtPycBjayxEk27YCartTuW",
       "address": "F5BTnwuMA6rxftTdbZ33VWKr2wrr6DuQHnd4guKmPSYQ",
       "name": "MEAN_USDC",
-      "tokenAddresses": [
-        "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
-        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-      ]
-    },
-    {
-      "chainId": 101,
-      "protocolAddress": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-      "ammAddress": "5jcGFqXyB3xUrdS7LGmJ3R5a4pYaPPFs3mjFnqgwgo4x",
-      "address": "3h2VBX8533NB8eEH8rPXMdayodFDbgTHpbav6JqLZAQq",
-      "name": "MEAN-USDC LP",
       "tokenAddresses": [
         "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
         "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
