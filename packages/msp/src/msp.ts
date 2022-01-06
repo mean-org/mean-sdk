@@ -8,7 +8,7 @@ import { BN, Idl, Program } from "@project-serum/anchor";
 /**
  * MSP
  */
-import { StreamInfo, ListStreamParams, TreasuryInfo, TreasuryType, AllocationType } from "./types";
+import { Stream, ListStreamParams, Treasury, TreasuryType, AllocationType } from "./types";
 import { getMintAccount, createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
 import { listTreasuries } from ".";
@@ -61,7 +61,7 @@ export class MSP {
     hardUpdate: boolean = false,
     friendly: boolean = true
 
-  ): Promise<StreamInfo> {
+  ): Promise<Stream> {
 
     let copyStreamInfo = Object.assign({}, streamInfo);
     const currentTime = Date.parse(new Date().toUTCString()) / 1000;
@@ -85,7 +85,7 @@ export class MSP {
     commitment = "confirmed",
     friendly = true
 
-  }: ListStreamParams): Promise<StreamInfo[]> {
+  }: ListStreamParams): Promise<Stream[]> {
 
     return listStreams(
       this.program,
@@ -98,7 +98,7 @@ export class MSP {
   }
 
   public async refreshStreams (
-    streamInfoList: StreamInfo[],
+    streamInfoList: Stream[],
     treasurer?: PublicKey | undefined,
     treasury?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
@@ -106,7 +106,7 @@ export class MSP {
     hardUpdate: boolean = false,
     friendly: boolean = true
 
-  ): Promise<StreamInfo[]> {
+  ): Promise<Stream[]> {
 
     if (hardUpdate) {
       return await listStreams(
@@ -143,7 +143,7 @@ export class MSP {
     commitment?: Commitment | undefined,
     friendly: boolean = true
 
-  ): Promise<TreasuryInfo> {
+  ): Promise<Treasury> {
 
     let accountInfo = await this.program.account.Treasury.getAccountInfo(id, commitment);
 
@@ -159,7 +159,7 @@ export class MSP {
     commitment?: Commitment | undefined,
     friendly: boolean = true
 
-  ): Promise<TreasuryInfo[]> {
+  ): Promise<Treasury[]> {
 
     return listTreasuries(
       this.program,

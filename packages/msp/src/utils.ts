@@ -4,9 +4,9 @@ import { Idl, Program, Provider } from "@project-serum/anchor";
  * MSP
  */
 import { Constants } from "./constants";
-import { StreamActivity, StreamInfo } from "./types";
+import { StreamActivity, Stream } from "./types";
 import { MintInfo, MintLayout, u64 } from "@solana/spl-token";
-import { STREAM_STATUS, TreasuryInfo, TreasuryType } from "./types";
+import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import MSP_IDL from './idl';
 
 String.prototype.toPublicKey = function (): PublicKey {
@@ -45,7 +45,7 @@ export const getStream = async (
   commitment: Commitment = "finalized",
   friendly: boolean = true
 
-): Promise<StreamInfo> => {
+): Promise<Stream> => {
   
   let stream = await program.account.Stream.fetch(address);
   let associatedTokenInfo = await program.provider.connection.getAccountInfo(
@@ -63,11 +63,11 @@ export const getStream = async (
 }
 
 export const getStreamCached = async (
-  streamInfo: StreamInfo,
+  streamInfo: Stream,
   currentBlockTime: number,
   friendly: boolean = true
 
-): Promise<StreamInfo> => {
+): Promise<Stream> => {
 
   const copyStreamInfo = Object.assign({}, streamInfo);
 
@@ -93,9 +93,9 @@ export const listStreams = async (
   commitment?: Commitment | undefined,
   friendly: boolean = true
 
-): Promise<StreamInfo[]> => {
+): Promise<Stream[]> => {
 
-  let streamInfoList: StreamInfo[] = [];
+  let streamInfoList: Stream[] = [];
   let accounts = await getFilteredStreamAccounts(program, treasurer, treasury, beneficiary, commitment);
 
   for (let item of accounts) {
@@ -124,12 +124,12 @@ export const listStreams = async (
 }
 
 export const listStreamsCached = async (
-  streamInfoList: StreamInfo[],
+  streamInfoList: Stream[],
   friendly: boolean = true
 
-): Promise<StreamInfo[]> => {
+): Promise<Stream[]> => {
 
-  let streamList: StreamInfo[] = [];
+  let streamList: Stream[] = [];
   const currentTime = Date.parse(new Date().toUTCString()) / 1000;
 
   for (let streamInfo of streamInfoList) {
@@ -152,7 +152,7 @@ export const listStreamActivity = async (
   let activity: any = [];
   let finality = commitment !== undefined ? commitment : "finalized";
   let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(address, {}, finality);
-  let txs = await program.provider.connection.getParsedConfirmedTransactions(signatures.map(s => s.signature), finality);
+  let txs = await program.provider.connection.getParsedConfirmedTransactions(signatures.map((s: any) => s.signature), finality);
   const streamAccountInfo = await program.provider.connection.getAccountInfo(address, commitment || "finalized");
 
   if (!streamAccountInfo) {
@@ -160,7 +160,7 @@ export const listStreamActivity = async (
   }
 
   if (txs && txs.length) {
-    txs.forEach(tx => {
+    txs.forEach((tx: any) => {
       if (tx) {
         let item = Object.assign({}, parseStreamActivityData(program, tx.transaction.signatures[0], tx, friendly));
         if (item && item.signature) {
@@ -181,7 +181,7 @@ export const getTreasury = async (
   commitment: Commitment | undefined,
   friendly: boolean = true
 
-): Promise<TreasuryInfo> => {
+): Promise<Treasury> => {
 
   let treasury = await program.account.Treasury.fetch(address);
   let associatedTokenInfo = await program.provider.connection.getAccountInfo(
@@ -216,9 +216,9 @@ export const listTreasuries = async (
   commitment?: any,
   friendly: boolean = true
 
-): Promise<TreasuryInfo[]> => {
+): Promise<Treasury[]> => {
 
-  let treasuries: TreasuryInfo[] = [];
+  let treasuries: Treasury[] = [];
   let memcmpFilters: any[] = [];
 
   if (treasurer) {
@@ -392,7 +392,7 @@ const parseStreamData = (
     upgradeRequired: false,
     data: stream
     
-  } as StreamInfo;
+  } as Stream;
 }
 
 const parseStreamActivityData = (
@@ -502,7 +502,7 @@ const parseTreasuryData = (
     totalStreams: treasury.totalStreams.toNumber(),
     data: treasury
     
-  } as TreasuryInfo;
+  } as Treasury;
 }
 
 const getStreamEstDepletionDate = (stream: any) => {

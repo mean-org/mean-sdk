@@ -89,7 +89,7 @@ export enum TreasuryType {
 /**
  * Treasury info
  */
- export type TreasuryInfo = {
+ export type Treasury = {
   id: PublicKey | string,
   version: number,
   initialized: boolean,
@@ -132,7 +132,7 @@ export enum STREAM_STATUS {
 /**
  * Stream info
  */
- export type StreamInfo = {
+ export type Stream = {
   id: PublicKey | string | undefined,
   initialized: boolean,
   version: number,
