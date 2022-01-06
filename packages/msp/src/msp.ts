@@ -2,7 +2,8 @@
  * Solana
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
-import { BN, Idl, Program, Provider } from "@project-serum/anchor";
+import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { BN, Idl, Program } from "@project-serum/anchor";
 
 /**
  * MSP
@@ -10,7 +11,6 @@ import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 import { StreamInfo, ListStreamParams, TreasuryInfo, TreasuryType, AllocationType } from "./types";
 import { getMintAccount, createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, MintLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { listTreasuries } from ".";
 import { u64Number } from "./u64n";
 
@@ -192,11 +192,14 @@ export class MSP {
       true
     );
 
-    const treasurerTokenInfo = await this.program.provider.connection.getAccountInfo(treasurerToken);
+    const treasurerTokenInfo = await this.connection.getAccountInfo(treasurerToken);
 
     if (!treasurerTokenInfo) {
       throw Error("Treasury doesn't exist");
     }
+
+    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
+    const amountBn = new BN(amount * 10 ** associatedTokenMint.decimals);
 
     if (start.getTime() <= now.getTime()) {
       // Just create the beneficiary token account and transfer since the payment is not scheduled
@@ -224,9 +227,6 @@ export class MSP {
           )
         );
       }
-
-      const beneficiaryMint = await getMintAccount(this.program.provider.connection, associatedToken);
-      const amountBn = new BN(amount * 10 ** beneficiaryMint.decimals);
 
       ixs.push(
         Token.createTransferInstruction(
@@ -291,7 +291,7 @@ export class MSP {
 
       ixs.push(
         this.program.instruction.addFunds(
-          amount,
+          amountBn.toNumber(),
           0,
           PublicKey.default,
           {
@@ -325,9 +325,9 @@ export class MSP {
           start.getTime(),
           0,
           0,
-          amount,
+          amountBn.toNumber(),
           0,
-          amount,
+          amountBn.toNumber(),
           100,
           {
             accounts: {
@@ -368,7 +368,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    const slot = await this.program.provider.connection.getSlot(this.commitment as Commitment || 'confirmed');
+    const slot = await this.connection.getSlot(this.commitment as Commitment || 'confirmed');
     const slotBuffer = new u64Number(slot).toBuffer();
     const treasurySeeds = [treasurer.toBuffer(), slotBuffer];
     // Treasury Pool PDA
@@ -403,7 +403,7 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    const { blockhash } = await this.program.provider.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    const { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -428,8 +428,19 @@ export class MSP {
     let ixs: Array<TransactionInstruction> = new Array<TransactionInstruction>();
     let treasuryToken: PublicKey = PublicKey.default,
       treasuryMint: PublicKey = PublicKey.default,
-      treasurerTreasuryToken: PublicKey = PublicKey.default,
-      treasuryType: TreasuryType = TreasuryType.Open;
+      treasurerTreasuryToken: PublicKey = PublicKey.default;
+
+    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
+    const allocationAssignedBn = new BN(allocationAssigned * 10 ** associatedTokenMint.decimals);
+    const allocationReservedBn = allocationReserved 
+      ? new BN(allocationReserved * 10 ** associatedTokenMint.decimals)
+      : new BN(0);
+
+    const cliffVestedAmountBn = cliffVestAmount 
+      ? new BN(cliffVestAmount * 10 ** associatedTokenMint.decimals)
+      : new BN(0);
+
+    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * 10_000 : 0;
 
     if (treasury) {
 
@@ -444,7 +455,6 @@ export class MSP {
       }
 
       treasuryMint = new PublicKey(treasuryInfo.mint as string);
-      treasuryType = treasuryInfo.treasuryType;
 
     } else {
 
@@ -549,10 +559,10 @@ export class MSP {
       startDate.getTime(),
       rateAmount,
       rateIntervalInSeconds,
-      allocationAssigned,
-      allocationReserved,
-      cliffVestAmount,
-      cliffVestPercent,
+      allocationAssignedBn.toNumber(),
+      allocationReservedBn.toNumber(),
+      cliffVestedAmountBn.toNumber(),
+      cliffVestPercentValue,
       {
         accounts: {
           initializer: treasurer,
@@ -572,8 +582,8 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
-    tx.recentBlockhash = hash.blockhash;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    tx.recentBlockhash = blockhash;
     tx.partialSign(...[streamAccount]);
 
     return tx;
@@ -604,7 +614,7 @@ export class MSP {
       true
     );
 
-    const contributorTokenInfo = this.program.provider.connection.getAccountInfo(contributorToken, "recent");
+    const contributorTokenInfo = this.connection.getAccountInfo(contributorToken, "recent");
 
     if (!contributorTokenInfo) {
       throw Error("Contributor token account doesn't exist");
@@ -626,8 +636,11 @@ export class MSP {
       true
     );
 
+    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
+    const amountBn = new BN(amount * 10 ** associatedTokenMint.decimals);
+
     let tx = this.program.transaction.addFunds(
-      amount,
+      amountBn.toNumber(),
       allocationType,
       !stream ? PublicKey.default : stream,
       {
@@ -646,62 +659,397 @@ export class MSP {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY
-        },
-        signers: []
+        }
       }
     );
 
     tx.feePayer = contributor;
-    let { blockhash } = await this.program.provider.connection.getRecentBlockhash(this.commitment as Commitment || "confirmed");    
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "confirmed");    
     tx.recentBlockhash = blockhash;
 
     return tx;
   }
 
-  public withdraw = async function (
+  public async withdraw (
     beneficiary: PublicKey,
     stream: PublicKey,
     amount: number
 
   ): Promise<Transaction> {
 
-    throw Error('Not implemented');
+    let streamInfo: any = await getStream(this.program, stream, "recent");
+
+    if (!streamInfo) {
+      throw Error("Stream doesn't exists");
+    }
+
+    if (!beneficiary.equals(new PublicKey(streamInfo.beneficiaryAddress as string))) {
+      throw Error("Incorrect stream beneficiary");
+    }
+
+    // Check for the beneficiary associated token account
+    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
+    const beneficiaryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      beneficiary,
+      true
+    );
+
+    const treasury = new PublicKey(streamInfo.treasuryAddress as PublicKey);
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
+    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
+    const amountBn = new BN(amount * 10 ** associatedTokenMint.decimals);
+
+    let tx = this.program.transaction.withdraw(
+      amountBn.toNumber(),
+      {
+        accounts: {
+          beneficiary: beneficiary,
+          beneficiaryToken: beneficiaryToken,
+          associatedToken: associatedToken,
+          treasury: treasury,
+          treasuryToken: treasuryToken,
+          stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          msp: this.program.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY
+        }
+      }
+    );
+
+    tx.feePayer = beneficiary;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    tx.recentBlockhash = blockhash;
+
+    return tx;
   }
 
-  public pauseStream = async function (
+  public async pauseStream (
     initializer: PublicKey,
     stream: PublicKey
 
   ): Promise<Transaction> {
 
-    throw Error('Not implemented');
+    const streamInfo = await getStream(this.program, stream);
+
+    if (!streamInfo) {
+      throw Error("Stream doesn't exist");
+    }
+
+    const treasury = new PublicKey(streamInfo.treasury as string);
+    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
+
+    let tx = this.program.transaction.pauseStream(
+      {
+        accounts: {
+          initializer: initializer,
+          treasury: treasury,
+          associatedToken: associatedToken,
+          stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          msp: this.program.programId
+        }
+      }
+    );
+
+    tx.feePayer = initializer;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    tx.recentBlockhash = blockhash;
+
+    return tx;
   }
 
-  public resumeStream = async function (
+  public async resumeStream (
     initializer: PublicKey,
     stream: PublicKey
 
   ): Promise<Transaction> {
 
-    throw Error('Not implemented');
+    const streamInfo = await getStream(this.program, stream);
+
+    if (!streamInfo) {
+      throw Error("Stream doesn't exist");
+    }
+
+    const treasury = new PublicKey(streamInfo.treasury as string);
+    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
+
+    let tx = this.program.transaction.resumeStream(
+      {
+        accounts: {
+          initializer: initializer,
+          treasury: treasury,
+          associatedToken: associatedToken,
+          stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          msp: this.program.programId
+        }
+      }
+    );
+
+    tx.feePayer = initializer;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    tx.recentBlockhash = blockhash;
+
+    return tx;
   }
 
-  public closeStream = async function (
+  public async closeStream (
     initializer: PublicKey,
     stream: PublicKey,
     autoCloseTreasury: boolean = false
 
   ): Promise<Transaction> {
 
-    throw Error('Not implemented');
+    let streamInfo = await getStream(this.program, stream, "recent");
+
+    if (!streamInfo) {
+      throw Error("Stream doesn't exist");
+    }
+
+    const beneficiary = new PublicKey(streamInfo.beneficiary as string);
+    const associatedToken = new PublicKey(streamInfo.associatedToken as string);
+    const beneficiaryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      beneficiary,
+      true
+    );
+
+    const treasurer = new PublicKey(streamInfo.treasurer as string);
+    const treasurerToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasurer,
+      true
+    );
+
+    const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasuryInfo = await getTreasury(this.program, treasury, "recent");
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    const treasuryMint = new PublicKey(treasuryInfo.mint as string);
+    const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      treasuryMint,
+      treasurer,
+      true
+    );
+
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+
+    // Get the money streaming program operations token account or create a new one
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
+    let tx = this.program.transaction.closeStream(
+      autoCloseTreasury,
+      {
+        accounts: {
+          initializer: initializer,
+          treasurer: treasurer,
+          treasurerToken: treasurerToken,
+          treasurerTreasuryToken: treasurerTreasuryToken,
+          beneficiary: beneficiary,
+          beneficiaryToken: beneficiaryToken,
+          associatedToken: associatedToken,
+          treasury: treasury,
+          treasuryToken: treasuryToken,
+          treasuryMint: treasuryMint,
+          stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          msp: this.program.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY
+        }
+      }
+    );
+
+    tx.feePayer = initializer;
+    let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    tx.recentBlockhash = hash.blockhash;
+
+    return tx;
   }
 
-  public closeTreasury = async function (
+  public async closeTreasury (
     treasurer: PublicKey,
     treasury: PublicKey
 
   ): Promise<Transaction> {
 
-    throw Error('Not implemented');
+    let treasuryInfo = await getTreasury(this.program, treasury, "recent");
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    let associatedToken: any;
+    let treasuryToken: any;
+    let treasurerToken: any;
+    let feeTreasuryToken: any;
+    let treasuryMint = new PublicKey(treasuryInfo.mint as string);
+    
+    if (treasuryInfo.associatedToken) {
+
+      associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+      treasuryToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        treasury,
+        true
+      );
+
+    } else {
+
+      const tokenAccountsResult = await this.connection.getTokenAccountsByOwner(
+        treasury, { programId: TOKEN_PROGRAM_ID }
+      );
+
+      if (tokenAccountsResult.value && tokenAccountsResult.value.length) {
+        const tokenAccount = AccountLayout.decode(tokenAccountsResult.value[0].account.data);
+        associatedToken = new PublicKey(tokenAccount.mint);
+        treasuryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          associatedToken,
+          treasury,
+          true
+        );
+      }
+    }
+
+    if (associatedToken) {
+
+      treasurerToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        treasurer,
+        true
+      );
+
+      // Get the money streaming program operations token account or create a new one
+      feeTreasuryToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        Constants.FEE_TREASURY,
+        true
+      );
+    }
+
+    const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      treasuryMint,
+      treasurer,
+      true
+    );
+
+    let tx = this.program.transaction.closeTreasury(
+      {
+        accounts: {
+          treasurer: treasurer,
+          treasurerToken: treasurerToken,
+          treasurerTreasuryToken: treasurerTreasuryToken,
+          associatedToken: associatedToken,
+          treasury: treasury,
+          treasuryToken: treasuryToken,
+          treasuryMint: treasuryMint,
+          feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          msp: this.program.programId,
+          tokenProgram: TOKEN_PROGRAM_ID
+        }
+      }
+    );
+
+    tx.feePayer = treasurer;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    tx.recentBlockhash = blockhash;
+
+    return tx;
+  }
+
+  public async refreshTreasuryBalance (
+    treasurer: PublicKey,
+    treasury: PublicKey
+
+  ): Promise<Transaction> {
+
+    const treasuryInfo = await getStream(this.program, treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+
+    let tx = this.program.transaction.refreshTreasuryBalance(
+      {
+        accounts: {
+          treasurer: treasurer,
+          associatedToken: associatedToken,
+          treasury: treasury,
+          treasuryToken: treasuryToken
+        }
+      }
+    );
+
+    tx.feePayer = treasurer;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    tx.recentBlockhash = blockhash;
+
+    return tx;
   }
 }
