@@ -8,8 +8,10 @@ import { BN, Idl, Program, Provider } from "@project-serum/anchor";
  * MSP
  */
 import { StreamInfo, ListStreamParams, TreasuryInfo, TreasuryType, AllocationType } from "./types";
-import { createProgram, getStream } from "./utils";
+import { createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
+import { MintLayout } from "@solana/spl-token";
+import { listTreasuries } from ".";
 
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
@@ -37,38 +39,45 @@ export class MSP {
     this.program = createProgram(this.connection, wallet);
   }
 
-  public getStream = async function (
+  public async getStream (
     id: PublicKey,
     commitment?: Commitment | undefined,
     friendly: boolean = true
 
   ): Promise<any> {
 
-    throw Error('Not implemented');
+    let accountInfo = await this.program.account.Stream.getAccountInfo(id, commitment);
+
+    if (!accountInfo) {
+      throw Error("Stream doesn't exists");
+    }
+
+    return getStream(this.program, id, commitment, friendly);
   }
 
-  public refreshStream = async function (
+  public async refreshStream (
     streamInfo: any,
     hardUpdate: boolean = false,
     friendly: boolean = true
 
   ): Promise<StreamInfo> {
 
-    throw Error('Not implemented');
+    let copyStreamInfo = Object.assign({}, streamInfo);
+    const currentTime = Date.parse(new Date().toUTCString()) / 1000;
+
+    if (hardUpdate) {
+
+      const streamId = typeof copyStreamInfo.id === 'string' 
+        ? new PublicKey(copyStreamInfo.id) 
+        : copyStreamInfo.id as PublicKey; 
+
+        return await getStream(this.program, streamId);
+    }
+
+    return getStreamCached(copyStreamInfo, currentTime, friendly);
   }
 
-  public getTreasury = async function (
-    id: PublicKey,
-    commitment?: Commitment | undefined,
-    friendly: boolean = true
-
-  ): Promise<TreasuryInfo> {
-
-    throw Error('Not implemented');
-  }
-
-  public listStreams = async function ({
-    
+  public async listStreams ({
     treasurer,
     treasury,
     beneficiary,
@@ -76,12 +85,19 @@ export class MSP {
     friendly = true
 
   }: ListStreamParams): Promise<StreamInfo[]> {
-    
-    throw Error('Not implemented');
+
+    return listStreams(
+      this.program,
+      treasurer,
+      treasury,
+      beneficiary,
+      commitment,
+      friendly
+    );
   }
 
-  public refreshStreams = async function (
-    streams: StreamInfo[],
+  public async refreshStreams (
+    streamInfoList: StreamInfo[],
     treasurer?: PublicKey | undefined,
     treasury?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
@@ -91,27 +107,65 @@ export class MSP {
 
   ): Promise<StreamInfo[]> {
 
-    throw Error('Not implemented');
+    if (hardUpdate) {
+      return await listStreams(
+        this.program, 
+        treasurer, 
+        treasury,
+        beneficiary,
+        commitment, 
+        friendly
+      );
+    }
+
+    return listStreamsCached(streamInfoList, friendly);
   }
 
-  public listStreamActivity = async function (
+  public async listStreamActivity (
     id: PublicKey,
     commitment?: Finality | undefined,
     friendly: boolean = true
 
   ): Promise<any[]> {
 
-    throw Error('Not implemented');
+    let accountInfo = await this.program.account.Stream.getAccountInfo(id, commitment);
+
+    if (!accountInfo) {
+      throw Error("Stream doesn't exists");
+    }
+
+    return listStreamActivity(this.program, id, commitment, friendly);
   }
 
-  public listTreasuries = async function (
+  public async getTreasury (
+    id: PublicKey,
+    commitment?: Commitment | undefined,
+    friendly: boolean = true
+
+  ): Promise<TreasuryInfo> {
+
+    let accountInfo = await this.program.account.Treasury.getAccountInfo(id, commitment);
+
+    if (!accountInfo) {
+      throw Error("Treasury doesn't exists");
+    }
+
+    return getTreasury(this.program, id, commitment, friendly);
+  }
+
+  public async listTreasuries (
     treasurer: PublicKey,
     commitment?: Commitment | undefined,
     friendly: boolean = true
 
   ): Promise<TreasuryInfo[]> {
 
-    throw Error('Not implemented');
+    return listTreasuries(
+      this.program,
+      treasurer,
+      commitment,
+      friendly
+    )
   }
 
   public oneTimePayment = async function (

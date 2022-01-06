@@ -100,16 +100,16 @@ export enum TreasuryType {
   associatedToken: PublicKey | string,
   mint: PublicKey | string,
   labels: string[],  //max 5 labels per treasury
-  lastKnownBalance: number,
-  lastKnownBalanceSlot: number,
-  lastKnownBalanceBlockTime: number,
+  balance: number,
   allocationReserved: number,
   allocationAssigned: number,
   totalWithdrawals: number,
   totalStreams: number,
   createdOnUtc: Date | string,
   treasuryType: TreasuryType,
-  autoClose: boolean
+  autoClose: boolean,
+  decimals: number,
+  data: any
 };
 
 /**
@@ -150,16 +150,6 @@ export enum STREAM_STATUS {
   allocationAssigned: number,
   allocationReserved: number,
   totalWithdrawalsAmount: number,
-  lastWithdrawalAmount: number,
-  lastWithdrawalSlot: number,
-  lastWithdrawalBlockTime: number,
-  lastManualStopWithdrawableSnap: number, 
-  lastManualStopSlot: number,
-  lastManualStopBlockTime: number,
-  lastManualResumeAllocationChangeAmount: number,
-  lastManualResumeSlot: number,
-  lastManualResumeBlockTime: number,
-  lastKnownTotalSecondsInPause: number 
   transactionSignature: string | undefined,
   createdBlockTime: number,
   lastRetrievedBlockTime: number,
@@ -169,5 +159,7 @@ export enum STREAM_STATUS {
   fundsLeftInStream: number,
   fundsSentToBeneficiary: number,
   remainingAllocationAmount: number,
-  estimatedDepletionDate: Date | string
+  estimatedDepletionDate: Date | string,
+  decimals: number,
+  data: any
 };
