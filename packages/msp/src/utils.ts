@@ -1,16 +1,13 @@
-import base58 from "bs58";
-import base64 from "base64-js";
 import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction } from "@solana/web3.js";
-import { BN, Idl, Program, Provider } from "@project-serum/anchor";
+import { Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
  */
-import MSP_IDL from './idl';
 import { Constants } from "./constants";
 import { StreamActivity, StreamInfo } from "./types";
 import { MintInfo, MintLayout, u64 } from "@solana/spl-token";
-import { STREAM_STATUS } from "./types";
-import { TreasuryInfo, TreasuryType } from ".";
+import { STREAM_STATUS, TreasuryInfo, TreasuryType } from "./types";
+import MSP_IDL from './idl';
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -60,8 +57,7 @@ export const getStream = async (
     throw Error("Associated token doesn't exists");
   }
 
-  let associatedToken = MintLayout.decode(Buffer.from(associatedTokenInfo.data));
-  let streamInfo = parseStreamData(stream, address, associatedToken.decimals, friendly);
+  let streamInfo = parseStreamData(stream, address, friendly);
 
   return streamInfo;
 }
@@ -79,22 +75,10 @@ export const getStreamCached = async (
     ? getStreamEstDepletionDate(copyStreamInfo.data).toString() 
     : getStreamEstDepletionDate(copyStreamInfo.data);
 
-  copyStreamInfo.fundsLeftInStream = friendly 
-    ? getFundsLeftInStream(copyStreamInfo.data) / 10 ** copyStreamInfo.decimals
-    : getFundsLeftInStream(copyStreamInfo.data);
-
-  copyStreamInfo.fundsSentToBeneficiary = friendly 
-    ? getFundsSentToBeneficiary(copyStreamInfo.data) / 10 ** copyStreamInfo.decimals
-    : getFundsSentToBeneficiary(copyStreamInfo.data);
-
-  copyStreamInfo.remainingAllocationAmount = friendly 
-    ? getStreamRemainingAllocation(copyStreamInfo.data) / 10 ** copyStreamInfo.decimals
-    : getStreamRemainingAllocation(copyStreamInfo.data);
-
-  copyStreamInfo.withdrawableAmount = friendly 
-    ? getStreamWithdrawableAmount(copyStreamInfo.data) / 10 ** copyStreamInfo.decimals
-    : getStreamWithdrawableAmount(copyStreamInfo.data);
-
+  copyStreamInfo.fundsLeftInStream = getFundsLeftInStream(copyStreamInfo.data);
+  copyStreamInfo.fundsSentToBeneficiary = getFundsSentToBeneficiary(copyStreamInfo.data);
+  copyStreamInfo.remainingAllocationAmount = getStreamRemainingAllocation(copyStreamInfo.data);
+  copyStreamInfo.withdrawableAmount = getStreamWithdrawableAmount(copyStreamInfo.data);
   copyStreamInfo.status = getStreamStatus(copyStreamInfo.data);
   copyStreamInfo.lastRetrievedBlockTime = currentBlockTime;
 
@@ -117,7 +101,7 @@ export const listStreams = async (
   for (let item of accounts) {
     if (item.account.lamports > 0 && item.account.data !== undefined) {
       let stream = program.account.Stream.coder.state.decode(Buffer.from(item.account.data))
-      let parsedStream = parseStreamData(stream, item.publicKey, 6);              
+      let parsedStream = parseStreamData(stream, item.publicKey, friendly);              
       let info = Object.assign({}, parsedStream);
       let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
         friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
@@ -209,8 +193,7 @@ export const getTreasury = async (
     throw Error("Associated token doesn't exists");
   }
 
-  let associatedToken = MintLayout.decode(Buffer.from(associatedTokenInfo.data));
-  let parsedTreasury = parseTreasuryData(treasury, address, associatedToken.decimas, friendly); 
+  let parsedTreasury = parseTreasuryData(treasury, address, friendly); 
 
   if (!parsedTreasury.createdOnUtc) {
     try {
@@ -254,7 +237,7 @@ export const listTreasuries = async (
     for (let item of accounts) {
       if (item.account.data !== undefined) {
         let treasury = program.account.Treasury.coder.state.decode(Buffer.from(item.account.data))
-        let parsedTreasury = parseTreasuryData(treasury, item.pubkey, 6, friendly);
+        let parsedTreasury = parseTreasuryData(treasury, item.pubkey, friendly);
         let info = Object.assign({}, parsedTreasury);
 
         if ((treasurer && treasurer.toBase58() === info.treasurer) || !treasurer) {
@@ -285,7 +268,7 @@ export const getMintAccount = async (
   return deserializeMint(info.data);
 };
 
-export const deserializeMint = (data: Buffer): MintInfo => {
+const deserializeMint = (data: Buffer): MintInfo => {
   if (data.length !== MintLayout.span) {
     throw new Error("Not a valid Mint");
   }
@@ -374,7 +357,6 @@ const getFilteredStreamAccounts = async (
 const parseStreamData = (
   stream: any,
   address: PublicKey,
-  decimals: number,
   friendly: boolean = true
 
 ) => {
@@ -391,75 +373,23 @@ const parseStreamData = (
     treasury: friendly ? stream.treasuryAddress.toBase58() : stream.treasuryAddress,
     beneficiary: friendly ? stream.beneficiaryAddress.toBase58() : stream.beneficiaryAddress,
     associatedToken: friendly ? stream.associatedTokenAddress.toBase58() : stream.associatedTokenAddress,
-
-    cliffVestAmount: friendly 
-      ? stream.cliffVestAmountUnits.toNumber() / 10 ** decimals 
-      : stream.cliffVestAmountUnits.toNumber(),
-
+    cliffVestAmount: stream.cliffVestAmountUnits.toNumber(),
     cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
-    allocationAssigned: friendly 
-      ? stream.allocationAssignedUnits.toNumber() / 10 ** decimals
-      : stream.allocationAssignedUnits.toNumber(),
-
-    allocationReserved: friendly 
-      ? stream.allocationReservedUnits.toNumber() / 10 ** decimals
-      : stream.allocationReservedUnits.toNumber(),
-
-    createdBlockTime: 0,
-    estimatedDepletionDate: friendly 
-      ? getStreamEstDepletionDate(stream).toString() : 
-      getStreamEstDepletionDate(stream),
-
-    rateAmount: friendly
-      ? stream.rateAmountUnits.toNumber() / 10 ** decimals 
-      : stream.rateAmountUnits.toNumber(),
-
+    allocationAssigned: stream.allocationAssignedUnits.toNumber(),
+    allocationReserved: stream.allocationReservedUnits.toNumber(),
+    estimatedDepletionDate: getStreamEstDepletionDate(stream),
+    rateAmount: stream.rateAmountUnits.toNumber(),
     rateIntervalInSeconds: stream.rateIntervalInSeconds.toNumber(),
-    totalWithdrawalsAmount: friendly
-      ? stream.totalWithdrawalsUnits.toNumber() / 10 ** decimals
-      : stream.totalWithdrawalsUnits.toNumber(),
-
-    // lastWithdrawalSlot: stream.lastWithdrawalSlot.toNumber(),
-    // lastWithdrawalBlockTime: stream.lastWithdrawalBlockTime.toNumber(),
-    // lastWithdrawalAmount: friendly 
-    //   ? stream.lastWithdrawalAmount.toNumber() / 10 ** associatedToken.decimals
-    //   : stream.lastWithdrawalAmount.toNumber(),
-
-    // lastManualStopSlot: stream.lastManualStopSlot.toNumber(),
-    // lastManualStopBlockTime: stream.lastManualStopBlockTime.toNumber(),
-    // lastManualStopWithdrawableSnap: friendly 
-    //   ? stream.lastManualStopWithdrawableSnap.toNumber() / 10 ** associatedToken.decimals
-    //   : stream.lastManualStopWithdrawableSnap.toNumber(),
-    
-    // lastManualResumeSlot: stream.lastManualResumeSlot.toNumber(),
-    // lastManualResumeBlockTime: stream.lastManualResumeBlockTime.toNumber(),
-    // lastManualResumeAllocationChangeAmount: friendly 
-    //   ? stream.lastManualResumeBlockTime.toNumber() / 10 ** associatedToken.decimals
-    //   : stream.lastManualResumeBlockTime.toNumber(),
-
-    // lastKnownTotalSecondsInPause: stream.lastKnownTotalSecondsInPausedStatus.toNumber(),
-
-    fundsLeftInStream: friendly 
-      ? getFundsLeftInStream(stream) / 10 ** decimals
-      : getFundsLeftInStream(stream),
-
-    fundsSentToBeneficiary: friendly 
-      ? getFundsSentToBeneficiary(stream) / 10 ** decimals
-      : getFundsSentToBeneficiary(stream),
-
-    remainingAllocationAmount: friendly 
-      ? getStreamRemainingAllocation(stream) / 10 ** decimals
-      : getStreamRemainingAllocation(stream),
-
-    withdrawableAmount: friendly 
-      ? getStreamWithdrawableAmount(stream) / 10 ** decimals
-      : getStreamWithdrawableAmount(stream),
-
+    totalWithdrawalsAmount: stream.totalWithdrawalsUnits.toNumber(),
+    fundsLeftInStream: getFundsLeftInStream(stream),
+    fundsSentToBeneficiary: getFundsSentToBeneficiary(stream),
+    remainingAllocationAmount: getStreamRemainingAllocation(stream),
+    withdrawableAmount: getStreamWithdrawableAmount(stream),
     status: getStreamStatus(stream),
     lastRetrievedBlockTime: new Date().getTime() / 1_000,
     transactionSignature: '',
+    createdBlockTime: 0,
     upgradeRequired: false,
-    decimals: decimals,
     data: stream
     
   } as StreamInfo;
@@ -542,7 +472,6 @@ const parseStreamActivityData = (
 const parseTreasuryData = (
   treasury: any,
   address: PublicKey,
-  decimals: number,
   friendly: boolean = true
 
 ) => {
@@ -566,24 +495,11 @@ const parseTreasuryData = (
     treasuryType: treasury.treasuryType === 0 ? TreasuryType.Open : TreasuryType.Lock,
     treasurer: friendly ? treasury.treasurerAddress.toBase58() : treasury.treasurerAddress,
     associatedToken: friendly ? treasury.associatedTokenAddress.toBase58() : treasury.associatedTokenAddress,
-    balance: friendly 
-      ? treasury.lastKnownBalanceUnits.toNumber() / 10 ** decimals 
-      : treasury.lastKnownBalanceUnits.toNumber(),
-
-    allocationReserved: friendly 
-      ? treasury.allocationReservedUnits.toNumber() / 10 ** decimals 
-      : treasury.allocationReservedUnits.toNumber(),
-
-    allocationAssigned: friendly 
-      ? treasury.allocationAssignedUnits.toNumber() / 10 ** decimals 
-      : treasury.allocationAssignedUnits.toNumber(),
-
-    totalWithdrawals: friendly 
-      ? treasury.totalWithdrawalsUnits.toNumber() / 10 ** decimals 
-      : treasury.totalWithdrawalsUnits.toNumber(),
-
+    balance: treasury.lastKnownBalanceUnits.toNumber(),
+    allocationReserved: treasury.allocationReservedUnits.toNumber(),
+    allocationAssigned: treasury.allocationAssignedUnits.toNumber(),
+    totalWithdrawals: treasury.totalWithdrawalsUnits.toNumber(),
     totalStreams: treasury.totalStreams.toNumber(),
-    decimals: decimals,
     data: treasury
     
   } as TreasuryInfo;

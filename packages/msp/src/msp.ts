@@ -198,9 +198,6 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
-    const amountBn = new BN(amount * 10 ** associatedTokenMint.decimals);
-
     if (start.getTime() <= now.getTime()) {
       // Just create the beneficiary token account and transfer since the payment is not scheduled
       const beneficiaryToken = await Token.getAssociatedTokenAddress(
@@ -235,7 +232,7 @@ export class MSP {
           beneficiaryToken,
           treasurer,
           [],
-          amountBn.toNumber()
+          amount
         )
       );
 
@@ -291,7 +288,7 @@ export class MSP {
 
       ixs.push(
         this.program.instruction.addFunds(
-          amountBn.toNumber(),
+          amount,
           0,
           PublicKey.default,
           {
@@ -325,9 +322,9 @@ export class MSP {
           start.getTime(),
           0,
           0,
-          amountBn.toNumber(),
+          amount,
           0,
-          amountBn.toNumber(),
+          amount,
           100,
           {
             accounts: {
@@ -429,16 +426,6 @@ export class MSP {
     let treasuryToken: PublicKey = PublicKey.default,
       treasuryMint: PublicKey = PublicKey.default,
       treasurerTreasuryToken: PublicKey = PublicKey.default;
-
-    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
-    const allocationAssignedBn = new BN(allocationAssigned * 10 ** associatedTokenMint.decimals);
-    const allocationReservedBn = allocationReserved 
-      ? new BN(allocationReserved * 10 ** associatedTokenMint.decimals)
-      : new BN(0);
-
-    const cliffVestedAmountBn = cliffVestAmount 
-      ? new BN(cliffVestAmount * 10 ** associatedTokenMint.decimals)
-      : new BN(0);
 
     const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * 10_000 : 0;
 
@@ -559,9 +546,9 @@ export class MSP {
       startDate.getTime(),
       rateAmount,
       rateIntervalInSeconds,
-      allocationAssignedBn.toNumber(),
-      allocationReservedBn.toNumber(),
-      cliffVestedAmountBn.toNumber(),
+      allocationAssigned,
+      allocationReserved,
+      cliffVestAmount,
       cliffVestPercentValue,
       {
         accounts: {
@@ -636,11 +623,8 @@ export class MSP {
       true
     );
 
-    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
-    const amountBn = new BN(amount * 10 ** associatedTokenMint.decimals);
-
     let tx = this.program.transaction.addFunds(
-      amountBn.toNumber(),
+      amount,
       allocationType,
       !stream ? PublicKey.default : stream,
       {
@@ -714,11 +698,8 @@ export class MSP {
       true
     );
 
-    const associatedTokenMint = await getMintAccount(this.connection, associatedToken);
-    const amountBn = new BN(amount * 10 ** associatedTokenMint.decimals);
-
     let tx = this.program.transaction.withdraw(
-      amountBn.toNumber(),
+      amount,
       {
         accounts: {
           beneficiary: beneficiary,

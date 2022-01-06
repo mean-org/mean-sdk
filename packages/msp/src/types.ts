@@ -108,7 +108,6 @@ export enum TreasuryType {
   createdOnUtc: Date | string,
   treasuryType: TreasuryType,
   autoClose: boolean,
-  decimals: number,
   data: any
 };
 
@@ -160,6 +159,5 @@ export enum STREAM_STATUS {
   fundsSentToBeneficiary: number,
   remainingAllocationAmount: number,
   estimatedDepletionDate: Date | string,
-  decimals: number,
   data: any
 };
