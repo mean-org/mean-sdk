@@ -8,7 +8,7 @@ import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 import MSP_IDL from './idl';
 import { Constants } from "./constants";
 import { StreamActivity, StreamInfo } from "./types";
-import { MintLayout } from "@solana/spl-token";
+import { MintInfo, MintLayout, u64 } from "@solana/spl-token";
 import { STREAM_STATUS } from "./types";
 import { TreasuryInfo, TreasuryType } from ".";
 
@@ -143,7 +143,7 @@ export const listStreamsCached = async (
   streamInfoList: StreamInfo[],
   friendly: boolean = true
 
-) => {
+): Promise<StreamInfo[]> => {
 
   let streamList: StreamInfo[] = [];
   const currentTime = Date.parse(new Date().toUTCString()) / 1000;
@@ -157,13 +157,13 @@ export const listStreamsCached = async (
   return streamList;
 }
 
-export async function listStreamActivity(
+export const listStreamActivity = async (
   program: Program<Idl>,
   address: PublicKey,
   commitment?: Finality | undefined,
   friendly: boolean = true
 
-): Promise<any[]> {
+): Promise<StreamActivity[]> => {
 
   let activity: any = [];
   let finality = commitment !== undefined ? commitment : "finalized";
@@ -233,7 +233,7 @@ export const listTreasuries = async (
   commitment?: any,
   friendly: boolean = true
 
-) => {
+): Promise<TreasuryInfo[]> => {
 
   let treasuries: TreasuryInfo[] = [];
   let memcmpFilters: any[] = [];
@@ -268,6 +268,47 @@ export const listTreasuries = async (
 
   return sortedTreasuries;
 }
+
+export const getMintAccount = async (
+  connection: Connection,
+  pubKey: PublicKey | string
+
+): Promise<MintInfo> => {
+
+  const address = typeof pubKey === "string" ? new PublicKey(pubKey) : pubKey;
+  const info = await connection.getAccountInfo(address);
+
+  if (info === null) {
+    throw new Error("Failed to find mint account");
+  }
+
+  return deserializeMint(info.data);
+};
+
+export const deserializeMint = (data: Buffer): MintInfo => {
+  if (data.length !== MintLayout.span) {
+    throw new Error("Not a valid Mint");
+  }
+
+  const mintInfo = MintLayout.decode(data);
+
+  if (mintInfo.mintAuthorityOption === 0) {
+    mintInfo.mintAuthority = null;
+  } else {
+    mintInfo.mintAuthority = new PublicKey(mintInfo.mintAuthority);
+  }
+
+  mintInfo.supply = u64.fromBuffer(mintInfo.supply);
+  mintInfo.isInitialized = mintInfo.isInitialized !== 0;
+
+  if (mintInfo.freezeAuthorityOption === 0) {
+    mintInfo.freezeAuthority = null;
+  } else {
+    mintInfo.freezeAuthority = new PublicKey(mintInfo.freezeAuthority);
+  }
+
+  return mintInfo as MintInfo;
+};
 
 const getFilteredStreamAccounts = async (
   program: Program<Idl>,
