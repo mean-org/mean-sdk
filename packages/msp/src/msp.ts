@@ -1031,6 +1031,7 @@ export class MSP {
 
   public async transferStream (
     beneficiary: PublicKey,
+    newBeneficiary: PublicKey,
     stream: PublicKey
 
   ): Promise<Transaction> {
@@ -1048,6 +1049,7 @@ export class MSP {
     }
 
     let tx = this.program.transaction.transferStream(
+      newBeneficiary,
       {
         accounts: {
           beneficiary: beneficiaryAddress,

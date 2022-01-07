@@ -615,7 +615,12 @@ const IDL: Idl = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "newBeneficiary",
+          "type": "publicKey"
+        }
+      ]
     }
   ],
   accounts: [
