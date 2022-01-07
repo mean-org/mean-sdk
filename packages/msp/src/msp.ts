@@ -47,7 +47,7 @@ export class MSP {
 
   ): Promise<any> {
 
-    let accountInfo = await this.program.account.stream.getAccountInfo(id, commitment);
+    let accountInfo = await this.connection.getAccountInfo(id, commitment);
 
     if (!accountInfo) {
       throw Error("Stream doesn't exists");
@@ -125,7 +125,7 @@ export class MSP {
 
   ): Promise<any[]> {
 
-    let accountInfo = await this.program.account.Stream.getAccountInfo(id, commitment);
+    let accountInfo = await this.connection.getAccountInfo(id, commitment);
 
     if (!accountInfo) {
       throw Error("Stream doesn't exists");

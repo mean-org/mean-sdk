@@ -1,13 +1,13 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter } from "@solana/web3.js";
+import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction } from "@solana/web3.js";
 import { Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
  */
 import { Constants } from "./constants";
-import { StreamActivity, Stream } from "./types";
-import { MintInfo, MintLayout, u64 } from "@solana/spl-token";
+import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import MSP_IDL from './idl';
+import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -48,6 +48,7 @@ export const getStream = async (
 ): Promise<Stream> => {
   
   let stream = await program.account.stream.fetch(address);
+  console.log(stream);
   let associatedTokenInfo = await program.provider.connection.getAccountInfo(
     stream.beneficiaryAssociatedToken, 
     commitment
@@ -246,6 +247,69 @@ export const listTreasuries = async (
   return sortedTreasuries;
 }
 
+export const calculateActionFees = async (
+  connection: Connection,
+  action: MSP_ACTIONS
+
+): Promise<TransactionFees> => {
+
+  let recentBlockhash = await connection.getRecentBlockhash(connection.commitment as Commitment),
+    blockchainFee = 0,
+    txFees: TransactionFees = {
+      blockchainFee: 0.0,
+      mspFlatFee: 0.0,
+      mspPercentFee: 0.0,
+    };
+
+  switch (action) {
+    case MSP_ACTIONS.createTreasury: {
+      blockchainFee = 15000000;
+      txFees.mspFlatFee = 0.00001;
+      break;
+    }
+    case MSP_ACTIONS.createStream: {
+      blockchainFee = 15000000;
+      txFees.mspFlatFee = 0.00001;
+      break;
+    }
+    case MSP_ACTIONS.createStreamWithFunds: {
+      blockchainFee = 20000000;
+      txFees.mspFlatFee = 0.000035;
+      break;
+    }
+    case MSP_ACTIONS.scheduleOneTimePayment: {
+      blockchainFee = 15000000
+      txFees.mspFlatFee = 0.000035;
+      break;
+    }
+    case MSP_ACTIONS.addFunds: {
+      txFees.mspFlatFee = 0.000025;
+      break;
+    }
+    case MSP_ACTIONS.withdraw: {
+      blockchainFee = 5000000;
+      txFees.mspPercentFee = 0.25;
+      break;
+    }
+    case MSP_ACTIONS.closeStream: {
+      txFees.mspFlatFee = 0.00001;
+      txFees.mspPercentFee = 0.25;
+      break;
+    }
+    case MSP_ACTIONS.closeTreasury: {
+      txFees.mspFlatFee = 0.00001;
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+
+  txFees.blockchainFee = blockchainFee / LAMPORTS_PER_SOL;
+
+  return txFees;
+};
+
 const getFilteredStreamAccounts = async (
   program: Program<Idl>,
   treasurer?: PublicKey | undefined,
@@ -322,6 +386,7 @@ const parseStreamData = (
     fundsSentToBeneficiary: getFundsSentToBeneficiary(stream),
     remainingAllocationAmount: getStreamRemainingAllocation(stream),
     withdrawableAmount: getStreamWithdrawableAmount(stream),
+    streamUnitsPerSecond: getStreamUnitsPerSecond(stream),
     status: getStreamStatus(stream),
     lastRetrievedBlockTime: new Date().getTime() / 1_000,
     transactionSignature: '',
@@ -342,34 +407,28 @@ const parseStreamActivityData = (
 
   let streamActivity: StreamActivity = defaultStreamActivity;
   let signer = tx.transaction.message.accountKeys.filter((a) => a.signer)[0];
+  if (!tx.meta || !tx.meta.innerInstructions || !tx.meta.innerInstructions.length) {
+    return streamActivity;
+  }
   let instruction = tx.transaction.message.instructions.filter((ix: any) => {
-    if (ix && ix.data) {
-      let ixObj = program.coder.instruction.decode(ix.data);
-      if (ixObj) {
-        return ixObj.name === "addFunds" || ixObj.name === "withdraw";
-      }
-      return false;
-    }
-    return false;
+    let buffer = bs58.decode(ix.data);
+    let info = program.coder.instruction.decode(buffer);
+    return info && (info.name === 'addFunds' || info.name === 'withdraw');
   })[0] as PartiallyDecodedInstruction;
 
   if (!instruction) {
     return streamActivity;
   }
-  
-  let ixObj = program.coder.instruction.decode(instruction.data);
 
-  if (ixObj && (ixObj.name === "addFunds" || ixObj.name === "withdraw")) {
+  let buffer = bs58.decode(instruction.data);
+  let info = program.coder.instruction.decode(buffer);
+  
+  if (info && (info.name === 'addFunds' || info.name === 'withdraw')) {
 
     let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
-    let action = ixObj.name === "addFunds" ? "deposited" : "withdrew";
-    let data = ixObj.data as any, amount = 0;
-
-    if (ixObj.name === "addFunds") {
-      amount = data.amount;
-    } else {
-      amount = data.withdrawal_amount;
-    }
+    let action = info.name === 'addFunds' ? "deposited" : "withdrew";
+    let data = info.data as any;
+    let amount = data.amount.toNumber();
  
     if (amount) {
       let mint: PublicKey | string;
@@ -403,7 +462,6 @@ const parseStreamActivityData = (
   }
 
   return streamActivity;
-
 };
 
 const parseTreasuryData = (
@@ -450,8 +508,8 @@ const getStreamEstDepletionDate = (stream: any) => {
 
   let cliffAmount = getStreamCliffAmount(stream);
   let streamableAmount = stream.allocationAssignedUnits.toNumber() - cliffAmount;
-  let durationSeconds = (streamableAmount / stream.rateIntervalInSeconds) - cliffAmount;
-  let estDepletionTime = stream.startUtc.toNumber() + durationSeconds;
+  let durationSeconds = streamableAmount / stream.rateIntervalInSeconds;
+  let estDepletionTime = stream.startUtc.toNumber() + durationSeconds * 1000; // milliseconds
 
   return new Date(estDepletionTime);
 }
@@ -527,7 +585,7 @@ const getStreamWithdrawableAmount = (stream: any) => {
   let streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   let cliffAmount = getStreamCliffAmount(stream);
   let now = new Date();
-  let timeSinceStart = now.getTime() - stream.startUtc.toNumber();
+  let timeSinceStart = (now.getTime() - stream.startUtc.toNumber()) / 1000; // milliseconds
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
   let missedEarningUnitsWhilePaused = 
     streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
@@ -559,7 +617,7 @@ const getStreamStatus = (stream: any) => {
   // Running or automatically paused (ran out of funds)
   let streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   let cliffAmount = getStreamCliffAmount(stream);
-  let timeSinceStart = now.getTime() - startTime;
+  let timeSinceStart = (now.getTime() - startTime) / 1000; // milliseconds
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
   let missedEarningUnitsWhilePaused = 
     streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
@@ -585,5 +643,5 @@ const getStreamUnitsPerSecond = (stream: any) => {
   if (stream.rateIntervalInSeconds.toNumber() === 0) {
     return 0;
   }
-  return stream.rateAmountUnits.toNumber() / stream.rateIntervalInSeconds.toNumber() * 1000; // milliseconds (* 1000)
+  return stream.rateAmountUnits.toNumber() / (stream.rateIntervalInSeconds.toNumber());
 }

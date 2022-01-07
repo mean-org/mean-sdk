@@ -95,7 +95,7 @@ export enum TreasuryType {
   initialized: boolean,
   bump: number,
   slot: number,
-  name: String,        
+  name: string,        
   treasurer: PublicKey | string,
   associatedToken: PublicKey | string,
   mint: PublicKey | string,
@@ -136,7 +136,7 @@ export enum STREAM_STATUS {
   id: PublicKey | string | undefined,
   initialized: boolean,
   version: number,
-  name: String,
+  name: string,
   treasurer: PublicKey | string,
   rateAmount: number,
   rateIntervalInSeconds: number,    
@@ -159,5 +159,6 @@ export enum STREAM_STATUS {
   fundsSentToBeneficiary: number,
   remainingAllocationAmount: number,
   estimatedDepletionDate: Date | string,
+  streamUnitsPerSecond: number,
   data: any
 };
