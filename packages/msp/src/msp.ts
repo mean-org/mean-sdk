@@ -1028,4 +1028,40 @@ export class MSP {
 
     return tx;
   }
+
+  public async transferStream (
+    beneficiary: PublicKey,
+    stream: PublicKey
+
+  ): Promise<Transaction> {
+
+    const streamInfo = await getStream(this.program, stream);
+
+    if (!streamInfo) {
+      throw Error("Stream doesn't exist");
+    }
+
+    const beneficiaryAddress = new PublicKey(streamInfo.beneficiary as string);
+
+    if (!beneficiary.equals(beneficiaryAddress)) {
+      throw Error("Not authorized");
+    }
+
+    let tx = this.program.transaction.transferStream(
+      {
+        accounts: {
+          beneficiary: beneficiaryAddress,
+          stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          systemProgram: SystemProgram.programId
+        }
+      }
+    );
+
+    tx.feePayer = beneficiary;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    tx.recentBlockhash = blockhash;
+
+    return tx;
+  }
 }
