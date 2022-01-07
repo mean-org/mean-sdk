@@ -595,9 +595,24 @@ const IDL: Idl = {
       "name": "transferStream",
       "accounts": [
         {
-          "name": "initializer",
+          "name": "beneficiary",
           "isMut": false,
           "isSigner": true
+        },
+        {
+          "name": "stream",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
