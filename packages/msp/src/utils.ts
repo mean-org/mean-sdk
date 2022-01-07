@@ -1,4 +1,4 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction } from "@solana/web3.js";
+import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter } from "@solana/web3.js";
 import { Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
@@ -47,7 +47,7 @@ export const getStream = async (
 
 ): Promise<Stream> => {
   
-  let stream = await program.account.Stream.fetch(address);
+  let stream = await program.account.stream.fetch(address);
   let associatedTokenInfo = await program.provider.connection.getAccountInfo(
     stream.beneficiaryAssociatedToken, 
     commitment
@@ -69,20 +69,24 @@ export const getStreamCached = async (
 
 ): Promise<Stream> => {
 
-  const copyStreamInfo = Object.assign({}, streamInfo);
+  streamInfo.estimatedDepletionDate = friendly 
+    ? getStreamEstDepletionDate(streamInfo.data).toString() 
+    : getStreamEstDepletionDate(streamInfo.data);
 
-  copyStreamInfo.estimatedDepletionDate = friendly 
-    ? getStreamEstDepletionDate(copyStreamInfo.data).toString() 
-    : getStreamEstDepletionDate(copyStreamInfo.data);
+  let fundsLeftInStream = getFundsLeftInStream(streamInfo.data);
+  let fundsSentToBeneficiary = getFundsSentToBeneficiary(streamInfo.data);
+  let remainingAllocationAmount = getStreamRemainingAllocation(streamInfo.data);
+  let withdrawableAmount = getStreamWithdrawableAmount(streamInfo.data);
+  let status = getStreamStatus(streamInfo.data);
 
-  copyStreamInfo.fundsLeftInStream = getFundsLeftInStream(copyStreamInfo.data);
-  copyStreamInfo.fundsSentToBeneficiary = getFundsSentToBeneficiary(copyStreamInfo.data);
-  copyStreamInfo.remainingAllocationAmount = getStreamRemainingAllocation(copyStreamInfo.data);
-  copyStreamInfo.withdrawableAmount = getStreamWithdrawableAmount(copyStreamInfo.data);
-  copyStreamInfo.status = getStreamStatus(copyStreamInfo.data);
-  copyStreamInfo.lastRetrievedBlockTime = currentBlockTime;
+  streamInfo.fundsLeftInStream = fundsLeftInStream;
+  streamInfo.fundsSentToBeneficiary = fundsSentToBeneficiary;
+  streamInfo.remainingAllocationAmount = remainingAllocationAmount;
+  streamInfo.withdrawableAmount = withdrawableAmount;
+  streamInfo.status = status;
+  streamInfo.lastRetrievedBlockTime = currentBlockTime;
 
-  return copyStreamInfo;
+  return streamInfo;
 }
 
 export const listStreams = async (
@@ -90,18 +94,16 @@ export const listStreams = async (
   treasurer?: PublicKey | undefined,
   treasury?: PublicKey | undefined,
   beneficiary?: PublicKey | undefined,
-  commitment?: Commitment | undefined,
   friendly: boolean = true
 
 ): Promise<Stream[]> => {
 
   let streamInfoList: Stream[] = [];
-  let accounts = await getFilteredStreamAccounts(program, treasurer, treasury, beneficiary, commitment);
+  let accounts = await getFilteredStreamAccounts(program, treasurer, treasury, beneficiary);
 
   for (let item of accounts) {
-    if (item.account.lamports > 0 && item.account.data !== undefined) {
-      let stream = program.account.Stream.coder.state.decode(Buffer.from(item.account.data))
-      let parsedStream = parseStreamData(stream, item.publicKey, friendly);              
+    if (item.account !== undefined) {
+      let parsedStream = parseStreamData(item.account, item.publicKey, friendly);              
       let info = Object.assign({}, parsedStream);
       let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
         friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
@@ -183,7 +185,7 @@ export const getTreasury = async (
 
 ): Promise<Treasury> => {
 
-  let treasury = await program.account.Treasury.fetch(address);
+  let treasury = await program.account.treasury.fetch(address);
   let associatedTokenInfo = await program.provider.connection.getAccountInfo(
     treasury.associatedTokenAddress, 
     commitment
@@ -213,7 +215,6 @@ export const getTreasury = async (
 export const listTreasuries = async (
   program: Program<Idl>,
   treasurer?: PublicKey | undefined,
-  commitment?: any,
   friendly: boolean = true
 
 ): Promise<Treasury[]> => {
@@ -222,22 +223,15 @@ export const listTreasuries = async (
   let memcmpFilters: any[] = [];
 
   if (treasurer) {
-    memcmpFilters.push({ memcmp: { offset: 9, bytes: treasurer.toBase58() }});
+    memcmpFilters.push({ memcmp: { offset: 8 + 43, bytes: treasurer.toBase58() }});
   }
 
-  // Lookup treasuries
-  const configOrCommitment: GetProgramAccountsConfig = {
-    commitment: commitment || 'confirmed',
-    filters: [{ dataSize: Constants.TREASURY_SIZE }, ...memcmpFilters]
-  };
-
-  const accounts = await program.provider.connection.getProgramAccounts(program.programId, configOrCommitment);
+  const accounts = await program.account.treasury.all(memcmpFilters);
 
   if (accounts.length) {
     for (let item of accounts) {
-      if (item.account.data !== undefined) {
-        let treasury = program.account.Treasury.coder.state.decode(Buffer.from(item.account.data))
-        let parsedTreasury = parseTreasuryData(treasury, item.pubkey, friendly);
+      if (item.account !== undefined) {
+        let parsedTreasury = parseTreasuryData(item.account, item.publicKey, friendly);
         let info = Object.assign({}, parsedTreasury);
 
         if ((treasurer && treasurer.toBase58() === info.treasurer) || !treasurer) {
@@ -252,53 +246,11 @@ export const listTreasuries = async (
   return sortedTreasuries;
 }
 
-export const getMintAccount = async (
-  connection: Connection,
-  pubKey: PublicKey | string
-
-): Promise<MintInfo> => {
-
-  const address = typeof pubKey === "string" ? new PublicKey(pubKey) : pubKey;
-  const info = await connection.getAccountInfo(address);
-
-  if (info === null) {
-    throw new Error("Failed to find mint account");
-  }
-
-  return deserializeMint(info.data);
-};
-
-const deserializeMint = (data: Buffer): MintInfo => {
-  if (data.length !== MintLayout.span) {
-    throw new Error("Not a valid Mint");
-  }
-
-  const mintInfo = MintLayout.decode(data);
-
-  if (mintInfo.mintAuthorityOption === 0) {
-    mintInfo.mintAuthority = null;
-  } else {
-    mintInfo.mintAuthority = new PublicKey(mintInfo.mintAuthority);
-  }
-
-  mintInfo.supply = u64.fromBuffer(mintInfo.supply);
-  mintInfo.isInitialized = mintInfo.isInitialized !== 0;
-
-  if (mintInfo.freezeAuthorityOption === 0) {
-    mintInfo.freezeAuthority = null;
-  } else {
-    mintInfo.freezeAuthority = new PublicKey(mintInfo.freezeAuthority);
-  }
-
-  return mintInfo as MintInfo;
-};
-
 const getFilteredStreamAccounts = async (
   program: Program<Idl>,
   treasurer?: PublicKey | undefined,
   treasury?: PublicKey | undefined,
-  beneficiary?: PublicKey | undefined,
-  commitment?: Commitment | undefined,
+  beneficiary?: PublicKey | undefined
 
 ) => {
 
@@ -306,13 +258,8 @@ const getFilteredStreamAccounts = async (
 
   if (treasury) {
 
-    let memcmpFilters = [{ memcmp: { offset: 185, bytes: treasury.toBase58() }}];
-    const configOrCommitment: GetProgramAccountsConfig = {
-      commitment,
-      filters: [{ dataSize: Constants.TREASURY_SIZE }, ...memcmpFilters]
-    };
-
-    const accs = await program.provider.connection.getProgramAccounts(program.programId, configOrCommitment);
+    let memcmpFilters = [{ memcmp: { offset: 8 + 138, bytes: treasury.toBase58() }}];
+    const accs = await program.account.stream.all(memcmpFilters);
   
     if (accs.length) {
       accounts.push(...accs);
@@ -322,13 +269,8 @@ const getFilteredStreamAccounts = async (
 
     if (treasurer) {
 
-      let memcmpFilters = [{ memcmp: { offset: 33, bytes: treasurer.toBase58() }}];
-      const configOrCommitment: GetProgramAccountsConfig = {
-        commitment,
-        filters: [{ dataSize: Constants.STREAM_SIZE }, ...memcmpFilters]
-      };
-  
-      const accs = await program.provider.connection.getProgramAccounts(program.programId, configOrCommitment);
+      let memcmpFilters = [{ memcmp: { offset: 8 + 34, bytes: treasurer.toBase58() }}];  
+      const accs = await program.account.stream.all(memcmpFilters);
     
       if (accs.length) {
         accounts.push(...accs);
@@ -337,13 +279,8 @@ const getFilteredStreamAccounts = async (
   
     if (beneficiary) {
   
-      let memcmpFilters = [{ memcmp: { offset: 121, bytes: beneficiary.toBase58() }}];
-      const configOrCommitment: GetProgramAccountsConfig = {
-        commitment,
-        filters: [{ dataSize: Constants.STREAM_SIZE }, ...memcmpFilters]
-      };
-  
-      const accs = await program.provider.connection.getProgramAccounts(program.programId, configOrCommitment);
+      let memcmpFilters = [{ memcmp: { offset: 8 + 106, bytes: beneficiary.toBase58() }}];
+      const accs = await program.account.stream.all(memcmpFilters);
     
       if (accs.length) {
         accounts.push(...accs);
@@ -361,18 +298,18 @@ const parseStreamData = (
 
 ) => {
 
-  let nameBuffer = Buffer.alloc(stream.name.length, stream.name);
+  let nameBuffer = Buffer.from(stream.name);
 
   return {
     id: friendly ? address.toBase58() : address,
     version: stream.version,
     initialized: stream.initialized === 1 ? true : false,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: !friendly ? new Date(stream.startUtc).toString() : new Date(stream.startUtc),
+    startUtc: !friendly ? new Date(stream.startUtc.toNumber()).toString() : new Date(stream.startUtc.toNumber()),
     treasurer: friendly ? stream.treasurerAddress.toBase58() : stream.treasurerAddress,
     treasury: friendly ? stream.treasuryAddress.toBase58() : stream.treasuryAddress,
     beneficiary: friendly ? stream.beneficiaryAddress.toBase58() : stream.beneficiaryAddress,
-    associatedToken: friendly ? stream.associatedTokenAddress.toBase58() : stream.associatedTokenAddress,
+    associatedToken: friendly ? stream.beneficiaryAssociatedToken.toBase58() : stream.beneficiaryAssociatedToken,
     cliffVestAmount: stream.cliffVestAmountUnits.toNumber(),
     cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
     allocationAssigned: stream.allocationAssignedUnits.toNumber(),
@@ -476,7 +413,7 @@ const parseTreasuryData = (
 
 ) => {
 
-  let nameBuffer = Buffer.alloc(treasury.name.length, treasury.name);
+  const nameBuffer = Buffer.from(treasury.name);
 
   return {
     id: friendly ? address.toBase58() : address,
@@ -486,7 +423,7 @@ const parseTreasuryData = (
     bump: treasury.bump,
     slot: treasury.slot.toNumber(),
     labels: treasury.labels,
-    mint: friendly ? treasury.mint.toBase58() : treasury.mint,
+    mint: friendly ? treasury.mintAddress.toBase58() : treasury.mintAddress,
     autoClose: treasury.autoClose === 0 ? false : true,
     createdOnUtc: friendly 
       ? new Date(treasury.createdOnUtc.toNumber()).toString()
@@ -524,7 +461,7 @@ const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = stream.cliffVestAmountUnits.toNumber();
 
   if (stream.cliffVestPercent > 0) {
-    cliffAmount = stream.cliffVestPercent * stream.allocationAssignedUnits / 1_000_000;
+    cliffAmount = stream.cliffVestPercent * stream.allocationAssignedUnits / 100;
   }
 
   return cliffAmount;
@@ -648,5 +585,5 @@ const getStreamUnitsPerSecond = (stream: any) => {
   if (stream.rateIntervalInSeconds.toNumber() === 0) {
     return 0;
   }
-  return stream.rateAmountUnits.toNumber() / stream.rateIntervalInSeconds.toNumber();
+  return stream.rateAmountUnits.toNumber() / stream.rateIntervalInSeconds.toNumber() * 1000; // milliseconds (* 1000)
 }

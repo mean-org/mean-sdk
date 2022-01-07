@@ -9,7 +9,7 @@ import { BN, Idl, Program } from "@project-serum/anchor";
  * MSP
  */
 import { Stream, ListStreamParams, Treasury, TreasuryType, AllocationType } from "./types";
-import { getMintAccount, createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
+import { createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
 import { listTreasuries } from ".";
 import { u64Number } from "./u64n";
@@ -47,7 +47,7 @@ export class MSP {
 
   ): Promise<any> {
 
-    let accountInfo = await this.program.account.Stream.getAccountInfo(id, commitment);
+    let accountInfo = await this.program.account.stream.getAccountInfo(id, commitment);
 
     if (!accountInfo) {
       throw Error("Stream doesn't exists");
@@ -82,7 +82,6 @@ export class MSP {
     treasurer,
     treasury,
     beneficiary,
-    commitment = "confirmed",
     friendly = true
 
   }: ListStreamParams): Promise<Stream[]> {
@@ -92,7 +91,6 @@ export class MSP {
       treasurer,
       treasury,
       beneficiary,
-      commitment,
       friendly
     );
   }
@@ -102,7 +100,6 @@ export class MSP {
     treasurer?: PublicKey | undefined,
     treasury?: PublicKey | undefined,
     beneficiary?: PublicKey | undefined,
-    commitment?: Commitment | undefined,
     hardUpdate: boolean = false,
     friendly: boolean = true
 
@@ -114,7 +111,6 @@ export class MSP {
         treasurer, 
         treasury,
         beneficiary,
-        commitment, 
         friendly
       );
     }
@@ -145,7 +141,7 @@ export class MSP {
 
   ): Promise<Treasury> {
 
-    let accountInfo = await this.program.account.Treasury.getAccountInfo(id, commitment);
+    let accountInfo = await this.program.account.treasury.getAccountInfo(id, commitment);
 
     if (!accountInfo) {
       throw Error("Treasury doesn't exists");
@@ -156,7 +152,6 @@ export class MSP {
 
   public async listTreasuries (
     treasurer: PublicKey,
-    commitment?: Commitment | undefined,
     friendly: boolean = true
 
   ): Promise<Treasury[]> {
@@ -164,7 +159,6 @@ export class MSP {
     return listTreasuries(
       this.program,
       treasurer,
-      commitment,
       friendly
     )
   }
@@ -256,7 +250,7 @@ export class MSP {
       // Create treasury
       ixs.push(
         this.program.instruction.createTreasury(
-          slot,
+          new BN(slot),
           treasuryBump,
           treasuryMintBump,
           streamName,
@@ -288,7 +282,7 @@ export class MSP {
 
       ixs.push(
         this.program.instruction.addFunds(
-          amount,
+          new BN(amount),
           0,
           PublicKey.default,
           {
@@ -319,13 +313,13 @@ export class MSP {
       ixs.push(
         this.program.instruction.createStream(
           streamName,
-          start.getTime(),
-          0,
-          0,
-          amount,
-          0,
-          amount,
-          100,
+          new BN(start.getTime()),
+          new BN(0),
+          new BN(0),
+          new BN(amount),
+          new BN(0),
+          new BN(amount),
+          new BN(100 * 10_000),
           {
             accounts: {
               initializer: treasurer,
@@ -378,7 +372,7 @@ export class MSP {
     );
 
     let tx = this.program.transaction.createTreasury(
-      slot,
+      new BN(slot),
       treasuryBump,
       treasuryMintBump,
       label,
@@ -468,7 +462,7 @@ export class MSP {
       // Create treasury
       ixs.push(
         this.program.instruction.createTreasury(
-          slot,
+          new BN(slot),
           treasuryBump,
           treasuryMintBump,
           streamName,
@@ -511,8 +505,8 @@ export class MSP {
         // Add Funds
         ixs.push(
           this.program.instruction.addFunds(
-            allocationAssigned,
-            allocationReserved === 0 ? 0 : 1,
+            new BN(allocationAssigned),
+            new BN( allocationReserved as number),
             PublicKey.default,
             {
               accounts: {
@@ -538,18 +532,19 @@ export class MSP {
     }
 
     const streamAccount = Keypair.generate();
-    const startDate = startUtc ? startUtc : new Date();
+    const now = new Date();
+    const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
 
     // Create Stream
     let tx = this.program.transaction.createStream(
       streamName,
-      startDate.getTime(),
-      rateAmount,
-      rateIntervalInSeconds,
-      allocationAssigned,
-      allocationReserved,
-      cliffVestAmount,
-      cliffVestPercentValue,
+      new BN(startDate.getTime()),
+      new BN(rateAmount as number),
+      new BN(rateIntervalInSeconds as number),
+      new BN(allocationAssigned),
+      new BN(allocationReserved as number),
+      new BN(cliffVestAmount as number),
+      new BN(cliffVestPercentValue),
       {
         accounts: {
           initializer: treasurer,
@@ -624,7 +619,7 @@ export class MSP {
     );
 
     let tx = this.program.transaction.addFunds(
-      amount,
+      new BN(amount),
       allocationType,
       !stream ? PublicKey.default : stream,
       {
@@ -699,7 +694,7 @@ export class MSP {
     );
 
     let tx = this.program.transaction.withdraw(
-      amount,
+      new BN(amount),
       {
         accounts: {
           beneficiary: beneficiary,
