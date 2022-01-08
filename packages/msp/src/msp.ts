@@ -3,7 +3,7 @@
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, Idl, Program } from "@project-serum/anchor";
+import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 
 /**
  * MSP

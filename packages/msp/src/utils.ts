@@ -35,13 +35,13 @@ export const createProgram = (
     commitment: "recent",
   };
 
-  const wallet: Wallet = { 
-    publicKey: walletAddress,
+  let wallet: Wallet = {
+    publicKey: !isNotValidWallet(walletAddress) ? new PublicKey(walletAddress.toBase58()) : walletAddress,
     signAllTransactions: async (txs) => txs, 
     signTransaction: async (tx) => tx
   };
 
-  const provider = new Provider(connection, wallet as any, opts);
+  const provider = new Provider(connection, wallet, opts);
   
   return new Program(MSP_IDL, Constants.MSP, provider);
 }
@@ -641,4 +641,11 @@ const getStreamUnitsPerSecond = (stream: any) => {
     return 0;
   }
   return stream.rateAmountUnits.toNumber() / (stream.rateIntervalInSeconds.toNumber());
+}
+
+const isNotValidWallet = (address: PublicKey): boolean => {
+  if (typeof address !== 'string' && address.constructor.name !== 'PublicKey') {
+    return false;
+  }
+  return true;
 }
