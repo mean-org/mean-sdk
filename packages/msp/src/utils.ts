@@ -1,4 +1,4 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction } from "@solana/web3.js";
+import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction } from "@solana/web3.js";
 import { Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
@@ -8,6 +8,7 @@ import { StreamActivity, Stream, MSP_ACTIONS, TransactionFees } from "./types";
 import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import MSP_IDL from './idl';
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
+import { Wallet } from "@project-serum/anchor/dist/cjs/provider";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -25,13 +26,19 @@ let defaultStreamActivity: StreamActivity = {
 
 export const createProgram = (
   connection: Connection,
-  wallet: any
+  walletAddress: PublicKey
 
 ): Program<Idl> => {
   
   const opts: ConfirmOptions = {
     preflightCommitment: "recent",
     commitment: "recent",
+  };
+
+  const wallet: Wallet = { 
+    publicKey: walletAddress,
+    signAllTransactions: async (txs) => txs, 
+    signTransaction: async (tx) => tx
   };
 
   const provider = new Provider(connection, wallet as any, opts);
@@ -181,21 +188,11 @@ export const listStreamActivity = async (
 export const getTreasury = async (
   program: Program<Idl>,
   address: PublicKey,
-  commitment: Commitment | undefined,
   friendly: boolean = true
 
 ): Promise<Treasury> => {
 
   let treasury = await program.account.treasury.fetch(address);
-  let associatedTokenInfo = await program.provider.connection.getAccountInfo(
-    treasury.associatedTokenAddress, 
-    commitment
-  );
-
-  if (!associatedTokenInfo) {
-    throw Error("Associated token doesn't exists");
-  }
-
   let parsedTreasury = parseTreasuryData(treasury, address, friendly); 
 
   if (!parsedTreasury.createdOnUtc) {

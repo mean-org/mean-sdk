@@ -30,14 +30,14 @@ export class MSP {
    */
   constructor(
     rpcUrl: string,
-    wallet: any,
+    walletAddress: PublicKey,
     commitment: Commitment | string = "confirmed"
 
   ) {
 
     this.commitment = commitment as Commitment;
     this.connection = new Connection(rpcUrl, this.commitment);
-    this.program = createProgram(this.connection, wallet);
+    this.program = createProgram(this.connection, walletAddress);
   }
 
   public async getStream (
@@ -147,7 +147,7 @@ export class MSP {
       throw Error("Treasury doesn't exists");
     }
 
-    return getTreasury(this.program, id, commitment, friendly);
+    return getTreasury(this.program, id, friendly);
   }
 
   public async listTreasuries (
@@ -425,7 +425,7 @@ export class MSP {
 
     if (treasury) {
 
-      const treasuryInfo = await getTreasury(this.program, treasury, "recent");
+      const treasuryInfo = await getTreasury(this.program, treasury);
 
       if (!treasuryInfo) {
         throw Error("Treasury doesn't exist");
@@ -580,7 +580,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    const treasuryInfo = await getTreasury(this.program, treasury, "recent");
+    const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury account not found");
@@ -824,7 +824,7 @@ export class MSP {
     );
 
     const treasury = new PublicKey(streamInfo.treasury as string);
-    const treasuryInfo = await getTreasury(this.program, treasury, "recent");
+    const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
@@ -883,8 +883,8 @@ export class MSP {
     );
 
     tx.feePayer = initializer;
-    let hash = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
-    tx.recentBlockhash = hash.blockhash;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    tx.recentBlockhash = blockhash;
 
     return tx;
   }
@@ -895,7 +895,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    let treasuryInfo = await getTreasury(this.program, treasury, "recent");
+    let treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
