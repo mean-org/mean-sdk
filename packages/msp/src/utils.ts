@@ -579,7 +579,9 @@ const getStreamWithdrawableAmount = (stream: any) => {
 
   // Check if RUNNING
   if (stream.rateAmountUnits.toNumber() === 0 || stream.rateIntervalInSeconds.toNumber() === 0) {
-    throw Error("Invalid stream data");
+    // throw Error("Invalid stream data");
+    console.log('stream', stream);
+    return 0;
   }
 
   let streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
