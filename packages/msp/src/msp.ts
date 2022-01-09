@@ -401,6 +401,7 @@ export class MSP {
   }
 
   public async createStream (
+    initializer: PublicKey,
     treasurer: PublicKey,
     treasury: PublicKey | undefined,
     beneficiary: PublicKey,
@@ -547,7 +548,7 @@ export class MSP {
       new BN(cliffVestPercentValue),
       {
         accounts: {
-          initializer: treasurer,
+          initializer: initializer,
           treasurer: treasurer,
           treasury: treasury,
           associatedToken: associatedToken,
@@ -563,7 +564,7 @@ export class MSP {
       }
     );
 
-    tx.feePayer = treasurer;
+    tx.feePayer = initializer;
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
     tx.recentBlockhash = blockhash;
     tx.partialSign(...[streamAccount]);
