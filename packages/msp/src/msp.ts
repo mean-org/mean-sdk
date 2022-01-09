@@ -574,6 +574,7 @@ export class MSP {
   public async addFunds (
     contributor: PublicKey,
     treasury: PublicKey,
+    associatedToken: PublicKey,
     stream: PublicKey | undefined,
     amount: number,
     allocationType: AllocationType
@@ -590,7 +591,10 @@ export class MSP {
       throw Error("Treasury account not found");
     }
 
-    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    if (treasuryInfo.associatedToken && treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+      throw Error("Invalid treasury associated token");
+    }
+
     const treasuryMint = new PublicKey(treasuryInfo.mint as string);
     const contributorToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
