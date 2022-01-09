@@ -26,7 +26,7 @@ let defaultStreamActivity: StreamActivity = {
 
 export const createProgram = (
   connection: Connection,
-  walletAddress: PublicKey
+  walletAddress: string
 
 ): Program<Idl> => {
   
@@ -36,7 +36,7 @@ export const createProgram = (
   };
 
   let wallet: Wallet = {
-    publicKey: !isNotValidWallet(walletAddress) ? new PublicKey(walletAddress.toBase58()) : walletAddress,
+    publicKey: new PublicKey(walletAddress),
     signAllTransactions: async (txs) => txs, 
     signTransaction: async (tx) => tx
   };
@@ -319,7 +319,7 @@ const getFilteredStreamAccounts = async (
 
   if (treasury) {
 
-    let memcmpFilters = [{ memcmp: { offset: 8 + 138, bytes: treasury.toBase58() }}];
+    let memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() }}];
     const accs = await program.account.stream.all(memcmpFilters);
   
     if (accs.length) {
@@ -364,7 +364,7 @@ const parseStreamData = (
   return {
     id: friendly ? address.toBase58() : address,
     version: stream.version,
-    initialized: stream.initialized === 1 ? true : false,
+    initialized: stream.initialized,
     name: new TextDecoder().decode(nameBuffer),
     startUtc: !friendly ? new Date(stream.startUtc.toNumber()).toString() : new Date(stream.startUtc.toNumber()),
     treasurer: friendly ? stream.treasurerAddress.toBase58() : stream.treasurerAddress,
@@ -473,19 +473,24 @@ const parseTreasuryData = (
   return {
     id: friendly ? address.toBase58() : address,
     version: treasury.version,
-    initialized: treasury.initialized === 1 ? true : false,
+    initialized: treasury.initialized,
     name: new TextDecoder().decode(nameBuffer),
     bump: treasury.bump,
     slot: treasury.slot.toNumber(),
     labels: treasury.labels,
     mint: friendly ? treasury.mintAddress.toBase58() : treasury.mintAddress,
-    autoClose: treasury.autoClose === 0 ? false : true,
+    autoClose: treasury.autoClose,
     createdOnUtc: friendly 
       ? new Date(treasury.createdOnUtc.toNumber()).toString()
       : new Date(treasury.createdOnUtc.toNumber()),
 
     treasuryType: treasury.treasuryType === 0 ? TreasuryType.Open : TreasuryType.Lock,
-    treasurer: friendly ? treasury.treasurerAddress.toBase58() : treasury.treasurerAddress,
+    treasurer: treasury.treasurerAddress.equals(PublicKey.default)
+      ? ''
+      : friendly 
+      ? treasury.treasurerAddress.toBase58() 
+      : treasury.treasurerAddress,
+
     associatedToken: friendly ? treasury.associatedTokenAddress.toBase58() : treasury.associatedTokenAddress,
     balance: treasury.lastKnownBalanceUnits.toNumber(),
     allocationReserved: treasury.allocationReservedUnits.toNumber(),
@@ -541,7 +546,6 @@ const getFundsSentToBeneficiary = (stream: any) => {
     stream.totalWithdrawalsUnits.toNumber() +
     withdrawableAmount
   );
-
   return fundsSent;
 }
 
@@ -585,7 +589,7 @@ const getStreamWithdrawableAmount = (stream: any) => {
   let timeSinceStart = (now.getTime() - stream.startUtc.toNumber()) / 1000; // milliseconds
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
   let missedEarningUnitsWhilePaused = 
-    streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+    streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1000;
 
   let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
   let withdrawableUnitsWhileRunning = entitledEarnings - stream.totalWithdrawalsUnits.toNumber();
@@ -641,11 +645,4 @@ const getStreamUnitsPerSecond = (stream: any) => {
     return 0;
   }
   return stream.rateAmountUnits.toNumber() / (stream.rateIntervalInSeconds.toNumber());
-}
-
-const isNotValidWallet = (address: PublicKey): boolean => {
-  if (typeof address !== 'string' && address.constructor.name !== 'PublicKey') {
-    return false;
-  }
-  return true;
 }

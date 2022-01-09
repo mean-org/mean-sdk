@@ -30,7 +30,7 @@ export class MSP {
    */
   constructor(
     rpcUrl: string,
-    walletAddress: PublicKey,
+    walletAddress: string,
     commitment: Commitment | string = "confirmed"
 
   ) {
@@ -294,7 +294,7 @@ export class MSP {
               treasuryToken: treasuryToken,
               associatedToken: associatedToken,
               treasuryMint: treasuryMint,
-              stream: PublicKey.default,
+              stream: Keypair.generate().publicKey, //TODO: Change
               feeTreasury: Constants.FEE_TREASURY,
               msp: this.program.programId,
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -517,7 +517,7 @@ export class MSP {
                 treasuryToken: treasuryToken,
                 associatedToken: associatedToken,
                 treasuryMint: treasuryMint,
-                stream: PublicKey.default,
+                stream: Keypair.generate().publicKey, //TODO: change 
                 feeTreasury: Constants.FEE_TREASURY,
                 msp: this.program.programId,
                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -580,6 +580,10 @@ export class MSP {
 
   ): Promise<Transaction> {
 
+    if (!amount) {
+      throw Error("Amount should be greater than 0");
+    }
+
     const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
@@ -631,7 +635,7 @@ export class MSP {
           treasuryToken: treasuryToken,
           associatedToken: associatedToken,
           treasuryMint: treasuryMint,
-          stream: !stream ? PublicKey.default : stream,
+          stream: !stream ? Keypair.generate().publicKey : stream, //TODO: Change
           feeTreasury: Constants.FEE_TREASURY,
           msp: this.program.programId,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -656,13 +660,17 @@ export class MSP {
 
   ): Promise<Transaction> {
 
+    if (!amount) {
+      throw Error("Amount should be greater than 0");
+    }
+
     let streamInfo: any = await getStream(this.program, stream, "recent");
 
     if (!streamInfo) {
       throw Error("Stream doesn't exists");
     }
 
-    if (!beneficiary.equals(new PublicKey(streamInfo.beneficiaryAddress as string))) {
+    if (!beneficiary.equals(new PublicKey(streamInfo.beneficiary as string))) {
       throw Error("Incorrect stream beneficiary");
     }
 
@@ -676,7 +684,7 @@ export class MSP {
       true
     );
 
-    const treasury = new PublicKey(streamInfo.treasuryAddress as PublicKey);
+    const treasury = new PublicKey(streamInfo.treasury as PublicKey);
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,

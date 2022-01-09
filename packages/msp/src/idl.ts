@@ -1,7 +1,7 @@
 import { Idl } from '@project-serum/anchor';
 
 const IDL: Idl = {
-  version: "0.8.0",
+  version: "2.0.0",
   name: "msp",
   instructions: [
     {
@@ -204,7 +204,7 @@ const IDL: Idl = {
         },
         {
           "name": "stream",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -413,7 +413,7 @@ const IDL: Idl = {
         },
         {
           "name": "treasurer",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -509,7 +509,7 @@ const IDL: Idl = {
       "accounts": [
         {
           "name": "treasurer",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
