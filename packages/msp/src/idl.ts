@@ -719,7 +719,7 @@ const IDL: Idl = {
             "type": "u64"
           },
           {
-            "name": "lastManualResumeAllocationChangeUnits",
+            "name": "lastManualResumeRemainingAllocationUnitsSnap",
             "type": "u64"
           },
           {
@@ -732,6 +732,10 @@ const IDL: Idl = {
           },
           {
             "name": "lastKnownTotalSecondsInPausedStatus",
+            "type": "u64"
+          },
+          {
+            "name": "lastAutoStopBlockTime",
             "type": "u64"
           }
         ]
@@ -982,6 +986,21 @@ const IDL: Idl = {
       "code": 6023,
       "name": "StringTooLong",
       "msg": "The string length is larger than 32 bytes"
+    },
+    {
+      "code": 6024,
+      "name": "StreamAlreadyRunning",
+      "msg": "The stream is already running"
+    },
+    {
+      "code": 6025,
+      "name": "StreamAlreadyPaused",
+      "msg": "The stream is already paused"
+    },
+    {
+      "code": 6026,
+      "name": "StreamZeroRemainingAllocation",
+      "msg": "Stream allocation assigned is zero"
     }
   ]
 }
