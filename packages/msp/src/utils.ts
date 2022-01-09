@@ -470,6 +470,10 @@ const parseTreasuryData = (
 
   const nameBuffer = Buffer.from(treasury.name);
 
+  const treasuryAssocatedTokenMint = friendly 
+    ? (treasury.associatedTokenAddress as PublicKey).equals(PublicKey.default) ? "" : treasury.associatedTokenAddress.toBase58() 
+    : treasury.associatedTokenAddress;
+
   return {
     id: friendly ? address.toBase58() : address,
     version: treasury.version,
@@ -486,7 +490,7 @@ const parseTreasuryData = (
 
     treasuryType: treasury.treasuryType === 0 ? TreasuryType.Open : TreasuryType.Lock,
     treasurer: friendly ? treasury.treasurerAddress.toBase58() : treasury.treasurerAddress,
-    associatedToken: friendly ? treasury.associatedTokenAddress.toBase58() : treasury.associatedTokenAddress,
+    associatedToken: treasuryAssocatedTokenMint,
     balance: treasury.lastKnownBalanceUnits.toNumber(),
     allocationReserved: treasury.allocationReservedUnits.toNumber(),
     allocationAssigned: treasury.allocationAssignedUnits.toNumber(),
