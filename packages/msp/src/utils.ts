@@ -389,7 +389,8 @@ const parseStreamData = (
     transactionSignature: '',
     createdBlockTime: 0,
     upgradeRequired: false,
-    data: stream
+    data: stream,
+    totalWithdrawals: stream.totalWithdrawalsUnits.toNumber()
     
   } as Stream;
 }
@@ -520,7 +521,7 @@ const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = stream.cliffVestAmountUnits.toNumber();
 
   if (stream.cliffVestPercent > 0) {
-    cliffAmount = stream.cliffVestPercent * stream.allocationAssignedUnits / Constants.CLIFF_PERCENT_DENOMINATOR;
+    cliffAmount = stream.cliffVestPercent.toNumber() * stream.allocationAssignedUnits / Constants.CLIFF_PERCENT_DENOMINATOR;
   }
 
   return cliffAmount;
@@ -591,20 +592,13 @@ const getStreamWithdrawableAmount = (stream: any) => {
     streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1000;
 
   let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
+
+  if (entitledEarnings < 0) { // sanitize data;
+    entitledEarnings = nonStopEarningUnits;
+  }
+
   let withdrawableUnitsWhileRunning = entitledEarnings - stream.totalWithdrawalsUnits.toNumber();
   let withdrawableAmount = Math.min(remainingAllocation, withdrawableUnitsWhileRunning);
-
-  console.log('streamedUnitsPerSecond', streamedUnitsPerSecond);
-  console.log('timeSinceStart', timeSinceStart);
-  console.log('cliffAmount', cliffAmount);
-  console.log('nonStopEarningUnits', nonStopEarningUnits);
-  console.log('missedEarningUnitsWhilePaused', missedEarningUnitsWhilePaused);
-  console.log('lastKnownTotalSecondsInPausedStatus', stream.lastKnownTotalSecondsInPausedStatus.toNumber());
-  console.log('entitledEarnings', entitledEarnings);
-  console.log('totalWithdrawalsUnits', stream.totalWithdrawalsUnits.toNumber());
-  console.log('remainingAllocation', remainingAllocation);
-  console.log('withdrawableUnitsWhileRunning', withdrawableUnitsWhileRunning);
-  console.log('withdrawableAmount', withdrawableAmount);
 
   return withdrawableAmount;
 }
@@ -631,10 +625,13 @@ const getStreamStatus = (stream: any) => {
   let cliffAmount = getStreamCliffAmount(stream);
   let timeSinceStart = (now.getTime() - startTime) / 1000; // milliseconds
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
-  let missedEarningUnitsWhilePaused = 
-    streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-
+  let missedEarningUnitsWhilePaused = streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
   let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
+
+  if (entitledEarnings < 0) { // sanitize data;
+    entitledEarnings = nonStopEarningUnits;
+  }
+
   // Running
   if (stream.allocationAssignedUnits.toNumber() > entitledEarnings) {
     return STREAM_STATUS.Running;
