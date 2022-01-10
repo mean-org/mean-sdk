@@ -422,7 +422,7 @@ export class MSP {
       treasuryMint: PublicKey = PublicKey.default,
       treasurerTreasuryToken: PublicKey = PublicKey.default;
 
-    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * 10_000 : 0;
+    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
 
     if (treasury) {
 

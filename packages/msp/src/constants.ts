@@ -10,4 +10,6 @@ import { PublicKey } from "@solana/web3.js";
     static WSOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
     static TREASURY_SIZE = 300;
     static STREAM_SIZE = 500;
+    static CLIFF_PERCENT_NUMERATOR = 10_000;
+    static CLIFF_PERCENT_DENOMINATOR = 1_000_000;
 }

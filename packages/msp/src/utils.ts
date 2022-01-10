@@ -520,7 +520,7 @@ const getStreamCliffAmount = (stream: any) => {
   let cliffAmount = stream.cliffVestAmountUnits.toNumber();
 
   if (stream.cliffVestPercent > 0) {
-    cliffAmount = stream.cliffVestPercent * stream.allocationAssignedUnits / 100;
+    cliffAmount = stream.cliffVestPercent * stream.allocationAssignedUnits / Constants.CLIFF_PERCENT_DENOMINATOR;
   }
 
   return cliffAmount;
@@ -593,6 +593,18 @@ const getStreamWithdrawableAmount = (stream: any) => {
   let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
   let withdrawableUnitsWhileRunning = entitledEarnings - stream.totalWithdrawalsUnits.toNumber();
   let withdrawableAmount = Math.min(remainingAllocation, withdrawableUnitsWhileRunning);
+
+  console.log('streamedUnitsPerSecond', streamedUnitsPerSecond);
+  console.log('timeSinceStart', timeSinceStart);
+  console.log('cliffAmount', cliffAmount);
+  console.log('nonStopEarningUnits', nonStopEarningUnits);
+  console.log('missedEarningUnitsWhilePaused', missedEarningUnitsWhilePaused);
+  console.log('lastKnownTotalSecondsInPausedStatus', stream.lastKnownTotalSecondsInPausedStatus.toNumber());
+  console.log('entitledEarnings', entitledEarnings);
+  console.log('totalWithdrawalsUnits', stream.totalWithdrawalsUnits.toNumber());
+  console.log('remainingAllocation', remainingAllocation);
+  console.log('withdrawableUnitsWhileRunning', withdrawableUnitsWhileRunning);
+  console.log('withdrawableAmount', withdrawableAmount);
 
   return withdrawableAmount;
 }
