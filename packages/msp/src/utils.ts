@@ -111,7 +111,7 @@ export const listStreams = async (
 
   for (let item of accounts) {
     if (item.account !== undefined) {
-      let parsedStream = parseStreamData(item.account, item.publicKey, friendly);              
+      let parsedStream = parseStreamData(item.account, item.publicKey, friendly);
       let info = Object.assign({}, parsedStream);
       let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(
         friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
@@ -579,8 +579,6 @@ const getStreamWithdrawableAmount = (stream: any) => {
 
   // Check if RUNNING
   if (stream.rateAmountUnits.toNumber() === 0 || stream.rateIntervalInSeconds.toNumber() === 0) {
-    // throw Error("Invalid stream data");
-    console.log('stream', stream);
     return 0;
   }
 
