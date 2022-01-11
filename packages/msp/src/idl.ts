@@ -90,7 +90,7 @@ const IDL: Idl = {
         },
         {
           "name": "treasury",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -621,6 +621,22 @@ const IDL: Idl = {
           "type": "publicKey"
         }
       ]
+    },
+    {
+      "name": "getStream",
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "stream",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   accounts: [
@@ -864,6 +880,233 @@ const IDL: Idl = {
           }
         ]
       }
+    }
+  ],
+  events: [
+    {
+      "name": "StreamEvent",
+      "fields": [
+        {
+          "name": "version",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "initialized",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "name",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          },
+          "index": false
+        },
+        {
+          "name": "treasurerAddress",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "rateAmountUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "rateIntervalInSeconds",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "startUtc",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "cliffVestAmountUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "cliffVestPercent",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "beneficiaryAddress",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "beneficiaryAssociatedToken",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "treasuryAddress",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "allocationAssignedUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "allocationReservedUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "totalWithdrawalsUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastWithdrawalUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastWithdrawalSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastWithdrawalBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastManualStopWithdrawableUnitsSnap",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastManualStopSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastManualStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastManualResumeRemainingAllocationUnitsSnap",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastManualResumeSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastManualResumeBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastKnownTotalSecondsInPausedStatus",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastAutoStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "isManualPause",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "cliffUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "currentBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "secondsSinceStart",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "estDepletionTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "streamedUnitsPerSecond",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fundsLeftInTream",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fundsSentToBeneficiary",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "withdrawableUnitsWhilePaused",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "nonStopEarningUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "missedUnitsWhilePaused",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "entitledEarningsUnits",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "withdrawableUnitsWhileRunning",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "beneficiaryRemainingAllocation",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "beneficiaryWithdrawableAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastKnownStopBlockTime",
+          "type": "u64",
+          "index": false
+        }
+      ]
     }
   ],
   errors: [
