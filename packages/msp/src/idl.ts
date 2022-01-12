@@ -408,7 +408,7 @@ const IDL: Idl = {
       "accounts": [
         {
           "name": "initializer",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -453,7 +453,7 @@ const IDL: Idl = {
         },
         {
           "name": "treasuryMint",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -510,7 +510,7 @@ const IDL: Idl = {
         {
           "name": "treasurer",
           "isMut": true,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "treasurerToken",

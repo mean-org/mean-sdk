@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/msp",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "description": "MSP Typescript SDK",
   "private": false,
   "repository": {
