@@ -28,11 +28,6 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
-          "name": "msp",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -111,11 +106,6 @@ const IDL: Idl = {
         {
           "name": "feeTreasury",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "msp",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -213,11 +203,6 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
-          "name": "msp",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
@@ -299,11 +284,6 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
-          "name": "msp",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
@@ -358,11 +338,6 @@ const IDL: Idl = {
           "name": "feeTreasury",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "msp",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": []
@@ -393,11 +368,6 @@ const IDL: Idl = {
         {
           "name": "feeTreasury",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "msp",
-          "isMut": false,
           "isSigner": false
         }
       ],
@@ -469,11 +439,6 @@ const IDL: Idl = {
         {
           "name": "feeTreasuryToken",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "msp",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -553,7 +518,7 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
-          "name": "msp",
+          "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -561,12 +526,22 @@ const IDL: Idl = {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
     },
     {
-      "name": "refreshTreasuryBalance",
+      "name": "refreshTreasuryData",
       "accounts": [
         {
           "name": "treasurer",
@@ -589,7 +564,12 @@ const IDL: Idl = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "totalStreams",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "transferStream",
@@ -626,13 +606,8 @@ const IDL: Idl = {
       "name": "getStream",
       "accounts": [
         {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "stream",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -1057,7 +1032,7 @@ const IDL: Idl = {
           "index": false
         },
         {
-          "name": "fundsLeftInTream",
+          "name": "fundsLeftInStream",
           "type": "u64",
           "index": false
         },
@@ -1244,6 +1219,16 @@ const IDL: Idl = {
       "code": 6026,
       "name": "StreamZeroRemainingAllocation",
       "msg": "Stream allocation assigned is zero"
+    },
+    {
+      "code": 6027,
+      "name": "ZeroContributionAmount",
+      "msg": "Contribution amount is zero"
+    },
+    {
+      "code": 6028,
+      "name": "ZeroWithdrawalAmount",
+      "msg": "Withdrawal amount is zero"
     }
   ]
 }

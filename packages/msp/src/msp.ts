@@ -262,7 +262,6 @@ export class MSP {
               treasury: treasury,
               treasuryMint: treasuryMint,
               feeTreasury: Constants.FEE_TREASURY,
-              msp: this.program.programId,
               tokenProgram: TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
               rent: SYSVAR_RENT_PUBKEY
@@ -296,7 +295,6 @@ export class MSP {
               treasuryMint: treasuryMint,
               stream: Keypair.generate().publicKey, //TODO: Change
               feeTreasury: Constants.FEE_TREASURY,
-              msp: this.program.programId,
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
               tokenProgram: TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
@@ -329,7 +327,6 @@ export class MSP {
               beneficiary: beneficiary,
               stream: streamAccount.publicKey,
               feeTreasury: Constants.FEE_TREASURY,
-              msp: this.program.programId,
               systemProgram: SystemProgram.programId,
               rent: SYSVAR_RENT_PUBKEY
             },
@@ -384,7 +381,6 @@ export class MSP {
           treasury: treasury,
           treasuryMint: treasuryMint,
           feeTreasury: Constants.FEE_TREASURY,
-          msp: this.program.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY
@@ -475,7 +471,6 @@ export class MSP {
               treasury: treasury,
               treasuryMint: treasuryMint,
               feeTreasury: Constants.FEE_TREASURY,
-              msp: this.program.programId,
               tokenProgram: TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
               rent: SYSVAR_RENT_PUBKEY
@@ -520,7 +515,6 @@ export class MSP {
                 treasuryMint: treasuryMint,
                 stream: Keypair.generate().publicKey, //TODO: change 
                 feeTreasury: Constants.FEE_TREASURY,
-                msp: this.program.programId,
                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                 tokenProgram: TOKEN_PROGRAM_ID,
                 systemProgram: SystemProgram.programId,
@@ -555,7 +549,6 @@ export class MSP {
           beneficiary: beneficiary,
           stream: streamAccount.publicKey,
           feeTreasury: Constants.FEE_TREASURY,
-          msp: this.program.programId,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY
         },
@@ -642,7 +635,6 @@ export class MSP {
           treasuryMint: treasuryMint,
           stream: !stream ? Keypair.generate().publicKey : stream, //TODO: Change
           feeTreasury: Constants.FEE_TREASURY,
-          msp: this.program.programId,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -718,7 +710,6 @@ export class MSP {
           stream: stream,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
-          msp: this.program.programId,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -756,8 +747,7 @@ export class MSP {
           treasury: treasury,
           associatedToken: associatedToken,
           stream: stream,
-          feeTreasury: Constants.FEE_TREASURY,
-          msp: this.program.programId
+          feeTreasury: Constants.FEE_TREASURY
         }
       }
     );
@@ -791,8 +781,7 @@ export class MSP {
           treasury: treasury,
           associatedToken: associatedToken,
           stream: stream,
-          feeTreasury: Constants.FEE_TREASURY,
-          msp: this.program.programId
+          feeTreasury: Constants.FEE_TREASURY
         }
       }
     );
@@ -886,7 +875,6 @@ export class MSP {
           stream: stream,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
-          msp: this.program.programId,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
@@ -990,8 +978,10 @@ export class MSP {
           treasuryMint: treasuryMint,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
-          msp: this.program.programId,
-          tokenProgram: TOKEN_PROGRAM_ID
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY
         }
       }
     );
@@ -1003,13 +993,13 @@ export class MSP {
     return tx;
   }
 
-  public async refreshTreasuryBalance (
+  public async refreshTreasuryData (
     treasurer: PublicKey,
     treasury: PublicKey
 
   ): Promise<Transaction> {
 
-    const treasuryInfo = await getStream(this.program, treasury);
+    const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
@@ -1024,7 +1014,12 @@ export class MSP {
       true
     );
 
-    let tx = this.program.transaction.refreshTreasuryBalance(
+    // get treasury streams amount
+    const memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() }}];
+    const totalStreams = (await this.program.account.stream.all(memcmpFilters)).length;
+
+    let tx = this.program.transaction.refreshTreasuryData(
+      new BN(totalStreams),
       {
         accounts: {
           treasurer: treasurer,
