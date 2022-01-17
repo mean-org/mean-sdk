@@ -333,11 +333,6 @@ const IDL: Idl = {
           "name": "stream",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "feeTreasury",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": []
@@ -362,11 +357,6 @@ const IDL: Idl = {
         },
         {
           "name": "stream",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasury",
           "isMut": true,
           "isSigner": false
         }

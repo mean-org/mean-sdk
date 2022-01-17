@@ -746,8 +746,7 @@ export class MSP {
           initializer: initializer,
           treasury: treasury,
           associatedToken: associatedToken,
-          stream: stream,
-          feeTreasury: Constants.FEE_TREASURY
+          stream: stream
         }
       }
     );
@@ -780,8 +779,7 @@ export class MSP {
           initializer: initializer,
           treasury: treasury,
           associatedToken: associatedToken,
-          stream: stream,
-          feeTreasury: Constants.FEE_TREASURY
+          stream: stream
         }
       }
     );
