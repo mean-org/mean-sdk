@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/msp",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "description": "MSP Typescript SDK",
   "private": false,
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/mean-dao/mean-sdk.git"
   },
   "dependencies": {
-    "@project-serum/anchor": "0.19.1.beta.1",
+    "@project-serum/anchor": "^0.20.1",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.31.0",
     "bn.js": "^5.2.0",
