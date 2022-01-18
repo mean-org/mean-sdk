@@ -718,6 +718,14 @@ const IDL: Idl = {
           {
             "name": "lastAutoStopBlockTime",
             "type": "u64"
+          },
+          {
+            "name": "feePayedByTreasurer",
+            "type": "bool"
+          },
+          {
+            "name": "startUtcInSeconds",
+            "type": "u64"
           }
         ]
       }
@@ -983,6 +991,16 @@ const IDL: Idl = {
         },
         {
           "name": "lastAutoStopBlockTime",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "startUtcInSeconds",
           "type": "u64",
           "index": false
         },

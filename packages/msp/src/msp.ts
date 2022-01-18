@@ -307,11 +307,12 @@ export class MSP {
       // Create stream account since the OTP is scheduled
       const streamAccount = Keypair.generate();
       txSigners.push(streamAccount);
+      const startUtcInSeconds = parseInt((start.getTime() / 1000).toString());
       // Create stream contract
       ixs.push(
         this.program.instruction.createStream(
           streamName,
-          new BN(start.getTime()),
+          new BN(startUtcInSeconds),
           new BN(0),
           new BN(0),
           new BN(amount),
@@ -529,11 +530,12 @@ export class MSP {
     const streamAccount = Keypair.generate();
     const now = new Date();
     const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
+    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
 
     // Create Stream
     let tx = this.program.transaction.createStream(
       streamName,
-      new BN(startDate.getTime()),
+      new BN(startUtcInSeconds),
       new BN(rateAmount as number),
       new BN(rateIntervalInSeconds as number),
       new BN(allocationAssigned),

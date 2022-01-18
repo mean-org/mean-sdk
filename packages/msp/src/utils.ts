@@ -360,13 +360,14 @@ const parseStreamData = (
 ) => {
 
   let nameBuffer = Buffer.from(stream.name);
+  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
   return {
     id: friendly ? address.toBase58() : address,
     version: stream.version,
     initialized: stream.initialized,
     name: new TextDecoder().decode(nameBuffer),
-    startUtc: !friendly ? new Date(stream.startUtc.toNumber()).toString() : new Date(stream.startUtc.toNumber()),
+    startUtc: !friendly ? new Date(startUtcInSeconds).toString() : new Date(startUtcInSeconds),
     treasurer: friendly ? stream.treasurerAddress.toBase58() : stream.treasurerAddress,
     treasury: friendly ? stream.treasuryAddress.toBase58() : stream.treasuryAddress,
     beneficiary: friendly ? stream.beneficiaryAddress.toBase58() : stream.beneficiaryAddress,
@@ -386,11 +387,12 @@ const parseStreamData = (
     streamUnitsPerSecond: getStreamUnitsPerSecond(stream),
     status: getStreamStatus(stream),
     lastRetrievedBlockTime: new Date().getTime() / 1_000,
+    totalWithdrawals: stream.totalWithdrawalsUnits.toNumber(),
+    feePayedByTreasurer: stream.feePayedByTreasurer,
     transactionSignature: '',
     createdBlockTime: 0,
     upgradeRequired: false,
     data: stream,
-    totalWithdrawals: stream.totalWithdrawalsUnits.toNumber()
     
   } as Stream;
 }
@@ -511,7 +513,8 @@ const getStreamEstDepletionDate = (stream: any) => {
   let cliffAmount = getStreamCliffAmount(stream);
   let streamableAmount = stream.allocationAssignedUnits.toNumber() - cliffAmount;
   let durationSeconds = streamableAmount / stream.rateIntervalInSeconds;
-  let estDepletionTime = stream.startUtc.toNumber() + durationSeconds * 1000; // milliseconds
+  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+  let estDepletionTime = startUtcInSeconds + durationSeconds;
 
   return new Date(estDepletionTime);
 }
@@ -585,12 +588,11 @@ const getStreamWithdrawableAmount = (stream: any) => {
 
   let streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   let cliffAmount = getStreamCliffAmount(stream);
-  let now = new Date();
-  let timeSinceStart = (now.getTime() - stream.startUtc.toNumber()) / 1000; // milliseconds
+  let now = parseInt((Date.now() / 1000).toString());
+  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+  let timeSinceStart = (now - startUtcInSeconds);
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
-  let missedEarningUnitsWhilePaused = 
-    streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1000;
-
+  let missedEarningUnitsWhilePaused = streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
   let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
 
   if (entitledEarnings < 0) { // sanitize data;
@@ -605,11 +607,12 @@ const getStreamWithdrawableAmount = (stream: any) => {
 
 const getStreamStatus = (stream: any) => {
 
-  let now = new Date();
-  let startTime = stream.startUtc.toNumber();
+  let now = parseInt((Date.now() / 1000).toString());
+  // let startTime = stream.startUtc.toNumber();
+  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
   // Scheduled
-  if (startTime > now.getTime()) { 
+  if (startUtcInSeconds > now) { 
     return STREAM_STATUS.Schedule;
   }
 
@@ -623,7 +626,7 @@ const getStreamStatus = (stream: any) => {
   // Running or automatically paused (ran out of funds)
   let streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   let cliffAmount = getStreamCliffAmount(stream);
-  let timeSinceStart = (now.getTime() - startTime) / 1000; // milliseconds
+  let timeSinceStart = (now - startUtcInSeconds);
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
   let missedEarningUnitsWhilePaused = streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
   let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
@@ -653,4 +656,11 @@ const getStreamUnitsPerSecond = (stream: any) => {
     return 0;
   }
   return stream.rateAmountUnits.toNumber() / (stream.rateIntervalInSeconds.toNumber());
+}
+
+const getStreamStartUtcInSeconds = (stream: any) => {
+  if (stream.startUtcInSeconds.toNumber() === 0) {
+    return parseInt((stream.startUtc.toNumber() / 1000).toString());
+  }
+  return stream.startUtc.toNumber();
 }
