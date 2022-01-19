@@ -169,7 +169,8 @@ export class MSP {
     associatedToken: PublicKey,
     amount: number,
     startUtc?: Date,
-    streamName?: string
+    streamName?: string,
+    feePayedByTreasurer?: boolean
 
   ): Promise<Transaction> {
 
@@ -304,6 +305,14 @@ export class MSP {
         )
       );
 
+      const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        Constants.FEE_TREASURY,
+        true
+      );
+
       // Create stream account since the OTP is scheduled
       const streamAccount = Keypair.generate();
       txSigners.push(streamAccount);
@@ -319,15 +328,20 @@ export class MSP {
           new BN(0),
           new BN(amount),
           new BN(100 * 10_000),
+          feePayedByTreasurer ?? false,
           {
             accounts: {
               initializer: treasurer,
               treasurer: treasurer,
               treasury: treasury,
+              treasuryToken: treasuryToken,
               associatedToken: associatedToken,
               beneficiary: beneficiary,
               stream: streamAccount.publicKey,
               feeTreasury: Constants.FEE_TREASURY,
+              feeTreasuryToken: feeTreasuryToken,
+              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+              tokenProgram: TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
               rent: SYSVAR_RENT_PUBKEY
             },
@@ -410,7 +424,8 @@ export class MSP {
     rateIntervalInSeconds?: number,
     startUtc?: Date,
     cliffVestAmount?: number,
-    cliffVestPercent?: number
+    cliffVestPercent?: number,
+    feePayedByTreasurer?: boolean
 
   ): Promise<Transaction> {
 
@@ -527,6 +542,14 @@ export class MSP {
       }  
     }
 
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
     const streamAccount = Keypair.generate();
     const now = new Date();
     const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
@@ -542,15 +565,20 @@ export class MSP {
       new BN(allocationReserved as number),
       new BN(cliffVestAmount as number),
       new BN(cliffVestPercentValue),
+      feePayedByTreasurer ?? false,
       {
         accounts: {
           initializer: initializer,
           treasurer: treasurer,
           treasury: treasury,
+          treasuryToken: treasuryToken,
           associatedToken: associatedToken,
           beneficiary: beneficiary,
           stream: streamAccount.publicKey,
           feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY
         },

@@ -89,6 +89,11 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "associatedToken",
           "isMut": false,
           "isSigner": false
@@ -106,6 +111,21 @@ const IDL: Idl = {
         {
           "name": "feeTreasury",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -151,6 +171,10 @@ const IDL: Idl = {
         {
           "name": "cliffVestPercent",
           "type": "u64"
+        },
+        {
+          "name": "feePayedByTreasurer",
+          "type": "bool"
         }
       ]
     },
