@@ -662,6 +662,14 @@ export class MSP {
       true
     );
 
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
     let tx = this.program.transaction.addFunds(
       new BN(amount),
       allocationType,
@@ -677,6 +685,7 @@ export class MSP {
           treasuryMint: treasuryMint,
           stream: !stream ? Keypair.generate().publicKey : stream, //TODO: Change
           feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
