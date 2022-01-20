@@ -8,7 +8,7 @@ import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
  */
-import { Stream, ListStreamParams, Treasury, TreasuryType, AllocationType } from "./types";
+import { Stream, ListStreamParams, Treasury, TreasuryType, AllocationType, STREAM_STATUS } from "./types";
 import { createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
 import { listTreasuries } from ".";
@@ -280,6 +280,14 @@ export class MSP {
         true
       );
 
+      const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        Constants.FEE_TREASURY,
+        true
+      );
+
       ixs.push(
         this.program.instruction.addFunds(
           new BN(amount),
@@ -296,6 +304,7 @@ export class MSP {
               treasuryMint: treasuryMint,
               stream: Keypair.generate().publicKey, //TODO: Change
               feeTreasury: Constants.FEE_TREASURY,
+              feeTreasuryToken: feeTreasuryToken,
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
               tokenProgram: TOKEN_PROGRAM_ID,
               systemProgram: SystemProgram.programId,
@@ -303,14 +312,6 @@ export class MSP {
             }
           }
         )
-      );
-
-      const feeTreasuryToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        associatedToken,
-        Constants.FEE_TREASURY,
-        true
       );
 
       // Create stream account since the OTP is scheduled
@@ -434,6 +435,14 @@ export class MSP {
       treasuryMint: PublicKey = PublicKey.default,
       treasurerTreasuryToken: PublicKey = PublicKey.default;
 
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
     const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
 
     if (treasury) {
@@ -447,6 +456,15 @@ export class MSP {
       if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
         throw Error("Incorrect associated token address");
       }
+
+      // Get the treasury token account
+      treasuryToken = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        associatedToken,
+        treasury,
+        true
+      );
 
       treasuryMint = new PublicKey(treasuryInfo.mint as string);
 
@@ -496,6 +514,7 @@ export class MSP {
       );
 
       if (allocationAssigned && allocationAssigned > 0) {
+
         // Get the treasurer token account
         const treasurerToken = await Token.getAssociatedTokenAddress(
           ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -504,7 +523,7 @@ export class MSP {
           treasurer,
           true
         );
-  
+
         // Get the treasury token account
         treasuryToken = await Token.getAssociatedTokenAddress(
           ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -531,6 +550,7 @@ export class MSP {
                 treasuryMint: treasuryMint,
                 stream: Keypair.generate().publicKey, //TODO: change 
                 feeTreasury: Constants.FEE_TREASURY,
+                feeTreasuryToken: feeTreasuryToken,
                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                 tokenProgram: TOKEN_PROGRAM_ID,
                 systemProgram: SystemProgram.programId,
@@ -541,14 +561,6 @@ export class MSP {
         )
       }  
     }
-
-    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      associatedToken,
-      Constants.FEE_TREASURY,
-      true
-    );
 
     const streamAccount = Keypair.generate();
     const now = new Date();
@@ -695,6 +707,14 @@ export class MSP {
 
     if (!streamInfo) {
       throw Error("Stream doesn't exists");
+    }
+
+    if (streamInfo.status === STREAM_STATUS.Schedule) {
+      throw Error("Stream has not started");
+    }
+
+    if (streamInfo.withdrawableAmount === 0) {
+      throw Error("Stream withdrawable amount is zero");
     }
 
     if (!beneficiary.equals(new PublicKey(streamInfo.beneficiary as string))) {

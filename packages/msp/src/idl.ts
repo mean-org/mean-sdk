@@ -227,6 +227,11 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
@@ -1261,6 +1266,11 @@ const IDL: Idl = {
       "code": 6028,
       "name": "ZeroWithdrawalAmount",
       "msg": "Withdrawal amount is zero"
+    },
+    {
+      "code": 6029,
+      "name": "StreamIsScheduled",
+      "msg": "Stream has not started"
     }
   ]
 }
