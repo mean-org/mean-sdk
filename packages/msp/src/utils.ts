@@ -54,17 +54,10 @@ export const getStream = async (
 
 ): Promise<Stream> => {
   
-  console.log('stream address', address.toBase58());
-  let stream = await program.account.stream.fetch(address);
-  console.log('stream', stream);
-  console.log(stream);
-  let associatedTokenInfo = await program.provider.connection.getAccountInfo(
-    stream.beneficiaryAssociatedToken, 
-    commitment
-  );
+  let stream = await program.account.stream.fetchNullable(address);
 
-  if (!associatedTokenInfo) {
-    throw Error("Associated token doesn't exists");
+  if (!stream) {
+    throw Error("Stream doesn't exists");
   }
 
   let streamInfo = parseStreamData(stream, address, friendly);

@@ -1271,6 +1271,11 @@ const IDL: Idl = {
       "code": 6029,
       "name": "StreamIsScheduled",
       "msg": "Stream has not started"
+    },
+    {
+      "code": 6030,
+      "name": "InvalidStreamRate",
+      "msg": "Invalid stream rate"
     }
   ]
 }

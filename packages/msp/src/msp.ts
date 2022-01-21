@@ -47,12 +47,6 @@ export class MSP {
 
   ): Promise<any> {
 
-    let accountInfo = await this.connection.getAccountInfo(id, commitment);
-
-    if (!accountInfo) {
-      throw Error("Stream doesn't exists");
-    }
-
     return getStream(this.program, id, commitment, friendly);
   }
 
@@ -429,6 +423,10 @@ export class MSP {
     feePayedByTreasurer?: boolean
 
   ): Promise<Transaction> {
+
+    if (rateAmount && rateIntervalInSeconds && rateAmount > rateIntervalInSeconds) {
+      throw Error("Invalid stream rate");
+    }
 
     let ixs: Array<TransactionInstruction> = new Array<TransactionInstruction>();
     let treasuryToken: PublicKey = PublicKey.default,
