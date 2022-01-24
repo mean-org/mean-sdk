@@ -9,7 +9,7 @@ const IDL: Idl = {
       "accounts": [
         {
           "name": "treasurer",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -183,7 +183,7 @@ const IDL: Idl = {
       "accounts": [
         {
           "name": "contributor",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -1029,11 +1029,6 @@ const IDL: Idl = {
           "index": false
         },
         {
-          "name": "startUtcInSeconds",
-          "type": "u64",
-          "index": false
-        },
-        {
           "name": "status",
           "type": "string",
           "index": false
@@ -1060,11 +1055,6 @@ const IDL: Idl = {
         },
         {
           "name": "estDepletionTime",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "streamedUnitsPerSecond",
           "type": "u64",
           "index": false
         },
@@ -1271,11 +1261,6 @@ const IDL: Idl = {
       "code": 6029,
       "name": "StreamIsScheduled",
       "msg": "Stream has not started"
-    },
-    {
-      "code": 6030,
-      "name": "InvalidStreamRate",
-      "msg": "Invalid stream rate"
     }
   ]
 }

@@ -3,7 +3,7 @@
  */
 import { Commitment, Connection, ConnectionConfig, Keypair, PublicKey, Transaction, Signer, Finality, TransactionInstruction, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, Idl, Program, Provider } from "@project-serum/anchor";
+import { BN, Idl, Program } from "@project-serum/anchor";
 
 /**
  * MSP
@@ -42,12 +42,16 @@ export class MSP {
 
   public async getStream (
     id: PublicKey,
-    commitment?: Commitment | undefined,
     friendly: boolean = true
 
   ): Promise<any> {
 
-    return getStream(this.program, id, commitment, friendly);
+    const program = createProgram(
+      this.connection,
+      Constants.FEE_TREASURY.toBase58()
+    );
+
+    return getStream(program, id, friendly);
   }
 
   public async refreshStream (
@@ -58,18 +62,22 @@ export class MSP {
   ): Promise<Stream> {
 
     let copyStreamInfo = Object.assign({}, streamInfo);
-    const currentTime = Date.parse(new Date().toUTCString()) / 1000;
 
     if (hardUpdate) {
+
+      const program = createProgram(
+        this.connection,
+        Constants.FEE_TREASURY.toBase58()
+      );
 
       const streamId = typeof copyStreamInfo.id === 'string' 
         ? new PublicKey(copyStreamInfo.id) 
         : copyStreamInfo.id as PublicKey; 
 
-        return await getStream(this.program, streamId);
+        return await getStream(program, streamId);
     }
 
-    return getStreamCached(copyStreamInfo, currentTime, friendly);
+    return getStreamCached(copyStreamInfo, friendly);
   }
 
   public async listStreams ({
@@ -423,11 +431,7 @@ export class MSP {
     feePayedByTreasurer?: boolean
 
   ): Promise<Transaction> {
-
-    if (rateAmount && rateIntervalInSeconds && rateAmount > rateIntervalInSeconds) {
-      throw Error("Invalid stream rate");
-    }
-
+    
     let ixs: Array<TransactionInstruction> = new Array<TransactionInstruction>();
     let treasuryToken: PublicKey = PublicKey.default,
       treasuryMint: PublicKey = PublicKey.default,
@@ -710,7 +714,7 @@ export class MSP {
       throw Error("Amount should be greater than 0");
     }
 
-    let streamInfo: any = await getStream(this.program, stream, "recent");
+    let streamInfo: any = await getStream(this.program, stream);
 
     if (!streamInfo) {
       throw Error("Stream doesn't exists");
@@ -855,7 +859,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    let streamInfo = await getStream(this.program, stream, "recent");
+    let streamInfo = await getStream(this.program, stream);
 
     if (!streamInfo) {
       throw Error("Stream doesn't exist");
