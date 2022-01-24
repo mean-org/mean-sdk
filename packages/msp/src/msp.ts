@@ -208,8 +208,8 @@ export class MSP {
       const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(
         beneficiaryToken
       );
-
-      if (!beneficiaryTokenAccountInfo) {
+      
+      if (!beneficiaryTokenAccountInfo || !beneficiaryTokenAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
         ixs.push(
           Token.createAssociatedTokenAccountInstruction(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -219,7 +219,7 @@ export class MSP {
             beneficiary,
             treasurer
           )
-        );
+        )
       }
 
       ixs.push(

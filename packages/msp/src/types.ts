@@ -152,7 +152,7 @@ export enum STREAM_STATUS {
   transactionSignature: string | undefined,
   createdBlockTime: number,
   lastRetrievedBlockTime: number,
-  currentBlockTime: number,
+  lastRetrievedTimeInSeconds: number,
   upgradeRequired: boolean,
   status: STREAM_STATUS | string,
   withdrawableAmount: number,
