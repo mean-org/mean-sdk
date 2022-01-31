@@ -803,6 +803,16 @@ export class MSP {
     }
 
     const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasuryInfo = await this.getTreasury(treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    if (treasuryInfo.treasuryType === 1) {
+      throw Error("Locked streams can not be paused");
+    }
+
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     let tx = this.program.transaction.pauseStream(
@@ -836,6 +846,16 @@ export class MSP {
     }
 
     const treasury = new PublicKey(streamInfo.treasury as string);
+    const treasuryInfo = await this.getTreasury(treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    if (treasuryInfo.treasuryType === 1) {
+      throw Error("Locked streams can not be resumed");
+    }
+
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     let tx = this.program.transaction.resumeStream(
@@ -893,6 +913,10 @@ export class MSP {
 
     if (!treasuryInfo) {
       throw Error("Treasury doesn't exist");
+    }
+
+    if (treasuryInfo.treasuryType === 1 && streamInfo.status !== 'Paused') {
+      throw Error("Locked streams can not be closed before finish");
     }
 
     const treasuryMint = new PublicKey(treasuryInfo.mint as string);
