@@ -299,6 +299,11 @@ export const calculateActionFees = async (
       txFees.mspFlatFee = 0.00001;
       break;
     }
+    case MSP_ACTIONS.transferStream: {
+      blockchainFee = 5000000;
+      txFees.mspFlatFee = 0.00001;
+      break;
+    }
     default: {
       break;
     }

@@ -24,7 +24,8 @@ export enum MSP_ACTIONS {
   answerUpdate = 9,
   createTreasury = 10,
   closeStream = 11,
-  closeTreasury = 12
+  closeTreasury = 12,
+  transferStream = 13
 }
 
 /**

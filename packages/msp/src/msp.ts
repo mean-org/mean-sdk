@@ -463,6 +463,10 @@ export class MSP {
         throw Error("Incorrect associated token address");
       }
 
+      if (treasuryInfo.treasuryType === 1 && allocationAssigned !== allocationReserved) {
+        throw Error("Invalid requested stream allocation");
+      }
+
       // Get the treasury token account
       treasuryToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
