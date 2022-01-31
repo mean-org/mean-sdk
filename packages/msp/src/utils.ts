@@ -1,5 +1,5 @@
 import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum } from "@solana/web3.js";
-import { Idl, Program, Provider } from "@project-serum/anchor";
+import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
  */
@@ -9,6 +9,7 @@ import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import MSP_IDL from './idl';
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { Wallet } from "@project-serum/anchor/dist/cjs/provider";
+import { u64 } from "@solana/spl-token";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -51,33 +52,37 @@ export const getStream = async (
   address: PublicKey,
   friendly: boolean = true
 
-): Promise<Stream> => {
+): Promise<any> => {
   
   try {
 
     const streamEventResponse = await program.simulate.getStream({
       accounts: {
-        stream: address 
+        stream: address
       }
     });
   
     if (
       !streamEventResponse || 
       !streamEventResponse.events || 
-      !streamEventResponse.events.length || 
+      !streamEventResponse.events.length ||
       !streamEventResponse.events[0].data
     ) {
-      return { } as Stream;
+      return null;
     }
 
-    const event = streamEventResponse.events[0].data;
-    let streamInfo = parseGetStreamData(event, address, friendly);
+    const event: any = streamEventResponse.events[0].data;
+    let streamInfo = parseGetStreamData(
+      event, 
+      address, 
+      friendly
+    );
   
     return streamInfo;
 
   } catch (error: any) {
     console.log(error);
-    return {} as Stream;
+    return null;
   }
 }
 
@@ -87,25 +92,19 @@ export const getStreamCached = async (
 
 ): Promise<Stream> => {
 
-  let timeDiff = streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
+  const timeDiff = streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
+  const blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
 
-  streamInfo.estimatedDepletionDate = friendly 
-    ? getStreamEstDepletionDate(streamInfo.data).toString() 
-    : getStreamEstDepletionDate(streamInfo.data);
+  const parsedStream = parseStreamItemData(
+    streamInfo.data,
+    new PublicKey(streamInfo.id as string),
+    blocktime,
+    friendly
+  );
 
-  let fundsLeftInStream = getFundsLeftInStream(streamInfo.data, timeDiff);
-  let fundsSentToBeneficiary = getFundsSentToBeneficiary(streamInfo.data);
-  let remainingAllocationAmount = getStreamRemainingAllocation(streamInfo.data);
-  let withdrawableAmount = getStreamWithdrawableAmount(streamInfo.data, timeDiff);
-  let status = getStreamStatus(streamInfo.data);
+  parsedStream.createdBlockTime = streamInfo.createdBlockTime;
 
-  streamInfo.fundsLeftInStream = fundsLeftInStream;
-  streamInfo.fundsSentToBeneficiary = fundsSentToBeneficiary;
-  streamInfo.remainingAllocationAmount = remainingAllocationAmount;
-  streamInfo.withdrawableAmount = withdrawableAmount;
-  streamInfo.status = status;
-
-  return streamInfo;
+  return parsedStream;
 }
 
 export const listStreams = async (
@@ -134,7 +133,6 @@ export const listStreams = async (
 
       if (signatures.length > 0) {
         info.createdBlockTime = signatures[0].blockTime as number;
-        info.transactionSignature = signatures[0].signature;
       }
 
       streamInfoList.push(info);
@@ -153,12 +151,20 @@ export const listStreamsCached = async (
 ): Promise<Stream[]> => {
 
   let streamList: Stream[] = [];
-  const currentTime = Date.parse(new Date().toUTCString()) / 1000;
 
   for (let streamInfo of streamInfoList) {
-    streamList.push(
-      await getStreamCached(streamInfo, friendly)
+    let timeDiff = streamInfo.lastRetrievedTimeInSeconds - streamInfo.lastRetrievedBlockTime;
+    let blockTime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
+    
+    let parsedStream = parseStreamItemData(
+      streamInfo.data, 
+      new PublicKey(streamInfo.id as string), 
+      blockTime, 
+      friendly
     );
+
+    parsedStream.createdBlockTime = streamInfo.createdBlockTime;
+    streamList.push(parsedStream);
   }  
 
   return streamList;
@@ -176,11 +182,6 @@ export const listStreamActivity = async (
   let finality = commitment !== undefined ? commitment : "finalized";
   let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(address, { limit: 10 }, finality);
   let txs = await program.provider.connection.getParsedConfirmedTransactions(signatures.map((s: any) => s.signature), finality);
-  const streamAccountInfo = await program.provider.connection.getAccountInfo(address, commitment || "finalized");
-
-  if (!streamAccountInfo) {
-    throw Error("Stream not found");
-  }
 
   if (txs && txs.length) {
     txs.forEach((tx: any) => {
@@ -206,19 +207,7 @@ export const getTreasury = async (
 ): Promise<Treasury> => {
 
   let treasury = await program.account.treasury.fetch(address);
-  let parsedTreasury = parseTreasuryData(treasury, address, friendly); 
-
-  if (!parsedTreasury.createdOnUtc) {
-    try {
-      const blockTime = await program.provider.connection.getBlockTime(parsedTreasury.slot) || 0;
-      parsedTreasury.createdOnUtc = blockTime === 0 
-        ? "" 
-        : friendly === true 
-        ? new Date(blockTime * 1000).toString()
-        : new Date(blockTime * 1000);
-        
-    } catch {}
-  }
+  let parsedTreasury = parseTreasuryData(treasury, address, friendly)
 
   return parsedTreasury;
 }
@@ -372,84 +361,66 @@ const parseGetStreamData = (
 
 ) => {
 
+  let nameBuffer = Buffer.from(event.name);
   let startUtc = parseInt((event.startUtc.toNumber() * 1_000).toString());
 
-  return {
+  const stream = {
     id: friendly ? address.toBase58() : address,
     version: event.version,
     initialized: event.initialized,
-    name: String.fromCharCode(...event.name).trim(),
+    name: new TextDecoder().decode(nameBuffer),
+    startUtc: !friendly ? new Date(startUtc).toString() : new Date(startUtc),
     treasurer: friendly ? event.treasurerAddress.toBase58() : event.treasurerAddress,
-    rateAmount: friendly ? event.rateAmountUnits.toNumber() : event.rateAmountUnits,
-    rateIntervalInSeconds: friendly ? event.rateIntervalInSeconds.toNumber() : event.rateIntervalInSeconds,
-    startUtc: friendly ? new Date(startUtc) : event.startUtc.toNumber(),
-    cliffVestAmount: friendly ? event.cliffVestAmountUnits.toNumber() : event.cliffVestAmountUnits,
-    cliffVestPercent: friendly ? event.cliffVestPercent.toNumber() / 10_000 : event.cliffVestPercent,
+    treasury: friendly ? event.treasuryAddress.toBase58() : event.treasuryAddress,
     beneficiary: friendly ? event.beneficiaryAddress.toBase58() : event.beneficiaryAddress,
     associatedToken: friendly ? event.beneficiaryAssociatedToken.toBase58() : event.beneficiaryAssociatedToken,
-    treasury: friendly ? event.treasuryAddress.toBase58() : event.treasuryAddress,
+    cliffVestAmount: friendly ? event.cliffVestAmountUnits.toNumber() : event.cliffVestAmountUnits,
+    cliffVestPercent: friendly ? event.cliffVestPercent.toNumber() / 10_000 : new BN(event.cliffVestPercent.toNumber() / 10_000),
     allocationAssigned: friendly ? event.allocationAssignedUnits.toNumber() : event.allocationAssignedUnits,
     allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
-    totalWithdrawalsAmount: friendly ? event.totalWithdrawalsUnits.toNumber() : event.totalWithdrawalsUnits,
-    status: STREAM_STATUS[event.status],
-    lastRetrievedBlockTime: event.currentBlockTime.toNumber(),
-    lastRetrievedTimeInSeconds: parseInt((Date.now() / 1_000).toString()),
-    secondsSinceStart: friendly ? event.secondsSinceStart.toNumber() : event.secondsSinceStart,
-    estimatedDepletionDate: friendly 
-      ? new Date(event.estDepletionTime.toNumber() * 1000) 
-      : event.estDepletionTime.toNumber() * 1000,
 
-    streamUnitsPerSecond: event.rateAmountUnits.toNumber() / event.rateIntervalInSeconds.toNumber(),
+    secondsSinceStart: friendly 
+      ? (event.currentBlockTime.toNumber() - event.startUtc.toNumber()) 
+      : event.currentBlockTime.sub(new BN(event.startUtc)),
+
+    estimatedDepletionDate: friendly 
+      ? new Date(event.estDepletionTime.toNumber() * 1_000).toString() 
+      : new Date(event.estDepletionTime.toNumber() * 1_000),
+      
+    rateAmount: friendly ? event.rateAmountUnits.toNumber() : event.rateAmountUnits,
+    rateIntervalInSeconds: friendly ? event.rateIntervalInSeconds.toNumber() : event.rateIntervalInSeconds,
+    totalWithdrawalsAmount: friendly ? event.totalWithdrawalsUnits.toNumber() : event.totalWithdrawalsUnits,
     fundsLeftInStream: friendly ? event.fundsLeftInStream.toNumber() : event.fundsLeftInStream,
-    fundsSentToBeneficiary: friendly ? event.fundsSentToBeneficiary.toNumber() : event.fundsSentToBeneficiary,
-    feePayedByTreasurer: event.feePayedByTreasurer,
-    remainingAllocationAmount: friendly
-        ? event.beneficiaryRemainingAllocation.toNumber()
-        : event.beneficiaryRemainingAllocation,
+
+    fundsSentToBeneficiary: friendly 
+      ? event.fundsSentToBeneficiary.toNumber() 
+      : new BN(event.fundsSentToBeneficiary),
+
+    remainingAllocationAmount: friendly 
+      ? event.beneficiaryRemainingAllocation.toNumber() 
+      : event.beneficiaryRemainingAllocation,
 
     withdrawableAmount: friendly 
       ? event.beneficiaryWithdrawableAmount.toNumber() 
       : event.beneficiaryWithdrawableAmount,
 
-    transactionSignature: '',
+    streamUnitsPerSecond: friendly ? getStreamUnitsPerSecond(event) : new BN(getStreamUnitsPerSecond(event)),
+    isManuallyPaused: event.isManualPause,
+    status: STREAM_STATUS[event.status],
+    lastRetrievedBlockTime: friendly ? event.currentBlockTime.toNumber() : event.currentBlockTime,
+    lastRetrievedTimeInSeconds: friendly 
+      ? parseInt((Date.now() / 1_000).toString()) 
+      : new BN(parseInt((Date.now() / 1_000).toString())),
+
+    totalWithdrawals: friendly ? event.totalWithdrawalsUnits.toNumber() : event.totalWithdrawalsUnits,
+    feePayedByTreasurer: event.feePayedByTreasurer,
+    createdBlockTime: event.startUtc.toNumber(),
     upgradeRequired: false,
-    createdBlockTime: 0,
-    data: event,
-    
-    // data: {
-    //   isManualPause: event.isManualPause,
-    //   cliffUnits: friendly ? event.cliffUnits.toNumber() : event.cliffUnits,
-    //   lastWithdrawalUnits: friendly ? event.lastWithdrawalUnits.toNumber() : event.lastWithdrawalUnits,
-    //   lastWithdrawalSlot: friendly ? event.lastWithdrawalSlot.toNumber() : event.lastWithdrawalSlot,
-    //   lastWithdrawalBlockTime: friendly ? event.lastWithdrawalBlockTime.toNumber() : event.lastWithdrawalBlockTime,
-    //   lastManualStopWithdrawableUnitsSnap: friendly
-    //     ? event.lastManualStopWithdrawableUnitsSnap.toNumber()
-    //     : event.lastManualStopWithdrawableUnitsSnap,
-        
-    //   lastManualStopSlot: friendly ? event.lastManualStopSlot.toNumber() : event.lastManualStopSlot,
-    //   lastManualStopBlockTime: friendly ? event.lastManualStopBlockTime.toNumber() : event.lastManualStopBlockTime,
-    //   lastManualResumeRemainingAllocationUnitsSnap: friendly 
-    //     ? event.lastManualResumeRemainingAllocationUnitsSnap.toNumber()
-    //     : event.lastManualResumeRemainingAllocationUnitsSnap,
-
-    //   lastManualResumeSlot: friendly ? event.lastManualResumeSlot.toNumber() : event.lastManualResumeSlot,
-    //   lastManualResumeBlockTime: friendly ? event.lastManualResumeBlockTime.toNumber() : event.lastManualResumeBlockTime,
-    //   lastKnownTotalSecondsInPausedStatus: friendly
-    //     ? event.lastKnownTotalSecondsInPausedStatus.toNumber()
-    //     : event.lastKnownTotalSecondsInPausedStatus,
-
-    //   lastAutoStopBlockTime: friendly ? event.lastAutoStopBlockTime.toNumber() : event.lastAutoStopBlockTime,
-    //   nonStopEarningUnits: friendly ? event.nonStopEarningUnits.toNumber() : event.nonStopEarningUnits,
-    //   missedUnitsWhilePaused: friendly ? event.missedUnitsWhilePaused.toNumber() : event.missedUnitsWhilePaused,
-    //   entitledEarningsUnits: friendly ? event.entitledEarningsUnits.toNumber() : event.entitledEarningsUnits,
-    //   withdrawableUnitsWhileRunning: friendly 
-    //     ? event.withdrawableUnitsWhileRunning.toNumber() 
-    //     : event.withdrawableUnitsWhileRunning,
-
-    //   lastKnownStopBlockTime: friendly ? event.lastKnownStopBlockTime.toNumber() : event.lastKnownStopBlockTime,
-    // }
+    data: event
     
   } as Stream;
+
+  return stream;
 }
 
 const parseStreamItemData = (
@@ -464,7 +435,7 @@ const parseStreamItemData = (
   let startUtc = getStreamStartUtcInSeconds(stream) * 1_000;
   let timeDiff = parseInt((Date.now() / 1_000).toString()) - blockTime;
 
-  return {
+  let streamInfo = {
     id: friendly ? address.toBase58() : address,
     version: stream.version,
     initialized: stream.initialized,
@@ -474,65 +445,87 @@ const parseStreamItemData = (
     treasury: friendly ? stream.treasuryAddress.toBase58() : stream.treasuryAddress,
     beneficiary: friendly ? stream.beneficiaryAddress.toBase58() : stream.beneficiaryAddress,
     associatedToken: friendly ? stream.beneficiaryAssociatedToken.toBase58() : stream.beneficiaryAssociatedToken,
-    cliffVestAmount: stream.cliffVestAmountUnits.toNumber(),
-    cliffVestPercent: stream.cliffVestPercent.toNumber() / 10_000,
-    allocationAssigned: stream.allocationAssignedUnits.toNumber(),
-    allocationReserved: stream.allocationReservedUnits.toNumber(),
-    estimatedDepletionDate: getStreamEstDepletionDate(stream),
-    rateAmount: stream.rateAmountUnits.toNumber(),
-    rateIntervalInSeconds: stream.rateIntervalInSeconds.toNumber(),
-    totalWithdrawalsAmount: stream.totalWithdrawalsUnits.toNumber(),
-    fundsLeftInStream: getFundsLeftInStream(stream, timeDiff),
-    fundsSentToBeneficiary: getFundsSentToBeneficiary(stream, timeDiff),
-    remainingAllocationAmount: getStreamRemainingAllocation(stream),
-    withdrawableAmount: getStreamWithdrawableAmount(stream, timeDiff),
-
-    streamUnitsPerSecond: getStreamUnitsPerSecond(stream),
-    status: getStreamStatus(stream),
-    lastRetrievedBlockTime: blockTime,
-    lastRetrievedTimeInSeconds: parseInt((Date.now() / 1_000).toString()),
-    totalWithdrawals: stream.totalWithdrawalsUnits.toNumber(),
+    cliffVestAmount: friendly ? stream.cliffVestAmountUnits.toNumber() : stream.cliffVestAmountUnits,
+    cliffVestPercent: friendly ? stream.cliffVestPercent.toNumber() / 10_000 : new BN(stream.cliffVestPercent.toNumber() / 10_000),
+    allocationAssigned: friendly ? stream.allocationAssignedUnits.toNumber() : stream.allocationAssignedUnits,
+    allocationReserved: friendly ? stream.allocationReservedUnits.toNumber() : stream.allocationReservedUnits,
+    secondsSinceStart: friendly ? (blockTime - getStreamStartUtcInSeconds(stream)) : new BN(blockTime).sub(new BN(startUtc)),
+    estimatedDepletionDate: friendly ? getStreamEstDepletionDate(stream).toString() : getStreamEstDepletionDate(stream),
+    rateAmount: friendly ? stream.rateAmountUnits.toNumber() : stream.rateAmountUnits,
+    rateIntervalInSeconds: friendly ? stream.rateIntervalInSeconds.toNumber() : stream.rateIntervalInSeconds,
+    totalWithdrawalsAmount: friendly ? stream.totalWithdrawalsUnits.toNumber() : stream.totalWithdrawalsUnits,
+    fundsLeftInStream: friendly ? getFundsLeftInStream(stream, timeDiff) : new BN(getFundsLeftInStream(stream, timeDiff)),
+    fundsSentToBeneficiary: friendly ? getFundsSentToBeneficiary(stream, timeDiff) : new BN(getFundsSentToBeneficiary(stream, timeDiff)),
+    remainingAllocationAmount: friendly ? getStreamRemainingAllocation(stream) : new BN(getStreamRemainingAllocation(stream)),
+    withdrawableAmount: friendly ? getStreamWithdrawableAmount(stream, timeDiff) : new BN(getStreamWithdrawableAmount(stream, timeDiff)),
+    streamUnitsPerSecond: friendly ? getStreamUnitsPerSecond(stream) : new BN(getStreamUnitsPerSecond(stream)),
+    isManuallyPaused: isStreamManuallyPaused(stream),
+    status: getStreamStatus(stream, timeDiff),
+    lastRetrievedBlockTime: friendly ? blockTime : new BN(blockTime),
+    lastRetrievedTimeInSeconds: friendly ? parseInt((Date.now() / 1_000).toString()) : new BN(parseInt((Date.now() / 1_000).toString())),
+    totalWithdrawals: friendly ? stream.totalWithdrawalsUnits.toNumber() : stream.totalWithdrawalsUnits,
     feePayedByTreasurer: stream.feePayedByTreasurer,
     transactionSignature: '',
     createdBlockTime: 0,
     upgradeRequired: false,
-    data: stream,
-    // data: {
-    //   isManualPause: isStreamManuallyPaused(stream),
-    //   cliffUnits: getStreamCliffAmount(stream),
-    //   lastWithdrawalUnits: friendly ? stream.lastWithdrawalUnits.toNumber() : stream.lastWithdrawalUnits,
-    //   lastWithdrawalSlot: friendly ? stream.lastWithdrawalSlot.toNumber() : stream.lastWithdrawalSlot,
-    //   lastWithdrawalBlockTime: friendly ? stream.lastWithdrawalBlockTime.toNumber() : stream.lastWithdrawalBlockTime,
-    //   lastManualStopWithdrawableUnitsSnap: friendly
-    //     ? stream.lastManualStopWithdrawableUnitsSnap.toNumber()
-    //     : stream.lastManualStopWithdrawableUnitsSnap,
-        
-    //   lastManualStopSlot: friendly ? stream.lastManualStopSlot.toNumber() : stream.lastManualStopSlot,
-    //   lastManualStopBlockTime: friendly ? stream.lastManualStopBlockTime.toNumber() : stream.lastManualStopBlockTime,
-    //   lastManualResumeRemainingAllocationUnitsSnap: friendly 
-    //     ? stream.lastManualResumeRemainingAllocationUnitsSnap.toNumber()
-    //     : stream.lastManualResumeRemainingAllocationUnitsSnap,
-
-    //   lastManualResumeSlot: friendly ? stream.lastManualResumeSlot.toNumber() : stream.lastManualResumeSlot,
-    //   lastManualResumeBlockTime: friendly ? stream.lastManualResumeBlockTime.toNumber() : stream.lastManualResumeBlockTime,
-    //   lastKnownTotalSecondsInPausedStatus: friendly
-    //     ? stream.lastKnownTotalSecondsInPausedStatus.toNumber()
-    //     : stream.lastKnownTotalSecondsInPausedStatus,
-
-    //   lastAutoStopBlockTime: friendly ? stream.lastAutoStopBlockTime.toNumber() : stream.lastAutoStopBlockTime,
-    //   withdrawableUnitsWhilePaused: getStreamWithdrawableUnitsWhilePaused(stream),
-    //   nonStopEarningUnits: getStreamNonStopEarningUnits(stream),
-    //   missedUnitsWhilePaused: getStreamMissedEarningUnitsWhilePaused(stream),
-    //   entitledEarningsUnits: getStreamNonStopEarningUnits(stream) - getStreamMissedEarningUnitsWhilePaused(stream),
-    //   withdrawableUnitsWhileRunning: 
-    //     getStreamNonStopEarningUnits(stream) - 
-    //     getStreamMissedEarningUnitsWhilePaused(stream) + 
-    //     stream.totalWithdrawalsUnits.toNumber(),
-
-    //   lastKnownStopBlockTime: Math.max(stream.lastAutoStopBlockTime.toNumber(), stream.lastManualStopBlockTime.toNumber()),
-    // },
+    data: {
+      version: stream.version,
+      initialized: stream.initialized,
+      name: stream.name,
+      startUtc: stream.startUtc,
+      startUtcInSeconds: stream.startUtcInSeconds,
+      treasurerAddress: stream.treasurerAddress,
+      rateAmountUnits: stream.rateAmountUnits,
+      rateIntervalInSeconds: stream.rateIntervalInSeconds,
+      cliffVestAmountUnits: stream.cliffVestAmountUnits,
+      cliffVestPercent: stream.cliffVestPercent,
+      beneficiaryAddress: stream.beneficiaryAddress,
+      beneficiaryAssociatedToken: stream.beneficiaryAssociatedToken,
+      treasuryAddress: stream.treasuryAddress,    
+      allocationAssignedUnits: stream.allocationAssignedUnits,
+      allocationReservedUnits: stream.allocationReservedUnits,
+      totalWithdrawalsUnits: stream.totalWithdrawalsUnits,
+      lastWithdrawalUnits: stream.lastWithdrawalUnits,
+      lastWithdrawalSlot: stream.lastWithdrawalSlot,
+      lastWithdrawalBlockTime: stream.lastWithdrawalBlockTime,
+      lastManualStopWithdrawableUnitsSnap: stream.lastManualStopWithdrawableUnitsSnap, 
+      lastManualStopSlot: stream.lastManualStopSlot,
+      lastManualStopBlockTime: stream.lastManualStopBlockTime,
+      lastManualResumeRemainingAllocationUnitsSnap: stream.lastManualResumeRemainingAllocationUnitsSnap,
+      lastManualResumeSlot: stream.lastManualResumeSlot,
+      lastManualResumeBlockTime: stream.lastManualResumeBlockTime,
+      lastKnownTotalSecondsInPausedStatus: stream.lastKnownTotalSecondsInPausedStatus,
+      lastAutoStopBlockTime: stream.lastAutoStopBlockTime,
+      feePayedByTreasurer: stream.feePayedByTreasurer,
+      // calculated data
+      status: getStreamStatus(stream, 0) === 1 ? "Scheduled" : (getStreamStatus(stream, 0) === 2 ? "Running" : "Paused"),
+      isManualPause: isStreamManuallyPaused(stream),
+      cliffUnits: new BN(getStreamCliffAmount(stream)),
+      currentBlockTime: new BN(blockTime),
+      secondsSinceStart: new BN(blockTime).sub(new BN(getStreamStartUtcInSeconds(stream))),
+      estDepletionTime: new BN(parseInt((getStreamEstDepletionDate(stream).getTime() / 1_000).toString())),
+      fundsLeftInStream: new BN(getFundsLeftInStream(stream, 0)),
+      fundsSentToBeneficiary: new BN(getFundsSentToBeneficiary(stream, 0)),
+      withdrawableUnitsWhilePaused: new BN(getStreamWithdrawableUnitsWhilePaused(stream)),
+      nonStopEarningUnits: new BN(getStreamNonStopEarningUnits(stream, timeDiff)),
+      missedUnitsWhilePaused: new BN(getStreamMissedEarningUnitsWhilePaused(stream)),
+      entitledEarningsUnits: new BN(getStreamNonStopEarningUnits(stream, timeDiff) - getStreamMissedEarningUnitsWhilePaused(stream)),
+      withdrawableUnitsWhileRunning: 
+        new BN(
+          getStreamNonStopEarningUnits(stream, timeDiff) - 
+          getStreamMissedEarningUnitsWhilePaused(stream) + 
+          stream.totalWithdrawalsUnits.toNumber()
+        ),
+      beneficiaryRemainingAllocation: new BN(getStreamRemainingAllocation(stream)),
+      beneficiaryWithdrawableAmount: new BN(getStreamWithdrawableAmount(stream, 0)),
+      lastKnownStopBlockTime: new BN(
+        Math.max(stream.lastAutoStopBlockTime.toNumber(), stream.lastManualStopBlockTime.toNumber())
+      )
+    },
     
   } as Stream;
+
+  return streamInfo;
 }
 
 const parseStreamActivityData = (
@@ -545,13 +538,20 @@ const parseStreamActivityData = (
 
   let streamActivity: StreamActivity = defaultStreamActivity;
   let signer = tx.transaction.message.accountKeys.filter((a) => a.signer)[0];
-  if (!tx.meta || !tx.meta.innerInstructions || !tx.meta.innerInstructions.length) {
+  if (!tx.transaction.message.instructions.length) {
     return streamActivity;
   }
   let instruction = tx.transaction.message.instructions.filter((ix: any) => {
-    let buffer = bs58.decode(ix.data);
-    let info = program.coder.instruction.decode(buffer);
-    return info && (info.name === 'addFunds' || info.name === 'withdraw');
+    try {
+      let buffer = bs58.decode(ix.data);
+      if (ix.programId.equals(Constants.MSP) && buffer.length < 80) {
+        let info = program.coder.instruction.decode(buffer.slice(0, buffer.length));
+        return info && (info.name === "createStream" || info.name === "addFunds" || info.name === "withdraw");
+      }
+    } catch {
+      return false;
+    }
+    return false;
   })[0] as PartiallyDecodedInstruction;
 
   if (!instruction) {
@@ -561,12 +561,12 @@ const parseStreamActivityData = (
   let buffer = bs58.decode(instruction.data);
   let info = program.coder.instruction.decode(buffer);
   
-  if (info && (info.name === 'addFunds' || info.name === 'withdraw')) {
+  if (info && (info.name === 'createStream' || info.name === 'addFunds' || info.name === 'withdraw')) {
 
     let blockTime = (tx.blockTime as number) * 1000; // mult by 1000 to add milliseconds
-    let action = info.name === 'addFunds' ? "deposited" : "withdrew";
+    let action = info.name === 'createStream' || info.name === 'addFunds' ? "deposited" : "withdrew";
     let data = info.data as any;
-    let amount = data.amount.toNumber();
+    let amount = info.name === 'createStream' ? data.allocationAssignedUnits.toNumber() : data.amount.toNumber();
  
     if (amount) {
       let mint: PublicKey | string;
@@ -615,6 +615,10 @@ const parseTreasuryData = (
     ? (treasury.associatedTokenAddress as PublicKey).equals(PublicKey.default) ? "" : treasury.associatedTokenAddress.toBase58() 
     : treasury.associatedTokenAddress;
 
+  const treasuryCreatedUtc = treasury.createdOnUtc.toString().length > 10 
+    ? parseInt((treasury.createdOnUtc.toNumber() / 1_000).toString()) 
+    : treasury.createdOnUtc.toNumber();
+
   return {
     id: friendly ? address.toBase58() : address,
     version: treasury.version,
@@ -626,8 +630,8 @@ const parseTreasuryData = (
     mint: friendly ? treasury.mintAddress.toBase58() : treasury.mintAddress,
     autoClose: treasury.autoClose,
     createdOnUtc: friendly 
-      ? new Date(treasury.createdOnUtc.toNumber()).toString()
-      : new Date(treasury.createdOnUtc.toNumber()),
+      ? new Date(treasuryCreatedUtc * 1_000).toString()
+      : new Date(treasuryCreatedUtc * 1_000),
 
     treasuryType: treasury.treasuryType === 0 ? TreasuryType.Open : TreasuryType.Lock,
     treasurer: friendly ? treasury.treasurerAddress.toBase58() : treasury.treasurerAddress,
@@ -703,7 +707,7 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff: number = 0) => {
     return 0;
   }
 
-  let status = getStreamStatus(stream);
+  let status = getStreamStatus(stream, timeDiff);
 
   // Check if SCHEDULED
   if (status === STREAM_STATUS.Schedule) {
@@ -727,27 +731,35 @@ const getStreamWithdrawableAmount = (stream: any, timeDiff: number = 0) => {
 
   let streamedUnitsPerSecond = getStreamUnitsPerSecond(stream);
   let cliffAmount = getStreamCliffAmount(stream);
-  let now = (parseInt((Date.now() / 1_000).toString()) - timeDiff);
-  const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
-  let timeSinceStart = (now - startUtcInSeconds);
+  let blocktime = (parseInt((Date.now() / 1_000).toString()) - timeDiff);
+  let startUtcInSeconds = getStreamStartUtcInSeconds(stream);
+  let timeSinceStart = (blocktime - startUtcInSeconds);
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
-  let missedEarningUnitsWhilePaused = streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-  let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
+  let totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toNumber().length >= 10
+    ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+    : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
-  if (entitledEarnings < 0) { // sanitize data;
-    entitledEarnings = nonStopEarningUnits;
+  let missedEarningUnitsWhilePaused = streamedUnitsPerSecond * totalSecondsPaused;
+  let entitledEarnings = nonStopEarningUnits;
+
+  if (nonStopEarningUnits >= missedEarningUnitsWhilePaused) {
+    entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
   }
 
-  let withdrawableUnitsWhileRunning = entitledEarnings - stream.totalWithdrawalsUnits.toNumber();
+  let withdrawableUnitsWhileRunning = entitledEarnings;
+
+  if (entitledEarnings >= stream.totalWithdrawalsUnits.toNumber()) {
+    withdrawableUnitsWhileRunning = entitledEarnings - stream.totalWithdrawalsUnits.toNumber();
+  }
+
   let withdrawableAmount = Math.min(remainingAllocation, withdrawableUnitsWhileRunning);
 
   return parseInt(withdrawableAmount.toString());
 }
 
-const getStreamStatus = (stream: any) => {
+const getStreamStatus = (stream: any, timeDiff: number) => {
 
-  let now = parseInt((Date.now() / 1000).toString());
-  // let startTime = stream.startUtc.toNumber();
+  let now = (parseInt((Date.now() / 1_000).toString()) - timeDiff);
   const startUtcInSeconds = getStreamStartUtcInSeconds(stream);
 
   // Scheduled
@@ -768,10 +780,10 @@ const getStreamStatus = (stream: any) => {
   let timeSinceStart = (now - startUtcInSeconds);
   let nonStopEarningUnits = cliffAmount + (streamedUnitsPerSecond * timeSinceStart);
   let missedEarningUnitsWhilePaused = streamedUnitsPerSecond * stream.lastKnownTotalSecondsInPausedStatus.toNumber();
-  let entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
+  let entitledEarnings = nonStopEarningUnits;
 
-  if (entitledEarnings < 0) { // sanitize data;
-    entitledEarnings = nonStopEarningUnits;
+  if (nonStopEarningUnits >= missedEarningUnitsWhilePaused) {
+    entitledEarnings = nonStopEarningUnits - missedEarningUnitsWhilePaused;
   }
 
   // Running
@@ -797,29 +809,39 @@ const getStreamUnitsPerSecond = (stream: any) => {
   return stream.rateAmountUnits.toNumber() / (stream.rateIntervalInSeconds.toNumber());
 }
 
+const getStreamStartUtcInSeconds = (stream: any) => {
+  if (stream.startUtcInSeconds && stream.startUtcInSeconds.toNumber() === 0 && stream.startUtc.toString().length > 10) {
+    return parseInt((stream.startUtc.toNumber() / 1_000).toString());
+  }
+  return stream.startUtc.toNumber();
+}
+
 const getStreamWithdrawableUnitsWhilePaused = (stream: any) => {
 
+  let withdrawableWhilePaused = 0;
   let isManuallyPaused = isStreamManuallyPaused(stream);
 
   if (isManuallyPaused) {
-      return stream.lastManualStopWithdrawableUnitsSnap.toNumber();
+    withdrawableWhilePaused = stream.lastManualStopWithdrawableUnitsSnap.toNumber();
   } else {
-      let withdrawableWhilePaused = stream.allocationAssignedUnits
+      withdrawableWhilePaused = stream.allocationAssignedUnits
         .sub(stream.totalWithdrawalsUnits).toNumber();
-      return withdrawableWhilePaused;
   }
+
+  return withdrawableWhilePaused <= 0 ? 0 : withdrawableWhilePaused;
 }
 
-const getStreamNonStopEarningUnits = (stream: any) => {
+const getStreamNonStopEarningUnits = (stream: any, timeDiff: number) => {
+
   let cliffUnits = getStreamCliffAmount(stream);
-  let now = Date.now() / 1_000;
-  let startUtc = getStreamStartUtcInSeconds(stream);
-  let streamUnitsSinceStarted = 
+  let blocktime = parseInt((Date.now() / 1_000).toString()) - timeDiff;
+  let secondsSinceStart = blocktime - getStreamStartUtcInSeconds(stream);
+  let streamUnitsSinceStarted =
     stream.rateAmountUnits.toNumber() /
     stream.rateIntervalInSeconds.toNumber() *
-    (now - startUtc);
+    secondsSinceStart;
 
-  let nonStopEarningUnits = cliffUnits + streamUnitsSinceStarted;
+  let nonStopEarningUnits = cliffUnits + parseInt(streamUnitsSinceStarted.toString());
 
   return parseInt(nonStopEarningUnits.toString());
 }
@@ -827,19 +849,16 @@ const getStreamNonStopEarningUnits = (stream: any) => {
 const getStreamMissedEarningUnitsWhilePaused = (stream: any) => {
   if (stream.rateIntervalInSeconds.toNumber() === 0) {
     return 0;
-  }
+  }  
+
+  let totalSecondsPaused = stream.lastKnownTotalSecondsInPausedStatus.toString().length >= 10 
+    ? parseInt((stream.lastKnownTotalSecondsInPausedStatus.toNumber() / 1_000).toString())
+    : stream.lastKnownTotalSecondsInPausedStatus.toNumber();
 
   let withdrawableWhilePaused = 
     stream.rateAmountUnits.toNumber() /
     stream.rateIntervalInSeconds.toNumber() *
-    stream.lastKnownTotalSecondsInPausedStatus.toNumber();
+    totalSecondsPaused;
 
   return parseInt(withdrawableWhilePaused.toString());
-}
-
-const getStreamStartUtcInSeconds = (stream: any) => {
-  if (stream.startUtcInSeconds && stream.startUtcInSeconds.toNumber() === 0) {
-    return stream.startUtc.toNumber() / 1_000;
-  }
-  return stream.startUtc.toNumber();
 }

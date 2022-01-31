@@ -149,7 +149,6 @@ export enum STREAM_STATUS {
   allocationAssigned: number,
   allocationReserved: number,
   totalWithdrawalsAmount: number,
-  transactionSignature: string | undefined,
   createdBlockTime: number,
   lastRetrievedBlockTime: number,
   lastRetrievedTimeInSeconds: number,
@@ -161,5 +160,6 @@ export enum STREAM_STATUS {
   remainingAllocationAmount: number,
   estimatedDepletionDate: Date | string,
   streamUnitsPerSecond: number,
+  isManuallyPaused: boolean,
   data: any
 };

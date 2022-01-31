@@ -31,12 +31,12 @@ export class MSP {
   constructor(
     rpcUrl: string,
     walletAddress: string,
-    commitment: Commitment | string = "confirmed"
+    commitment: Commitment | string = "finalized"
 
   ) {
 
     this.commitment = commitment as Commitment;
-    this.connection = new Connection(rpcUrl, this.commitment);
+    this.connection = new Connection(rpcUrl, this.commitment as Commitment || "finalized");
     this.program = createProgram(this.connection, walletAddress);
   }
 
@@ -59,7 +59,7 @@ export class MSP {
     hardUpdate: boolean = false,
     friendly: boolean = true
 
-  ): Promise<Stream> {
+  ): Promise<any> {
 
     let copyStreamInfo = Object.assign({}, streamInfo);
 
@@ -197,19 +197,23 @@ export class MSP {
 
     if (start.getTime() <= now.getTime()) {
       // Just create the beneficiary token account and transfer since the payment is not scheduled
-      const beneficiaryToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        associatedToken,
-        beneficiary,
-        true
-      );
+      let beneficiaryToken = beneficiary;
+      const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
 
-      const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(
-        beneficiaryToken
-      );
-      
-      if (!beneficiaryTokenAccountInfo || !beneficiaryTokenAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+      if (!beneficiaryAccountInfo) {
+        throw Error("Beneficiary account not found");
+      }
+
+      if (!beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+        
+        beneficiaryToken = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          associatedToken,
+          beneficiary,
+          true
+        );
+
         ixs.push(
           Token.createAssociatedTokenAccountInstruction(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -356,7 +360,7 @@ export class MSP {
 
     let tx = new Transaction().add(...ixs);
     tx.feePayer = treasurer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
     
     if (txSigners.length) {
@@ -374,7 +378,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    const slot = await this.connection.getSlot(this.commitment as Commitment || 'confirmed');
+    const slot = await this.connection.getSlot(this.commitment as Commitment || "finalized");
     const slotBuffer = new u64Number(slot).toBuffer();
     const treasurySeeds = [treasurer.toBuffer(), slotBuffer];
     // Treasury Pool PDA
@@ -408,7 +412,7 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    const { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    const { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -472,7 +476,7 @@ export class MSP {
 
     } else {
 
-      const slot = await this.connection.getSlot(this.commitment as Commitment);
+      const slot = await this.connection.getSlot(this.commitment as Commitment || "finalized");
       const slotBuffer = new u64Number(slot).toBuffer();
       const treasurySeeds = [treasurer.toBuffer(), slotBuffer];
       const [treasuryAddress, treasuryBump] = await PublicKey.findProgramAddress(treasurySeeds, this.program.programId);
@@ -602,7 +606,7 @@ export class MSP {
     );
 
     tx.feePayer = initializer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
     tx.partialSign(...[streamAccount]);
 
@@ -697,7 +701,7 @@ export class MSP {
     );
 
     tx.feePayer = contributor;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "confirmed");    
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");    
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -714,10 +718,10 @@ export class MSP {
       throw Error("Amount should be greater than 0");
     }
 
-    let streamInfo: any = await getStream(this.program, stream);
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
-      throw Error("Stream doesn't exists");
+      throw Error("Stream doesn't exist");
     }
 
     if (streamInfo.status === STREAM_STATUS.Schedule) {
@@ -780,7 +784,7 @@ export class MSP {
     );
 
     tx.feePayer = beneficiary;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -792,7 +796,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    const streamInfo = await getStream(this.program, stream);
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
       throw Error("Stream doesn't exist");
@@ -813,7 +817,7 @@ export class MSP {
     );
 
     tx.feePayer = initializer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -825,7 +829,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    const streamInfo = await getStream(this.program, stream);
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
       throw Error("Stream doesn't exist");
@@ -846,7 +850,7 @@ export class MSP {
     );
 
     tx.feePayer = initializer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -859,7 +863,7 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    let streamInfo = await getStream(this.program, stream);
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
       throw Error("Stream doesn't exist");
@@ -943,7 +947,7 @@ export class MSP {
     );
 
     tx.feePayer = initializer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -967,7 +971,7 @@ export class MSP {
     let feeTreasuryToken: any;
     let treasuryMint = new PublicKey(treasuryInfo.mint as string);
     
-    if (treasuryInfo.associatedToken) {
+    if (treasuryInfo.associatedToken !== "") {
 
       associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
       treasuryToken = await Token.getAssociatedTokenAddress(
@@ -997,8 +1001,7 @@ export class MSP {
       }
     }
 
-    if (associatedToken) {
-
+    if (associatedToken !== undefined) {
       treasurerToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
         TOKEN_PROGRAM_ID,
@@ -1006,7 +1009,7 @@ export class MSP {
         treasurer,
         true
       );
-
+  
       // Get the money streaming program operations token account or create a new one
       feeTreasuryToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1046,7 +1049,7 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || 'confirmed');
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -1090,7 +1093,7 @@ export class MSP {
     );
 
     tx.feePayer = treasurer;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
@@ -1103,12 +1106,12 @@ export class MSP {
 
   ): Promise<Transaction> {
 
-    const streamInfo = await getStream(this.program, stream);
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
       throw Error("Stream doesn't exist");
     }
-
+    
     const beneficiaryAddress = new PublicKey(streamInfo.beneficiary as string);
 
     if (!beneficiary.equals(beneficiaryAddress)) {
@@ -1128,7 +1131,7 @@ export class MSP {
     );
 
     tx.feePayer = beneficiary;
-    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment);
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
