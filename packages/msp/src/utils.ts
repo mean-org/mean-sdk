@@ -411,7 +411,7 @@ const parseGetStreamData = (
 
     streamUnitsPerSecond: friendly ? getStreamUnitsPerSecond(event) : new BN(getStreamUnitsPerSecond(event)),
     isManuallyPaused: event.isManualPause,
-    status: STREAM_STATUS[event.status],
+    status: event.status === 'Scheduled' ? 1 : (event.status === 'Running' ? 2 : 3),
     lastRetrievedBlockTime: friendly ? event.currentBlockTime.toNumber() : event.currentBlockTime,
     lastRetrievedTimeInSeconds: friendly 
       ? parseInt((Date.now() / 1_000).toString()) 
@@ -478,7 +478,6 @@ const parseStreamItemData = (
       initialized: stream.initialized,
       name: stream.name,
       startUtc: stream.startUtc,
-      startUtcInSeconds: stream.startUtcInSeconds,
       treasurerAddress: stream.treasurerAddress,
       rateAmountUnits: stream.rateAmountUnits,
       rateIntervalInSeconds: stream.rateIntervalInSeconds,

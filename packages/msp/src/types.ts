@@ -162,5 +162,6 @@ export enum STREAM_STATUS {
   estimatedDepletionDate: Date | string,
   streamUnitsPerSecond: number,
   isManuallyPaused: boolean,
+  feePayedByTreasurer: boolean,
   data: any
 };

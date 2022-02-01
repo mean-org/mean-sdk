@@ -862,10 +862,6 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    if (treasuryInfo.treasuryType === 1) {
-      throw Error("Locked streams can not be resumed");
-    }
-
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     let tx = this.program.transaction.resumeStream(
@@ -925,7 +921,7 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    if (treasuryInfo.treasuryType === 1 && streamInfo.status !== 'Paused') {
+    if (treasuryInfo.treasuryType === 1 && streamInfo.status !== STREAM_STATUS.Paused) {
       throw Error("Locked streams can not be closed before finish");
     }
 
