@@ -1,7 +1,7 @@
 import { Idl } from '@project-serum/anchor';
 
 const IDL: Idl = {
-  version: "2.0.0",
+  version: "2.1.0",
   name: "msp",
   instructions: [
     {
@@ -820,11 +820,11 @@ const IDL: Idl = {
             "type": "u64"
           },
           {
-            "name": "allocationReservedUnits",
+            "name": "allocationAssignedUnits",
             "type": "u64"
           },
           {
-            "name": "allocationAssignedUnits",
+            "name": "allocationReservedUnits",
             "type": "u64"
           },
           {
@@ -875,7 +875,7 @@ const IDL: Idl = {
         "kind": "enum",
         "variants": [
           {
-            "name": "Open"
+            "name": "Opened"
           },
           {
             "name": "Locked"
@@ -1261,6 +1261,21 @@ const IDL: Idl = {
       "code": 6029,
       "name": "StreamIsScheduled",
       "msg": "Stream has not started"
+    },
+    {
+      "code": 6030,
+      "name": "UnableToCloseLockStream",
+      "msg": "Streams in a Lock treasury can not be closed while running"
+    },
+    {
+      "code": 6031,
+      "name": "UnableToPauseOrResumeLockStream",
+      "msg": "Streams in a Lock treasury can not be paused or resumed"
+    },
+    {
+      "code": 6032,
+      "name": "ReservedAllocationExceedWithdrawableAmount",
+      "msg": "Can not pause or resume stream while reserved allocation is greater than the withdrawable amount"
     }
   ]
 }

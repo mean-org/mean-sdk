@@ -435,6 +435,10 @@ export class MSP {
     feePayedByTreasurer?: boolean
 
   ): Promise<Transaction> {
+
+    if (treasurer.equals(beneficiary)) {
+      throw Error("Beneficiary can not be the same Treasurer");
+    }
     
     let ixs: Array<TransactionInstruction> = new Array<TransactionInstruction>();
     let treasuryToken: PublicKey = PublicKey.default,
@@ -815,6 +819,8 @@ export class MSP {
 
     if (treasuryInfo.treasuryType === 1) {
       throw Error("Locked streams can not be paused");
+    } else if (streamInfo.withdrawableAmount < streamInfo.allocationReserved) {
+      throw Error("Can not pause a stream if the reserved allocation is greater than the withdrawable amount");
     }
 
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
