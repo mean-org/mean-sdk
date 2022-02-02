@@ -341,7 +341,11 @@ const getFilteredStreamAccounts = async (
       const accs = await program.account.stream.all(memcmpFilters);
     
       if (accs.length) {
-        accounts.push(...accs);
+        for (let acc of accs) {
+          if (accounts.indexOf(acc) === -1) {
+            accounts.push(acc);
+          }
+        }
       }
     }
   
@@ -351,7 +355,11 @@ const getFilteredStreamAccounts = async (
       const accs = await program.account.stream.all(memcmpFilters);
     
       if (accs.length) {
-        accounts.push(...accs);
+        for (let acc of accs) {
+          if (accounts.indexOf(acc) === -1) {
+            accounts.push(acc);
+          }
+        }
       }
     }
   }

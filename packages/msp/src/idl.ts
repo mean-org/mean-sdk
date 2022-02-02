@@ -595,7 +595,7 @@ const IDL: Idl = {
       "accounts": [
         {
           "name": "beneficiary",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -1275,7 +1275,12 @@ const IDL: Idl = {
     {
       "code": 6032,
       "name": "ReservedAllocationExceedWithdrawableAmount",
-      "msg": "Can not pause or resume stream while reserved allocation is greater than the withdrawable amount"
+      "msg": "Can not pause a stream if the reserved allocation is greater than the withdrawable amount"
+    },
+    {
+      "code": 6033,
+      "name": "AddFundsNotAllowedOnLockedStreams",
+      "msg": "Can not add funds to a stream from a locked treasury"
     }
   ]
 }

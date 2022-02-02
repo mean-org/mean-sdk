@@ -641,6 +641,10 @@ export class MSP {
       throw Error("Treasury account not found");
     }
 
+    if (treasuryInfo.treasuryType === 1 && stream) {
+      throw Error("You can not top-up a stream from a Locked Treasury");
+    }
+
     if (treasuryInfo.associatedToken && treasuryInfo.associatedToken !== associatedToken.toBase58()) {
       throw Error("Invalid treasury associated token");
     }
