@@ -192,7 +192,7 @@ export class MSP {
     const treasurerTokenInfo = await this.connection.getAccountInfo(treasurerToken);
 
     if (!treasurerTokenInfo) {
-      throw Error("Treasury doesn't exist");
+      throw Error("Treasurer token account doesn't exist");
     }
 
     if (start.getTime() <= now.getTime()) {
@@ -201,7 +201,7 @@ export class MSP {
       const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
 
       if (!beneficiaryAccountInfo) {
-        throw Error("Beneficiary account not found");
+        throw Error("Beneficiary account doesn't exist");
       }
 
       if (!beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
@@ -214,16 +214,20 @@ export class MSP {
           true
         );
 
-        ixs.push(
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            associatedToken,
-            beneficiaryToken,
-            beneficiary,
-            treasurer
-          )
-        )
+        const beneficiaryTokenAccountInfo = await this.connection.getAccountInfo(beneficiaryToken);
+
+        if (!beneficiaryTokenAccountInfo) {
+          ixs.push(
+            Token.createAssociatedTokenAccountInstruction(
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+              TOKEN_PROGRAM_ID,
+              associatedToken,
+              beneficiaryToken,
+              beneficiary,
+              treasurer
+            )
+          );
+        }
       }
 
       ixs.push(
