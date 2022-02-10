@@ -555,7 +555,7 @@ export class MSP {
         ixs.push(
           this.program.instruction.addFunds(
             new BN(allocationAssigned),
-            AllocationType.Specific,
+            AllocationType.None,
             PublicKey.default,
             {
               accounts: {
@@ -1175,3 +1175,4 @@ export class MSP {
     return tx;
   }
 }
+

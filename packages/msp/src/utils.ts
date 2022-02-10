@@ -300,7 +300,7 @@ export const calculateActionFees = async (
       break;
     }
     case MSP_ACTIONS.transferStream: {
-      blockchainFee = 5000000;
+      blockchainFee = 5000;
       txFees.mspFlatFee = 0.00001;
       break;
     }
@@ -829,10 +829,15 @@ const getStreamUnitsPerSecond = (stream: any) => {
 }
 
 const getStreamStartUtcInSeconds = (stream: any) => {
-  if (stream.startUtcInSeconds && stream.startUtcInSeconds.toNumber() > 0) {
-    return stream.startUtc.toNumber();
+  let startUtcFixed = 0;
+  if (stream.startUtc.toString().length > 10) {
+    startUtcFixed = parseInt(stream.startUtc.toString().substr(0, 10));
+    return startUtcFixed;
   }
-  return parseInt((stream.startUtc.toNumber() / 1_000).toString());
+  if (stream.startUtcInSeconds && stream.startUtcInSeconds.toNumber() > 0) {
+    return stream.startUtcInSeconds.toNumber();
+  }
+  return stream.startUtc.toNumber();
 }
 
 const getStreamWithdrawableUnitsWhilePaused = (stream: any) => {
