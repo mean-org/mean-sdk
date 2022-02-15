@@ -8,6 +8,11 @@ const IDL: Idl = {
       "name": "createTreasury",
       "accounts": [
         {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
           "name": "treasurer",
           "isMut": true,
           "isSigner": true
@@ -67,12 +72,21 @@ const IDL: Idl = {
         {
           "name": "autoClose",
           "type": "bool"
+        },
+        {
+          "name": "solFeePayedByTreasury",
+          "type": "bool"
         }
       ]
     },
     {
       "name": "createStream",
       "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
         {
           "name": "initializer",
           "isMut": true,
@@ -161,10 +175,6 @@ const IDL: Idl = {
           "type": "u64"
         },
         {
-          "name": "allocationReservedUnits",
-          "type": "u64"
-        },
-        {
           "name": "cliffVestAmountUnits",
           "type": "u64"
         },
@@ -179,102 +189,16 @@ const IDL: Idl = {
       ]
     },
     {
-      "name": "addFunds",
+      "name": "withdraw",
       "accounts": [
         {
-          "name": "contributor",
+          "name": "payer",
           "isMut": true,
           "isSigner": true
         },
         {
-          "name": "contributorToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "contributorTreasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "associatedToken",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryMint",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "stream",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "allocationType",
-          "type": "u8"
-        },
-        {
-          "name": "allocationStream",
-          "type": {
-            "option": "publicKey"
-          }
-        }
-      ]
-    },
-    {
-      "name": "withdraw",
-      "accounts": [
-        {
           "name": "beneficiary",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -393,173 +317,6 @@ const IDL: Idl = {
       "args": []
     },
     {
-      "name": "closeStream",
-      "accounts": [
-        {
-          "name": "initializer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "treasurer",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasurerToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasurerTreasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "beneficiary",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "beneficiaryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "associatedToken",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryMint",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "stream",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "autoCloseTreasury",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "closeTreasury",
-      "accounts": [
-        {
-          "name": "treasurer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "treasurerToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasurerTreasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "associatedToken",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryMint",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "feeTreasuryToken",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "associatedTokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "refreshTreasuryData",
       "accounts": [
         {
@@ -626,6 +383,315 @@ const IDL: Idl = {
       "accounts": [
         {
           "name": "stream",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "addFunds",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "contributor",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "contributorToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "contributorTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "allocate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "stream",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "closeStream",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "beneficiary",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "beneficiaryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "stream",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "closeTreasury",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "treasurerTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "destinationAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "destinationTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeTreasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -845,6 +911,10 @@ const IDL: Idl = {
           },
           {
             "name": "autoClose",
+            "type": "bool"
+          },
+          {
+            "name": "solFeePayedByTreasury",
             "type": "bool"
           }
         ]
@@ -1264,13 +1334,13 @@ const IDL: Idl = {
     },
     {
       "code": 6030,
-      "name": "UnableToCloseLockStream",
+      "name": "CloseLockedStreamNotAllowedWhileRunning",
       "msg": "Streams in a Lock treasury can not be closed while running"
     },
     {
       "code": 6031,
-      "name": "UnableToPauseOrResumeLockStream",
-      "msg": "Streams in a Lock treasury can not be paused or resumed"
+      "name": "PauseOrResumeLockedStreamNotAllowed",
+      "msg": "Streams in a Locked treasury can not be paused or resumed"
     },
     {
       "code": 6032,
@@ -1281,6 +1351,31 @@ const IDL: Idl = {
       "code": 6033,
       "name": "AddFundsNotAllowedOnLockedStreams",
       "msg": "Can not add funds to a stream from a locked treasury"
+    },
+    {
+      "code": 6034,
+      "name": "InvalidStreamRate",
+      "msg": "Invalid stream rate"
+    },
+    {
+      "code": 6035,
+      "name": "InvalidCliff",
+      "msg": "Invalid cliff"
+    },
+    {
+      "code": 6036,
+      "name": "InsufficientLamports",
+      "msg": "Insufficient lamports"
+    },
+    {
+      "code": 6037,
+      "name": "TreasuryContainsStreams",
+      "msg": "This treasury contains one or more streams"
+    },
+    {
+      "code": 6038,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds"
     }
   ]
 }
