@@ -1335,7 +1335,7 @@ const IDL: Idl = {
     {
       "code": 6030,
       "name": "CloseLockedStreamNotAllowedWhileRunning",
-      "msg": "Streams in a Lock treasury can not be closed while running"
+      "msg": "Streams in a Locked treasury can not be closed while running"
     },
     {
       "code": 6031,
@@ -1349,8 +1349,8 @@ const IDL: Idl = {
     },
     {
       "code": 6033,
-      "name": "AddFundsNotAllowedOnLockedStreams",
-      "msg": "Can not add funds to a stream from a locked treasury"
+      "name": "AllocateNotAllowedOnLockedStreams",
+      "msg": "Can not allocate funds to a stream from a locked treasury"
     },
     {
       "code": 6034,
@@ -1376,6 +1376,11 @@ const IDL: Idl = {
       "code": 6038,
       "name": "InsufficientFunds",
       "msg": "Insufficient funds"
+    },
+    {
+      "code": 6039,
+      "name": "InsufficientTreasuryBalance",
+      "msg": "Insufficient treasury balance"
     }
   ]
 }

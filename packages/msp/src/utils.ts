@@ -61,6 +61,8 @@ export const getStream = async (
         stream: address
       }
     });
+
+    // console.log('streamEventResponse', streamEventResponse.events[0].data);
   
     if (
       !streamEventResponse || 
@@ -390,7 +392,7 @@ const parseGetStreamData = (
     cliffVestAmount: friendly ? event.cliffVestAmountUnits.toNumber() : event.cliffVestAmountUnits,
     cliffVestPercent: friendly ? event.cliffVestPercent.toNumber() / 10_000 : event.cliffVestPercent.divn(10_000),
     allocationAssigned: friendly ? event.allocationAssignedUnits.toNumber() : event.allocationAssignedUnits,
-    allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
+    // allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
 
     secondsSinceStart: friendly 
       ? Math.max(0, event.currentBlockTime.toNumber() - event.startUtc.toNumber()) 
@@ -461,7 +463,7 @@ const parseStreamItemData = (
     cliffVestAmount: friendly ? stream.cliffVestAmountUnits.toNumber() : stream.cliffVestAmountUnits,
     cliffVestPercent: friendly ? stream.cliffVestPercent.toNumber() / 10_000 : stream.cliffVestPercent.divn(10_000),
     allocationAssigned: friendly ? stream.allocationAssignedUnits.toNumber() : stream.allocationAssignedUnits,
-    allocationReserved: friendly ? stream.allocationReservedUnits.toNumber() : stream.allocationReservedUnits,
+    // allocationReserved: friendly ? stream.allocationReservedUnits.toNumber() : stream.allocationReservedUnits,
     secondsSinceStart: friendly ? (blockTime - getStreamStartUtcInSeconds(stream)) : new BN(blockTime).sub(new BN(startUtc)),
     estimatedDepletionDate: friendly ? getStreamEstDepletionDate(stream).toString() : getStreamEstDepletionDate(stream),
     rateAmount: friendly ? stream.rateAmountUnits.toNumber() : stream.rateAmountUnits,

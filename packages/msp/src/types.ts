@@ -148,7 +148,7 @@ export enum STREAM_STATUS {
   associatedToken: PublicKey | string,
   treasury: PublicKey | string,    
   allocationAssigned: number,
-  allocationReserved: number,
+  // allocationReserved: number,
   totalWithdrawalsAmount: number,
   createdBlockTime: number,
   lastRetrievedBlockTime: number,

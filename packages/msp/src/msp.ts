@@ -293,6 +293,7 @@ export class MSP {
         treasuryBump,
         treasuryMintBump,
         streamName,
+        TreasuryType.Open,
         true, // autoclose = true
         false, // sol fee payed by treasury
         {
@@ -366,7 +367,7 @@ export class MSP {
         new BN(0), // rate interval in seconds
         new BN(amount), // allocation assigned
         new BN(amount), // cliff vest amount
-        new BN(100 * 10_000), // cliff vest percent
+        new BN(0), // cliff vest percent
         feePayedByTreasurer,
         {
           accounts: {
@@ -462,6 +463,7 @@ export class MSP {
         treasuryBump,
         treasuryMintBump,
         streamName,
+        TreasuryType.Open,
         true, // autoclose = true
         false, // sol fee payed by treasury
         {
@@ -735,13 +737,7 @@ export class MSP {
       throw Error("Treasury account not found");
     }
 
-    const unallocatedBalance = treasuryInfo.balance - treasuryInfo.allocationAssigned;
-
-    if (amount > unallocatedBalance) {
-      throw Error("Allocation amount can not be greater than the unallocated treasury balance");
-    }
-
-    const streamInfo = await getStream(this.program, stream) as Stream;
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
       throw Error("Stream account not found");
@@ -846,6 +842,7 @@ export class MSP {
     payer: PublicKey,
     contributor: PublicKey,
     treasury: PublicKey,
+    associatedToken: PublicKey,
     amount: number
 
   ): Promise<Transaction> {
@@ -860,7 +857,6 @@ export class MSP {
       throw Error("Treasury account not found");
     }
 
-    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
     const treasuryMint = new PublicKey(treasuryInfo.mint as string);
     const contributorToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -952,7 +948,7 @@ export class MSP {
       throw Error("Invalid treasurer");
     }
 
-    const streamInfo = await getStream(this.program, stream) as Stream;
+    const streamInfo = await this.getStream(stream) as Stream;
 
     if (!streamInfo) {
       throw Error("Stream account not found");
@@ -1107,12 +1103,6 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    if (treasuryInfo.treasuryType === 1) {
-      throw Error("Locked streams can not be paused");
-    } else if (streamInfo.withdrawableAmount < streamInfo.allocationReserved) {
-      throw Error("Can not pause a stream if the reserved allocation is greater than the withdrawable amount");
-    }
-
     const associatedToken = new PublicKey(streamInfo.associatedToken as string);
 
     let tx = this.program.transaction.pauseStream(
@@ -1226,8 +1216,29 @@ export class MSP {
       true
     );
 
-    let postIxs: TransactionInstruction[] = [];
-    
+    let ixs: TransactionInstruction[] = [
+      this.program.instruction.closeStream(
+        {
+          accounts: {
+            payer: payer,
+            treasurer: treasurer,
+            beneficiary: beneficiary,
+            beneficiaryToken: beneficiaryToken,
+            associatedToken: associatedToken,
+            treasury: treasury,
+            treasuryToken: treasuryToken,
+            stream: stream,
+            feeTreasury: Constants.FEE_TREASURY,
+            feeTreasuryToken: feeTreasuryToken,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY
+          }
+        }
+      )
+    ];
+
     if (autoCloseTreasury) {
 
       const treasuryMint = new PublicKey(treasuryInfo.mint as string);
@@ -1247,7 +1258,7 @@ export class MSP {
         true
       );
 
-      postIxs.push(
+      ixs.push(
         this.program.instruction.closeTreasury(
           {
             accounts: {
@@ -1272,29 +1283,7 @@ export class MSP {
       );
     }
 
-    let tx = this.program.transaction.closeStream(
-      autoCloseTreasury,
-      {
-        accounts: {
-          payer: payer,
-          treasurer: treasurer,
-          beneficiary: beneficiary,
-          beneficiaryToken: beneficiaryToken,
-          associatedToken: associatedToken,
-          treasury: treasury,
-          treasuryToken: treasuryToken,
-          stream: stream,
-          feeTreasury: Constants.FEE_TREASURY,
-          feeTreasuryToken: feeTreasuryToken,
-          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: SYSVAR_RENT_PUBKEY
-        },
-        postInstructions: postIxs
-      }
-    );
-
+    let tx = new Transaction().add(...ixs);
     tx.feePayer = payer;
     let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
