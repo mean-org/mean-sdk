@@ -1465,5 +1465,59 @@ export class MSP {
 
     return tx;
   }
+
+  // UPDATE TREASURY DATA
+  public async updateTreasuryData (
+    payer: PublicKey,
+    treasury: PublicKey
+
+  ): Promise<Transaction> {
+
+    const treasuryInfo = await getTreasury(this.program, treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+
+    // get treasury streams amount
+    const memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() }}];
+    const allStreams = (await this.program.account.stream.all(memcmpFilters));
+    let totalAllocationAssigned = 0, totalWithdrawalsAmount = 0;
+
+    for (let stream of allStreams) {
+      totalAllocationAssigned += (
+        stream.account.allocationAssignedUnits.toNumber() + stream.account.totalWithdrawalsUnits.toNumber()
+      );
+      totalWithdrawalsAmount += stream.account.totalWithdrawalsUnits.toNumber();
+    }
+
+    let tx = this.program.transaction.updateTreasuryData(
+      new BN(totalAllocationAssigned),
+      new BN(totalWithdrawalsAmount),
+      {
+        accounts: {
+          payer: payer,
+          associatedToken: associatedToken,
+          treasury: treasury,
+          treasuryToken: treasuryToken
+        }
+      }
+    );
+
+    tx.feePayer = payer;
+    let { blockhash } = await this.connection.getRecentBlockhash("finalized");
+    tx.recentBlockhash = blockhash;
+
+    return tx;
+  }
 }
 

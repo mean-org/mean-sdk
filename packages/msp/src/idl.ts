@@ -1,7 +1,7 @@
 import { Idl } from '@project-serum/anchor';
 
 const IDL: Idl = {
-  version: "2.1.0",
+  version: "2.2.0",
   name: "msp",
   instructions: [
     {
@@ -697,6 +697,41 @@ const IDL: Idl = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "updateTreasuryData",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "treasury",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "totalAllocationAssigned",
+          "type": "u64"
+        },
+        {
+          "name": "totalWithdrawalsUnits",
+          "type": "u64"
+        }
+      ]
     }
   ],
   accounts: [
@@ -1381,6 +1416,16 @@ const IDL: Idl = {
       "code": 6039,
       "name": "InsufficientTreasuryBalance",
       "msg": "Insufficient treasury balance"
+    },
+    {
+      "code": 6040,
+      "name": "CannotResumeAutoPausedStream",
+      "msg": "Stream is auto-paused. To resume use allocate"
+    },
+    {
+      "code": 6041,
+      "name": "InvalidTreasuryRequestedAllocation",
+      "msg": "Treasury allocation can not be greater than treasury balance"
     }
   ]
 }
