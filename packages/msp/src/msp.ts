@@ -9,7 +9,7 @@ import { BN, Idl, Program } from "@project-serum/anchor";
  * MSP
  */
 import { Stream, ListStreamParams, Treasury, TreasuryType, STREAM_STATUS } from "./types";
-import { createProgram, getStream, getStreamCached, getTreasury, listStreamActivity, listStreams, listStreamsCached } from "./utils";
+import { createProgram, getStream, getStreamCached, getTreasury, getValidTreasuryAllocation, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
 import { listTreasuries } from ".";
 import { u64Number } from "./u64n";
@@ -629,6 +629,7 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     associatedToken: PublicKey,
+    streamAccount: Keypair,
     streamName: string,
     allocationAssigned: number,
     rateAmount?: number,
@@ -638,7 +639,7 @@ export class MSP {
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean
 
-  ): Promise<Transaction> {
+  ): Promise<any> {
 
     if (treasurer.equals(beneficiary)) {
       throw Error("Beneficiary can not be the same Treasurer");
@@ -672,7 +673,6 @@ export class MSP {
     );
 
     const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
-    const streamAccount = Keypair.generate();
     const now = new Date();
     const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
     const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
@@ -808,9 +808,23 @@ export class MSP {
             rent: SYSVAR_RENT_PUBKEY
           }
         }
-      ),
+      )
+    );
+
+    // calculate fee if are payed by treasury to deduct it from the amount
+    let allocationAmountBn = new BN(amount);
+    
+    if (streamInfo.feePayedByTreasurer) {
+      allocationAmountBn = await getValidTreasuryAllocation(
+        this.program.provider.connection, 
+        treasuryInfo,
+        amount
+      );
+    }
+
+    ixs.push(
       this.program.instruction.allocate(
-        new BN(amount),
+        allocationAmountBn,
         {
           accounts: {
             payer: payer,

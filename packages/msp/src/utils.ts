@@ -1,4 +1,4 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, GetProgramAccountsConfig, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum } from "@solana/web3.js";
+import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount } from "@solana/web3.js";
 import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
@@ -9,7 +9,6 @@ import { STREAM_STATUS, Treasury, TreasuryType } from "./types";
 import MSP_IDL from './idl';
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { Wallet } from "@project-serum/anchor/dist/cjs/provider";
-import { u64 } from "@solana/spl-token";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());
@@ -316,6 +315,37 @@ export const calculateActionFees = async (
   return txFees;
 };
 
+export const getValidTreasuryAllocation = async (
+  connection: Connection,
+  treasury: Treasury,
+  allocation: number
+
+) => {
+
+  const fees = await calculateActionFees(connection, MSP_ACTIONS.withdraw);
+  //
+  const BASE_100_TO_BASE_1_MULTIPLIER = 10_000;
+  const feeNumerator = fees.mspPercentFee * BASE_100_TO_BASE_1_MULTIPLIER;
+  const feeDenaminator = 1_000_000;
+  const unallocatedBalance = new BN(treasury.balance).sub(new BN(treasury.allocationAssigned));
+  const allocationAmountBn = new BN(allocation).add(unallocatedBalance);
+  const badStreamAllocationAmount = allocationAmountBn
+    .mul(new BN(feeDenaminator))
+    .div(new BN(feeNumerator + feeDenaminator));
+
+  const feeAmount = badStreamAllocationAmount
+    .mul(new BN(feeNumerator))
+    .div(new BN(feeDenaminator));
+  
+  if (unallocatedBalance.gte(feeAmount)) {
+    return badStreamAllocationAmount;
+  }
+
+  const goodStreamMaxAllocation = allocationAmountBn.sub(feeAmount);
+
+  return goodStreamMaxAllocation;
+}
+
 const getFilteredStreamAccounts = async (
   program: Program<Idl>,
   treasurer?: PublicKey | undefined,
@@ -390,7 +420,7 @@ const parseGetStreamData = (
     beneficiary: friendly ? event.beneficiaryAddress.toBase58() : event.beneficiaryAddress,
     associatedToken: friendly ? event.beneficiaryAssociatedToken.toBase58() : event.beneficiaryAssociatedToken,
     cliffVestAmount: friendly ? event.cliffVestAmountUnits.toNumber() : event.cliffVestAmountUnits,
-    cliffVestPercent: friendly ? event.cliffVestPercent.toNumber() / 10_000 : event.cliffVestPercent.divn(10_000),
+    cliffVestPercent: friendly ? event.cliffVestPercent.toNumber() / 10_000 : event.cliffVestPercent.div(new BN(10_000)),
     allocationAssigned: friendly ? event.allocationAssignedUnits.toNumber() : event.allocationAssignedUnits,
     // allocationReserved: friendly ? event.allocationReservedUnits.toNumber() : event.allocationReservedUnits,
 
@@ -461,7 +491,7 @@ const parseStreamItemData = (
     beneficiary: friendly ? stream.beneficiaryAddress.toBase58() : stream.beneficiaryAddress,
     associatedToken: friendly ? stream.beneficiaryAssociatedToken.toBase58() : stream.beneficiaryAssociatedToken,
     cliffVestAmount: friendly ? stream.cliffVestAmountUnits.toNumber() : stream.cliffVestAmountUnits,
-    cliffVestPercent: friendly ? stream.cliffVestPercent.toNumber() / 10_000 : stream.cliffVestPercent.divn(10_000),
+    cliffVestPercent: friendly ? stream.cliffVestPercent.toNumber() / 10_000 : stream.cliffVestPercent.div(new BN(10_000)),
     allocationAssigned: friendly ? stream.allocationAssignedUnits.toNumber() : stream.allocationAssignedUnits,
     // allocationReserved: friendly ? stream.allocationReservedUnits.toNumber() : stream.allocationReservedUnits,
     secondsSinceStart: friendly ? (blockTime - getStreamStartUtcInSeconds(stream)) : new BN(blockTime).sub(new BN(startUtc)),
