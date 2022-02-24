@@ -34,7 +34,6 @@ const listStreamsObject = {
     beneficiary: wallet,
 }
 let treasurerStreams = await moneyStreaming.listStreams(listStreamsObject);
-
 ```
 
 - Refresh all previously retrieved streams with the option of `hardUpdate` which forces the SDK to get the data from the blockchain instead of refresh it in the client:
