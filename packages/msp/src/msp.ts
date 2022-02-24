@@ -153,7 +153,7 @@ export class MSP {
   }
 
   public async listTreasuries (
-    treasurer: PublicKey,
+    treasurer: PublicKey | undefined,
     friendly: boolean = true
 
   ): Promise<Treasury[]> {
@@ -1466,12 +1466,27 @@ export class MSP {
     return tx;
   }
 
-  // UPDATE TREASURY DATA
-  public async updateTreasuryData (
+  public async createStreamFromPda (
     payer: PublicKey,
-    treasury: PublicKey
+    treasurer: PublicKey,
+    treasury: PublicKey,
+    beneficiary: PublicKey,
+    associatedToken: PublicKey,
+    stream: PublicKey,
+    streamName: string,
+    allocationAssigned: number,
+    rateAmount?: number,
+    rateIntervalInSeconds?: number,
+    startUtc?: Date,
+    cliffVestAmount?: number,
+    cliffVestPercent?: number,
+    feePayedByTreasurer?: boolean
 
-  ): Promise<Transaction> {
+  ): Promise<any> {
+
+    if (treasurer.equals(beneficiary)) {
+      throw Error("Beneficiary can not be the same Treasurer");
+    }
 
     const treasuryInfo = await getTreasury(this.program, treasury);
 
@@ -1479,7 +1494,11 @@ export class MSP {
       throw Error("Treasury doesn't exist");
     }
 
-    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+      throw Error("Incorrect associated token address");
+    }
+
+    // Get the treasury token account
     const treasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
@@ -1487,34 +1506,52 @@ export class MSP {
       treasury,
       true
     );
+    
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
 
-    // get treasury streams amount
-    const memcmpFilters = [{ memcmp: { offset: 8 + 170, bytes: treasury.toBase58() }}];
-    const allStreams = (await this.program.account.stream.all(memcmpFilters));
-    let totalAllocationAssigned = 0, totalWithdrawalsAmount = 0;
+    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
+    const now = new Date();
+    const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
+    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
 
-    for (let stream of allStreams) {
-      totalAllocationAssigned += (
-        stream.account.allocationAssignedUnits.toNumber() + stream.account.totalWithdrawalsUnits.toNumber()
-      );
-      totalWithdrawalsAmount += stream.account.totalWithdrawalsUnits.toNumber();
-    }
-
-    let tx = this.program.transaction.updateTreasuryData(
-      new BN(totalAllocationAssigned),
-      new BN(totalWithdrawalsAmount),
+    // Create Stream
+    let tx = this.program.transaction.createStream(
+      streamName,
+      new BN(startUtcInSeconds),
+      new BN(rateAmount as number),
+      new BN(rateIntervalInSeconds as number),
+      new BN(allocationAssigned),
+      new BN(cliffVestAmount as number),
+      new BN(cliffVestPercentValue),
+      feePayedByTreasurer ?? false,
       {
         accounts: {
           payer: payer,
-          associatedToken: associatedToken,
+          initializer: payer,
+          treasurer: treasurer,
           treasury: treasury,
-          treasuryToken: treasuryToken
+          treasuryToken: treasuryToken,
+          associatedToken: associatedToken,
+          beneficiary: beneficiary,
+          stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY
         }
       }
     );
 
     tx.feePayer = payer;
-    let { blockhash } = await this.connection.getRecentBlockhash("finalized");
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
     tx.recentBlockhash = blockhash;
 
     return tx;
