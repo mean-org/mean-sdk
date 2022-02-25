@@ -26,12 +26,17 @@ const moneyStreaming = new MoneyStreaming("https://api.mainnet-beta.solana.com",
 const wallet = new PublicKey("DjsyGs6HpszmH9N4UJgr1huBrWgysvUc1gSBk8MPbNfY");
 ```
 
-- List all streams from the blockchain. The wallet is passed 2 times to retrieve the streams where the wallet acts either as a treasurer OR as a beneficiary.
-In case you need to retrive only the streams where the wallet acts only as a treasury just pass wallet in the first parameter (treasurer) OR only as a beneficiary just pass wallet in the second parameter (beneficiary). Both parameters are optional. If we don't pass any of both then we will get all streams of the Money Streaming program:
+- List all streams from the blockchain. The wallet is passed 2 times to retrieve the streams where the wallet acts either as a treasurer OR as a beneficiary. Both parameters are optional. If we don't pass any of both then we will get all streams of the Money Streaming program:
 
-```let treasurerStreams = await moneyStreaming.listStreams(wallet, wallet);```
+```
+const listStreamsObject = {
+    treasurer: wallet,
+    beneficiary: wallet,
+}
+let treasurerStreams = await moneyStreaming.listStreams(listStreamsObject);
+```
 
-- Refresh al previously retrieved streams with the option of `hardUpdate` which forces the SDK to get the data from the blockchain instead of refresh it in the client:
+- Refresh all previously retrieved streams with the option of `hardUpdate` which forces the SDK to get the data from the blockchain instead of refresh it in the client:
 
 ```
 let cachedStreams = await moneyStreaming.refreshStreams(treasurerStreams, wallet, wallet);
