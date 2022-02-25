@@ -1,7 +1,7 @@
 import { Idl } from '@project-serum/anchor';
 
 const IDL: Idl = {
-  version: "2.2.0",
+  version: "2.2.1",
   name: "msp",
   instructions: [
     {
@@ -637,7 +637,7 @@ const IDL: Idl = {
         },
         {
           "name": "destinationAuthority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -697,41 +697,6 @@ const IDL: Idl = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "updateTreasuryData",
-      "accounts": [
-        {
-          "name": "payer",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "associatedToken",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "treasury",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "treasuryToken",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "totalAllocationAssigned",
-          "type": "u64"
-        },
-        {
-          "name": "totalWithdrawalsUnits",
-          "type": "u64"
-        }
-      ]
     }
   ],
   accounts: [
