@@ -120,8 +120,19 @@ export class MSP {
     return listStreamsCached(streamInfoList, friendly);
   }
 
+  /**
+   * 
+   * @param id The address of the stream
+   * @param before The signature to start searching backwards from.
+   * @param limit The max amount of elements to retrieve
+   * @param commitment Commitment to query the stream activity
+   * @param friendly The data will be displayed in a user readable format
+   * @returns 
+   */
   public async listStreamActivity (
     id: PublicKey,
+    before: string,
+    limit: number = 10,
     commitment?: Finality | undefined,
     friendly: boolean = true
 
@@ -133,7 +144,14 @@ export class MSP {
       throw Error("Stream doesn't exists");
     }
 
-    return listStreamActivity(this.program, id, commitment, friendly);
+    return listStreamActivity(
+      this.program, 
+      id,
+      before,
+      limit,
+      commitment, 
+      friendly
+    );
   }
 
   public async getTreasury (
@@ -1315,7 +1333,7 @@ export class MSP {
     const treasuryInfo = await getTreasury(this.program, treasury);
 
     if (!treasuryInfo) {
-      throw Error("Treasury doesn't exist");
+      throw Error("Treasury not found");
     }
 
     const treasurer = new PublicKey(treasuryInfo.treasurer as string);
@@ -1540,6 +1558,75 @@ export class MSP {
           associatedToken: associatedToken,
           beneficiary: beneficiary,
           stream: stream,
+          feeTreasury: Constants.FEE_TREASURY,
+          feeTreasuryToken: feeTreasuryToken,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY
+        }
+      }
+    );
+
+    tx.feePayer = payer;
+    let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
+    tx.recentBlockhash = blockhash;
+
+    return tx;
+  }
+
+  public async treasuryWithdraw (
+    payer: PublicKey,
+    destination: PublicKey,
+    treasury: PublicKey,
+    amount: number
+
+  ): Promise<Transaction> {
+
+    const treasuryInfo = await getTreasury(this.program, treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury not found");
+    }
+
+    const treasurer = new PublicKey(treasuryInfo.treasurer as string);
+    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    const destinationToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      destination,
+      true
+    );
+
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+
+    // Get the money streaming program operations token account or create a new one
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
+    let tx = this.program.transaction.treasuryWithdraw(
+      new BN(amount),
+      {
+        accounts: {
+          payer: payer,
+          treasurer: treasurer,
+          destinationAuthority: destination,
+          destinationTokenAccount: destinationToken,
+          associatedToken: associatedToken,
+          treasury: treasury,
+          treasuryToken: treasuryToken,
           feeTreasury: Constants.FEE_TREASURY,
           feeTreasuryToken: feeTreasuryToken,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,

@@ -25,7 +25,8 @@ export enum MSP_ACTIONS {
   createTreasury = 10,
   closeStream = 11,
   closeTreasury = 12,
-  transferStream = 13
+  transferStream = 13,
+  treasuryWithdraw = 14
 }
 
 /**

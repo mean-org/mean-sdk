@@ -1,4 +1,4 @@
-import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount } from "@solana/web3.js";
+import { Commitment, Connection, PublicKey, ConfirmOptions, Finality, ParsedConfirmedTransaction, PartiallyDecodedInstruction, GetProgramAccountsFilter, ParsedInstruction, LAMPORTS_PER_SOL, ParsedInnerInstruction, Transaction, Enum, TokenAmount, ConfirmedSignaturesForAddress2Options } from "@solana/web3.js";
 import { BN, Idl, Program, Provider } from "@project-serum/anchor";
 /**
  * MSP
@@ -174,6 +174,8 @@ export const listStreamsCached = async (
 export const listStreamActivity = async (
   program: Program<Idl>,
   address: PublicKey,
+  before: string = '',
+  limit: number = 10,
   commitment?: Finality | undefined,
   friendly: boolean = true
 
@@ -181,7 +183,9 @@ export const listStreamActivity = async (
 
   let activity: any = [];
   let finality = commitment !== undefined ? commitment : "finalized";
-  let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(address, { limit: 10 }, finality);
+  let filter = { limit: limit } as ConfirmedSignaturesForAddress2Options;
+  if (before) { filter['before'] = before };
+  let signatures = await program.provider.connection.getConfirmedSignaturesForAddress2(address, filter, finality);
   let txs = await program.provider.connection.getParsedConfirmedTransactions(signatures.map((s: any) => s.signature), finality);
 
   if (txs && txs.length) {
@@ -303,6 +307,11 @@ export const calculateActionFees = async (
     case MSP_ACTIONS.transferStream: {
       blockchainFee = 5000;
       txFees.mspFlatFee = 0.00001;
+      break;
+    }
+    case MSP_ACTIONS.treasuryWithdraw: {
+      // txFees.mspFlatFee = 0.00001;
+      txFees.mspPercentFee = 0.25;
       break;
     }
     default: {

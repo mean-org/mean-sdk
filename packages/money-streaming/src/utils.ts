@@ -127,8 +127,9 @@ const parseStreamV0Data = (
 
 ): StreamInfo => {
 
-  let stream: StreamInfo = defaultStreamInfo;
+  let stream: StreamInfo = defaultStreamInfo;  
   let decodedData = Layout.streamV0Layout.decode(streamData);
+  console.log('decodedData', decodedData);
   let fundedOnTimeUtc = decodedData.funded_on_utc;
   let startTimeUtc = decodedData.start_utc;
 
