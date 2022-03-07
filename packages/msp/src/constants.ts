@@ -12,4 +12,5 @@ import { PublicKey } from "@solana/web3.js";
     static STREAM_SIZE = 500;
     static CLIFF_PERCENT_NUMERATOR = 10_000;
     static CLIFF_PERCENT_DENOMINATOR = 1_000_000;
+    static MAX_TX_SIZE = 1200;
 }

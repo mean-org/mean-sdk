@@ -11,7 +11,7 @@ import { BN, Idl, Program } from "@project-serum/anchor";
 import { Stream, ListStreamParams, Treasury, TreasuryType, STREAM_STATUS } from "./types";
 import { createProgram, getStream, getStreamCached, getTreasury, getValidTreasuryAllocation, listStreamActivity, listStreams, listStreamsCached } from "./utils";
 import { Constants } from "./constants";
-import { listTreasuries } from ".";
+import { Beneficiary, listTreasuries, StreamBeneficiary } from ".";
 import { u64Number } from "./u64n";
 
 /**
@@ -647,7 +647,6 @@ export class MSP {
     treasury: PublicKey,
     beneficiary: PublicKey,
     associatedToken: PublicKey,
-    streamAccount: Keypair,
     streamName: string,
     allocationAssigned: number,
     rateAmount?: number,
@@ -657,7 +656,7 @@ export class MSP {
     cliffVestPercent?: number,
     feePayedByTreasurer?: boolean
 
-  ): Promise<any> {
+  ): Promise<Transaction> {
 
     if (treasurer.equals(beneficiary)) {
       throw Error("Beneficiary can not be the same Treasurer");
@@ -694,6 +693,7 @@ export class MSP {
     const now = new Date();
     const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
     const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
+    const streamAccount = Keypair.generate();
 
     // Create Stream
     let tx = this.program.transaction.createStream(
@@ -732,6 +732,100 @@ export class MSP {
     tx.partialSign(...[streamAccount]);
 
     return tx;
+  }
+
+  public async createStreams (
+    payer: PublicKey,
+    treasurer: PublicKey,
+    treasury: PublicKey,
+    beneficiaries: Beneficiary[],
+    associatedToken: PublicKey,
+    allocationAssigned: number,
+    rateAmount?: number,
+    rateIntervalInSeconds?: number,
+    startUtc?: Date,
+    cliffVestAmount?: number,
+    cliffVestPercent?: number,
+    feePayedByTreasurer?: boolean
+
+  ): Promise<Transaction[]> {
+
+    const treasuryInfo = await getTreasury(this.program, treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+      throw Error("Incorrect associated token address");
+    }
+
+    // Get the treasury token account
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+    
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
+    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
+    const now = new Date();
+    const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
+    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
+
+    // Create Streams
+    let txs: Transaction[] = [];
+
+    for (let beneficiary of beneficiaries) {
+
+      let streamAccount = Keypair.generate();
+      let ix = this.program.instruction.createStream(
+        beneficiary.streamName,
+        new BN(startUtcInSeconds),
+        new BN(rateAmount as number),
+        new BN(rateIntervalInSeconds as number),
+        new BN(allocationAssigned),
+        new BN(cliffVestAmount as number),
+        new BN(cliffVestPercentValue),
+        feePayedByTreasurer ?? false,
+        {
+          accounts: {
+            payer: payer,
+            initializer: payer,
+            treasurer: treasurer,
+            treasury: treasury,
+            treasuryToken: treasuryToken,
+            associatedToken: associatedToken,
+            beneficiary: beneficiary.address,
+            stream: streamAccount.publicKey,
+            feeTreasury: Constants.FEE_TREASURY,
+            feeTreasuryToken: feeTreasuryToken,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY
+          }
+        }
+      );
+
+      let currentTx = new Transaction().add(ix);
+      currentTx.feePayer = payer;
+      let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
+      currentTx.recentBlockhash = blockhash;
+      currentTx.partialSign(streamAccount);
+      txs.push(currentTx);
+    }
+
+    return txs;
   }
 
   public async fundStream (
@@ -1573,6 +1667,98 @@ export class MSP {
     tx.recentBlockhash = blockhash;
 
     return tx;
+  }
+
+  public async createStreamsFromPda (
+    payer: PublicKey,
+    treasurer: PublicKey,
+    treasury: PublicKey,
+    associatedToken: PublicKey,
+    streams: StreamBeneficiary[],
+    allocationAssigned: number,
+    rateAmount?: number,
+    rateIntervalInSeconds?: number,
+    startUtc?: Date,
+    cliffVestAmount?: number,
+    cliffVestPercent?: number,
+    feePayedByTreasurer?: boolean
+
+  ): Promise<Transaction[]> {
+
+    const treasuryInfo = await getTreasury(this.program, treasury);
+
+    if (!treasuryInfo) {
+      throw Error("Treasury doesn't exist");
+    }
+
+    if (treasuryInfo.associatedToken !== associatedToken.toBase58()) {
+      throw Error("Incorrect associated token address");
+    }
+
+    // Get the treasury token account
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+    
+    const feeTreasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      Constants.FEE_TREASURY,
+      true
+    );
+
+    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
+    const now = new Date();
+    const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
+    const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
+
+    // Create Streams
+    let txs: Transaction[] = [];
+
+    for (let stream of streams) {
+
+      let ix = this.program.instruction.createStream(
+        stream.name,
+        new BN(startUtcInSeconds),
+        new BN(rateAmount as number),
+        new BN(rateIntervalInSeconds as number),
+        new BN(allocationAssigned),
+        new BN(cliffVestAmount as number),
+        new BN(cliffVestPercentValue),
+        feePayedByTreasurer ?? false,
+        {
+          accounts: {
+            payer: payer,
+            initializer: payer,
+            treasurer: treasurer,
+            treasury: treasury,
+            treasuryToken: treasuryToken,
+            associatedToken: associatedToken,
+            beneficiary: stream.beneficiary,
+            stream: stream.address,
+            feeTreasury: Constants.FEE_TREASURY,
+            feeTreasuryToken: feeTreasuryToken,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY
+          }
+        }
+      );
+
+      let currentTx = new Transaction().add(ix);
+      currentTx.feePayer = payer;
+      let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
+      currentTx.recentBlockhash = blockhash;
+      txs.push(currentTx);
+    }
+
+    return txs;
   }
 
   public async treasuryWithdraw (

@@ -165,4 +165,21 @@ export enum STREAM_STATUS {
   isManuallyPaused: boolean,
   feePayedByTreasurer: boolean,
   data: any
-};
+}
+
+/**
+ * Beneficiary Info
+ */
+export type Beneficiary = {
+  streamName: string,
+  address: PublicKey
+}
+
+ /**
+ * Stream Beneficiary Info
+ */
+export type StreamBeneficiary = {
+  name: string,
+  address: PublicKey,
+  beneficiary: PublicKey
+}
