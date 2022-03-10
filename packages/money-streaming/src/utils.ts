@@ -333,13 +333,15 @@ const parseStreamData = (
     escrowVestedAmountSnap += decodedData.cliff_vest_amount;
   }
 
+  const allocation = decodedData.allocation_assigned > 0 ? decodedData.allocation_assigned : decodedData.allocation_reserved;
+
   if (decodedData.cliff_vest_percent > 0) {
-    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
+    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * allocation / 100);
   }
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
-    : 0;
+    : 1;
 
   if (isScheduled) {
     escrowVestedAmount = 0;

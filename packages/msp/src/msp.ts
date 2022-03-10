@@ -787,6 +787,8 @@ export class MSP {
 
     for (let beneficiary of beneficiaries) {
 
+      if (beneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
+
       let streamAccount = Keypair.generate();
       let ix = this.program.instruction.createStream(
         beneficiary.streamName,
@@ -1721,6 +1723,8 @@ export class MSP {
     let txs: Transaction[] = [];
 
     for (let stream of streams) {
+
+      if (stream.beneficiary.toBase58() === treasurer.toBase58()) { continue; }
 
       let ix = this.program.instruction.createStream(
         stream.name,
