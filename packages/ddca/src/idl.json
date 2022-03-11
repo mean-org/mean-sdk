@@ -1,5 +1,5 @@
 {
-  "version": "0.0.0",
+  "version": "0.1.0",
   "name": "ddca",
   "instructions": [
     {
@@ -245,7 +245,7 @@
       "accounts": [
         {
           "name": "ownerAccount",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -271,6 +271,11 @@
         {
           "name": "operatingToTokenAccount",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "toMint",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -306,7 +311,7 @@
       "accounts": [
         {
           "name": "ownerAccount",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
@@ -322,6 +327,16 @@
         {
           "name": "ownerToTokenAccount",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "fromMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "toMint",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -355,12 +370,22 @@
           "isSigner": false
         },
         {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         },
         {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -464,44 +489,54 @@
   ],
   "errors": [
     {
-      "code": 300,
+      "code": 6000,
       "name": "InvalidAmounts",
       "msg": "Deposit amount must be a multiple of the amount per swap"
     },
     {
-      "code": 301,
+      "code": 6001,
       "name": "InvalidSwapsCount",
       "msg": "The number of recurring swaps must be greater than 1"
     },
     {
-      "code": 302,
+      "code": 6002,
       "name": "DdcaIsPaused",
       "msg": "This DDCA is paused"
     },
     {
-      "code": 303,
+      "code": 6003,
       "name": "InsufficientBalanceForSwap",
       "msg": "Insufficient balance for swap"
     },
     {
-      "code": 304,
+      "code": 6004,
       "name": "InvalidSwapSchedule",
       "msg": "This DDCA is not schedule for the provided time"
     },
     {
-      "code": 305,
+      "code": 6005,
       "name": "InvalidSwapSlippage",
       "msg": "Invalid swap slippage"
     },
     {
-      "code": 306,
+      "code": 6006,
       "name": "InvalidInterval",
       "msg": "Invalid interval"
     },
     {
-      "code": 307,
+      "code": 6007,
       "name": "SwapAlreadyCompleted",
       "msg": "A swap for this time window was already completed"
+    },
+    {
+      "code": 6008,
+      "name": "InsufficientDepositAmount",
+      "msg": "Insufficient deposit amount"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidSwapAmount",
+      "msg": "Amount per swap must be positive"
     }
   ],
   "metadata": {
