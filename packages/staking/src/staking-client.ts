@@ -131,7 +131,7 @@ export class StakingClient {
             this.xMintPubkey,
             this.program.provider.wallet.publicKey,
         );
-        
+
         // Instructions
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
 
@@ -141,7 +141,7 @@ export class StakingClient {
             this.program.provider.wallet.publicKey,
             this.program.provider.wallet.publicKey,
             this.connection);
-        if (walletXTokenCreateInstruction !== null)
+        if (walletXTokenCreateInstruction)
             ixs.push(walletXTokenCreateInstruction);
 
         const tx = await this.program.transaction.stake(
@@ -160,7 +160,68 @@ export class StakingClient {
                 },
             }
         );
-        
+
+        tx.feePayer = this.program.provider.wallet.publicKey;
+        let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
+    public async unstakeTransaction(amount: number): Promise<Transaction> {
+
+        if (!this.userPubKey)
+            throw new Error("Wallet not connected");
+
+        const [vaultPubkey, vaultBump] =
+            await anchor.web3.PublicKey.findProgramAddress(
+                [this.mintPubkey.toBuffer()],
+                this.program.programId
+            );
+
+        const walletTokenAccount = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            this.mintPubkey,
+            this.program.provider.wallet.publicKey,
+        );
+
+        const walletXTokenAccount = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            this.xMintPubkey,
+            this.program.provider.wallet.publicKey,
+        );
+
+        // Instructions
+        let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
+
+        let walletTokenCreateInstruction = await createAtaCreateInstructionIfNotExists(
+            walletTokenAccount,
+            this.mintPubkey,
+            this.program.provider.wallet.publicKey,
+            this.program.provider.wallet.publicKey,
+            this.connection);
+        if (walletTokenCreateInstruction)
+            ixs.push(walletTokenCreateInstruction);
+
+        const tx = await this.program.transaction.unstake(
+            vaultBump,
+            new anchor.BN(amount),
+            {
+                preInstructions: ixs,
+                accounts: {
+                    tokenMint: this.mintPubkey,
+                    xTokenMint: this.xMintPubkey,
+                    xTokenFrom: walletXTokenAccount,
+                    xTokenFromAuthority: this.program.provider.wallet.publicKey,
+                    tokenVault: vaultPubkey,
+                    tokenTo: walletTokenAccount,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                },
+            }
+        );
+
         tx.feePayer = this.program.provider.wallet.publicKey;
         let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
         tx.recentBlockhash = hash.blockhash;
