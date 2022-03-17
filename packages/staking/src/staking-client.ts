@@ -229,14 +229,20 @@ export class StakingClient {
         return tx;
     }
 
+    public async getStakePoolInfo(): Promise<StakePoolInfo> {
+        return {
+            sMeanToUsdcRate: 0, // sMEAN price
+            meanToSMeanRate: 0, // amount of sMEAN per 1 MEAN
+            sMeanToMeanRate: 0, // amount of MEAN per 1 sMEAN
+            tvl: 0,
+            apy: 0,
+            walletXMeanBalance: 0,
+        }
+    }
+
     public getMintAddresses(): EnvMintAddresses {
         return this.cluster === 'mainnet-beta' ? mainnetMintAddresses : testMintAddresses;
     }
-}
-
-type EnvMintAddresses = {
-    mean: PublicKey,
-    sMean: PublicKey,
 }
 
 async function createAtaCreateInstructionIfNotExists(
@@ -284,4 +290,18 @@ async function createAtaCreateInstruction(
         payerAddress,
     );
     return [ataAddress, ataCreateInstruction];
+}
+
+export type EnvMintAddresses = {
+    mean: PublicKey,
+    sMean: PublicKey,
+}
+
+export type StakePoolInfo = {
+    sMeanToUsdcRate: number, // sMEAN price
+    meanToSMeanRate: number, // amount of sMEAN per 1 MEAN
+    sMeanToMeanRate: number, // amount of MEAN per 1 sMEAN
+    tvl: number,
+    apy: number,
+    walletXMeanBalance: number,
 }
