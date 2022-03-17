@@ -105,16 +105,19 @@ export class StakingClient {
         return program;
     }
 
+    private async findVaultAddress(): Promise<[PublicKey, number]> {
+        return await anchor.web3.PublicKey.findProgramAddress(
+            [this.mintPubkey.toBuffer()],
+            this.program.programId
+        );
+    }
+
     public async stakeTransaction(amount: number): Promise<Transaction> {
 
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
-        const [vaultPubkey, vaultBump] =
-            await anchor.web3.PublicKey.findProgramAddress(
-                [this.mintPubkey.toBuffer()],
-                this.program.programId
-            );
+        const [vaultPubkey, vaultBump] = await this.findVaultAddress();
 
         const walletTokenAccount = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -173,11 +176,7 @@ export class StakingClient {
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
-        const [vaultPubkey, vaultBump] =
-            await anchor.web3.PublicKey.findProgramAddress(
-                [this.mintPubkey.toBuffer()],
-                this.program.programId
-            );
+        const [vaultPubkey, vaultBump] = await this.findVaultAddress();
 
         const walletTokenAccount = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -230,13 +229,19 @@ export class StakingClient {
     }
 
     public async getStakePoolInfo(): Promise<StakePoolInfo> {
+
+        const [vaultPubkey, _] = await this.findVaultAddress();
+        const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
+        if(!stakeVaultMeanBalanceResponse?.value)
+            throw Error("Unable to get stake pool info");
+
         return {
             sMeanToUsdcRate: 0, // sMEAN price
             meanToSMeanRate: 0, // amount of sMEAN per 1 MEAN
             sMeanToMeanRate: 0, // amount of MEAN per 1 sMEAN
+            tvlMeanAmount: stakeVaultMeanBalanceResponse.value,
             tvl: 0,
-            apy: 0,
-            walletXMeanBalance: 0,
+            apy: 0
         }
     }
 
@@ -301,7 +306,7 @@ export type StakePoolInfo = {
     sMeanToUsdcRate: number, // sMEAN price
     meanToSMeanRate: number, // amount of sMEAN per 1 MEAN
     sMeanToMeanRate: number, // amount of MEAN per 1 sMEAN
+    tvlMeanAmount: anchor.web3.TokenAmount,
     tvl: number,
     apy: number,
-    walletXMeanBalance: number,
 }
