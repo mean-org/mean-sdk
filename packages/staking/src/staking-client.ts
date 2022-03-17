@@ -15,6 +15,7 @@ import { MeanStake } from "./idl/mean_stake";
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const SYSVAR_RENT_PUBKEY = anchor.web3.SYSVAR_RENT_PUBKEY;
 const DECIMALS = 6;
+const E6 = 1_000_000;
 const DECIMALS_BN = new BN(DECIMALS);
 const READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
 const MEAN_STAKE_ID = new PublicKey('MSTKTNxDrVTd32qF8kyaiUhFidmgPaYGU932FbRa7eK');
@@ -112,7 +113,7 @@ export class StakingClient {
         );
     }
 
-    public async stakeTransaction(amount: number): Promise<Transaction> {
+    public async stakeTransaction(uiAmount: number): Promise<Transaction> {
 
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
@@ -147,7 +148,7 @@ export class StakingClient {
 
         const tx = await this.program.transaction.stake(
             vaultBump,
-            new anchor.BN(amount),
+            new anchor.BN(uiAmount * E6),
             {
                 preInstructions: ixs,
                 accounts: {
@@ -171,7 +172,7 @@ export class StakingClient {
         return tx;
     }
 
-    public async unstakeTransaction(amount: number): Promise<Transaction> {
+    public async unstakeTransaction(uiAmount: number): Promise<Transaction> {
 
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
@@ -206,7 +207,7 @@ export class StakingClient {
 
         const tx = await this.program.transaction.unstake(
             vaultBump,
-            new anchor.BN(amount),
+            new anchor.BN(uiAmount * E6),
             {
                 preInstructions: ixs,
                 accounts: {
@@ -249,7 +250,7 @@ export class StakingClient {
         return this.cluster === 'mainnet-beta' ? mainnetMintAddresses : testMintAddresses;
     }
 
-    public async getPrice(): Promise<Price> {
+    private async getSMeanPrice(): Promise<sMeanPrice> {
         const [vault, _] = await this.findVaultAddress();
         // simulate emit_price instruction
         const eventsResponse = await this.program.simulate.emitPrice({
@@ -264,12 +265,20 @@ export class StakingClient {
             throw new Error("Unable to fetch price");
 
         const priceEvent = eventsResponse.events[0].data;
-        const currentPrice: Price = {
-            meanPerSMeanE9: priceEvent.meanPerSmeanE9.toNumber(),
-            meanPerSMean: priceEvent.meanPerSmean
+        const currentPrice: sMeanPrice = {
+            sMeanToMeanRateE9: priceEvent.meanPerSmeanE9,
+            sMeanToMeanRate: priceEvent.meanPerSmean
         };
 
         return currentPrice;
+    }
+
+    public async getStakeQuote(meanUiAmount: number) {
+        const meanIn = new BN(meanUiAmount * E6);
+        const sMeanPrice = await this.getSMeanPrice();
+        const sMeanOut = meanIn
+            .mul(new BN(10 ** 9))
+            .div(sMeanPrice.sMeanToMeanRateE9);
     }
 }
 
@@ -334,7 +343,13 @@ export type StakePoolInfo = {
     apy: number,
 }
 
-export type Price = {
-    meanPerSMeanE9: number,
-    meanPerSMean: string,
+export type sMeanPrice = {
+    sMeanToMeanRateE9: BN, // 1 sMEAN = ? MEAN
+    sMeanToMeanRate: string,
+}
+
+export type StakeQuote = {
+    meanIn: BN,
+    sMeanOut: BN,
+    sMeanToMeanRateE9: BN,
 }
