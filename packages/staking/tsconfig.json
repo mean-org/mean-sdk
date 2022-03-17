@@ -20,5 +20,6 @@
         "resolveJsonModule": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
-    "display": "Recommended"
+    "display": "Recommended",
+    "exclude": ["test_scripts/*"]
 }

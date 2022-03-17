@@ -16,8 +16,7 @@ const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const SYSVAR_RENT_PUBKEY = anchor.web3.SYSVAR_RENT_PUBKEY;
 const DECIMALS = 6;
 const DECIMALS_BN = new BN(DECIMALS);
-const IDO_READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
-
+const READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
 const MEAN_STAKE_ID = new PublicKey('MSTKTNxDrVTd32qF8kyaiUhFidmgPaYGU932FbRa7eK');
 
 const mainnetMintAddresses: EnvMintAddresses = {
@@ -26,7 +25,7 @@ const mainnetMintAddresses: EnvMintAddresses = {
 };
 
 const testMintAddresses: EnvMintAddresses = {
-    mean: new PublicKey('76TgAKcxMapCQgq6xnVpXrym24hxJ2vgZ38iZGgYV7zB'),
+    mean: new PublicKey('MNZeoVuS87pFssHCbxKHfddvJk4MjmM2RHjQskrk7qs'),
     sMean: new PublicKey('sMNxc4HFhtyY9adKKmE2TBq4poD36moXN8W7YiQMsTA'),
 };
 
@@ -39,9 +38,8 @@ export class StakingClient {
     public connection: Connection;
     public provider: Provider;
     public program: Program<MeanStake>;
-    public userPubKey: PublicKey | null | undefined;
+    public walletPubKey: PublicKey | null | undefined;
     private verbose: boolean;
-    private rpcVersion: anchor.web3.Version | null = null;
     private mintPubkey: PublicKey = PublicKey.default;
     private xMintPubkey: PublicKey = PublicKey.default;
 
@@ -51,17 +49,17 @@ export class StakingClient {
     constructor(
         cluster: string,
         rpcUrl: string,
-        userPubKey: PublicKey | null | undefined,
+        walletPubKey: PublicKey | null | undefined,
         confirmOptions?: anchor.web3.ConfirmOptions,
         verbose = false,
     ) {
         if (!rpcUrl)
             throw new Error("wallet cannot be null or undefined");
 
-        this.userPubKey = userPubKey;
+        this.walletPubKey = walletPubKey;
         this.cluster = cluster;
         this.rpcUrl = rpcUrl;
-        const readonlyWallet = StakingClient.createReadonlyWallet(IDO_READONLY_PUBKEY);
+        const readonlyWallet = StakingClient.createReadonlyWallet(walletPubKey ?? READONLY_PUBKEY);
         this.program = StakingClient.createProgram(rpcUrl, readonlyWallet, confirmOptions);
         this.provider = this.program.provider;
         this.connection = this.program.provider.connection;
@@ -109,7 +107,7 @@ export class StakingClient {
 
     public async stakeTransaction(amount: number): Promise<Transaction> {
 
-        if (!this.userPubKey)
+        if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
         const [vaultPubkey, vaultBump] =
@@ -162,7 +160,9 @@ export class StakingClient {
         );
 
         tx.feePayer = this.program.provider.wallet.publicKey;
-        let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
+        // this line fails in local with 'failed to get recent blockhash: Error: failed to get latest blockhash: Method not found'
+        // let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         tx.recentBlockhash = hash.blockhash;
 
         return tx;
@@ -170,7 +170,7 @@ export class StakingClient {
 
     public async unstakeTransaction(amount: number): Promise<Transaction> {
 
-        if (!this.userPubKey)
+        if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
         const [vaultPubkey, vaultBump] =
