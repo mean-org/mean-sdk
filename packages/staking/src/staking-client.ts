@@ -248,6 +248,29 @@ export class StakingClient {
     public getMintAddresses(): EnvMintAddresses {
         return this.cluster === 'mainnet-beta' ? mainnetMintAddresses : testMintAddresses;
     }
+
+    public async getPrice(): Promise<Price> {
+        const [vault, _] = await this.findVaultAddress();
+        // simulate emit_price instruction
+        const eventsResponse = await this.program.simulate.emitPrice({
+            accounts: {
+                tokenMint: this.mintPubkey,
+                xTokenMint: this.xMintPubkey,
+                tokenVault: vault,
+            },
+        });
+        
+        if (eventsResponse.events.length === 0)
+            throw new Error("Unable to fetch price");
+
+        const priceEvent = eventsResponse.events[0].data;
+        const currentPrice: Price = {
+            meanPerSMeanE9: priceEvent.meanPerSmeanE9.toNumber(),
+            meanPerSMean: priceEvent.meanPerSmean
+        };
+
+        return currentPrice;
+    }
 }
 
 async function createAtaCreateInstructionIfNotExists(
@@ -309,4 +332,9 @@ export type StakePoolInfo = {
     tvlMeanAmount: anchor.web3.TokenAmount,
     tvl: number,
     apy: number,
+}
+
+export type Price = {
+    meanPerSMeanE9: number,
+    meanPerSMean: string,
 }
