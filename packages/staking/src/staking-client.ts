@@ -16,6 +16,7 @@ const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
 const SYSVAR_RENT_PUBKEY = anchor.web3.SYSVAR_RENT_PUBKEY;
 const DECIMALS = 6;
 const E6 = 1_000_000;
+const E9 = 1_000_000_000;
 const DECIMALS_BN = new BN(DECIMALS);
 const READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
 const MEAN_STAKE_ID = new PublicKey('MSTKTNxDrVTd32qF8kyaiUhFidmgPaYGU932FbRa7eK');
@@ -41,8 +42,8 @@ export class StakingClient {
     public program: Program<MeanStake>;
     public walletPubKey: PublicKey | null | undefined;
     private verbose: boolean;
-    private mintPubkey: PublicKey = PublicKey.default;
-    private xMintPubkey: PublicKey = PublicKey.default;
+    public mintPubkey: PublicKey = PublicKey.default;
+    public xMintPubkey: PublicKey = PublicKey.default;
 
     /**
      * Create a Mean Staking client
@@ -106,7 +107,7 @@ export class StakingClient {
         return program;
     }
 
-    private async findVaultAddress(): Promise<[PublicKey, number]> {
+    public async findVaultAddress(): Promise<[PublicKey, number]> {
         return await anchor.web3.PublicKey.findProgramAddress(
             [this.mintPubkey.toBuffer()],
             this.program.programId
@@ -223,7 +224,8 @@ export class StakingClient {
         );
 
         tx.feePayer = this.program.provider.wallet.publicKey;
-        let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
+        // let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         tx.recentBlockhash = hash.blockhash;
 
         return tx;
@@ -273,12 +275,38 @@ export class StakingClient {
         return currentPrice;
     }
 
-    public async getStakeQuote(meanUiAmount: number) {
+    public async getStakeQuote(meanUiAmount: number): Promise<StakeQuote> {
         const meanIn = new BN(meanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
         const sMeanOut = meanIn
             .mul(new BN(10 ** 9))
             .div(sMeanPrice.sMeanToMeanRateE9);
+
+        return {
+            meanIn: meanIn,
+            meanInUiAmount: meanUiAmount,
+            sMeanOut: sMeanOut,
+            sMeanOutUiAmount: sMeanOut.toNumber() / E6,
+            sMeanToMeanRateE9: sMeanPrice.sMeanToMeanRateE9,
+            sMeanToMeanRateUiAmount: sMeanPrice.sMeanToMeanRateE9.toNumber() / E9
+        }
+    }
+
+    public async getUnstakeQuote(sMeanUiAmount: number): Promise<UnstakeQuote> {
+        const sMeanIn = new BN(sMeanUiAmount * E6);
+        const sMeanPrice = await this.getSMeanPrice();
+        const meanOut = sMeanIn
+            .mul(sMeanPrice.sMeanToMeanRateE9)
+            .div(new BN(10 ** 9));
+
+        return {
+            sMeanIn: sMeanIn,
+            sMeanInUiAmount: sMeanUiAmount,
+            meanOut: meanOut,
+            meanOutUiAmount: meanOut.toNumber() / E6,
+            sMeanToMeanRateE9: sMeanPrice.sMeanToMeanRateE9,
+            sMeanToMeanRateUiAmount: sMeanPrice.sMeanToMeanRateE9.toNumber() / E9
+        }
     }
 }
 
@@ -350,6 +378,18 @@ export type sMeanPrice = {
 
 export type StakeQuote = {
     meanIn: BN,
+    meanInUiAmount: number,
     sMeanOut: BN,
+    sMeanOutUiAmount: number,
     sMeanToMeanRateE9: BN,
+    sMeanToMeanRateUiAmount: number,
+}
+
+export type UnstakeQuote = {
+    sMeanIn: BN,
+    sMeanInUiAmount: number,
+    meanOut: BN,
+    meanOutUiAmount: number,
+    sMeanToMeanRateE9: BN,
+    sMeanToMeanRateUiAmount: number,
 }
