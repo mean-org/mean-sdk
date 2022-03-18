@@ -238,10 +238,17 @@ export class StakingClient {
         if(!stakeVaultMeanBalanceResponse?.value)
             throw Error("Unable to get stake pool info");
 
+        const sMeanPrice = await this.getSMeanPrice();
+        const sMeanToMeanRate = sMeanPrice.sMeanToMeanRateE9.toNumber() / E9;
+        const meanToSMeanRate = new BN(E9)
+            .mul(new BN(E9))
+            .div(sMeanPrice.sMeanToMeanRateE9)
+            .toNumber() / E9;
+
         return {
-            sMeanToUsdcRate: 0, // sMEAN price
-            meanToSMeanRate: 0, // amount of sMEAN per 1 MEAN
-            sMeanToMeanRate: 0, // amount of MEAN per 1 sMEAN
+            sMeanToUsdcRate: 0, // sMEAN price TODO
+            meanToSMeanRate: meanToSMeanRate, // amount of sMEAN per 1 MEAN
+            sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
             tvlMeanAmount: stakeVaultMeanBalanceResponse.value,
             tvl: 0,
             apy: 0
