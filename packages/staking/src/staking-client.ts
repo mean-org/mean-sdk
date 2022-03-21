@@ -114,12 +114,20 @@ export class StakingClient {
         );
     }
 
+    public async findStateAddress(): Promise<[PublicKey, number]> {
+        return await anchor.web3.PublicKey.findProgramAddress(
+            [this.mintPubkey.toBuffer(), Buffer.from(anchor.utils.bytes.utf8.encode("state"))],
+            this.program.programId
+        );
+    }
+
     public async stakeTransaction(uiAmount: number): Promise<Transaction> {
 
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
         const [vaultPubkey, vaultBump] = await this.findVaultAddress();
+        const [statePubkey, stateBump] = await this.findStateAddress();
 
         const walletTokenAccount = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -148,7 +156,7 @@ export class StakingClient {
             ixs.push(walletXTokenCreateInstruction);
 
         const tx = await this.program.transaction.stake(
-            vaultBump,
+            // vaultBump,
             new anchor.BN(uiAmount * E6),
             {
                 preInstructions: ixs,
@@ -159,6 +167,7 @@ export class StakingClient {
                     tokenFromAuthority: this.program.provider.wallet.publicKey,
                     tokenVault: vaultPubkey,
                     xTokenTo: walletXTokenAccount,
+                    state: statePubkey,
                     tokenProgram: TOKEN_PROGRAM_ID,
                 },
             }
@@ -179,6 +188,7 @@ export class StakingClient {
             throw new Error("Wallet not connected");
 
         const [vaultPubkey, vaultBump] = await this.findVaultAddress();
+        const [statePubkey, stateBump] = await this.findStateAddress();
 
         const walletTokenAccount = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -207,7 +217,7 @@ export class StakingClient {
             ixs.push(walletTokenCreateInstruction);
 
         const tx = await this.program.transaction.unstake(
-            vaultBump,
+            // vaultBump,
             new anchor.BN(uiAmount * E6),
             {
                 preInstructions: ixs,
@@ -218,6 +228,7 @@ export class StakingClient {
                     xTokenFromAuthority: this.program.provider.wallet.publicKey,
                     tokenVault: vaultPubkey,
                     tokenTo: walletTokenAccount,
+                    state: statePubkey,
                     tokenProgram: TOKEN_PROGRAM_ID,
                 },
             }
@@ -286,7 +297,7 @@ export class StakingClient {
         const meanIn = new BN(meanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
         const sMeanOut = meanIn
-            .mul(new BN(10 ** 9))
+            .mul(new BN(E9))
             .div(sMeanPrice.sMeanToMeanRateE9);
 
         return {

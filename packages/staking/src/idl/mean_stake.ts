@@ -21,6 +21,11 @@ export type MeanStake = {
           "isSigner": true
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -62,17 +67,17 @@ export type MeanStake = {
           "isSigner": true
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "nonce",
-          "type": "u8"
-        }
-      ]
+      "args": []
     },
     {
       "name": "stake",
@@ -108,16 +113,17 @@ export type MeanStake = {
           "isSigner": false
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "nonce",
-          "type": "u8"
-        },
         {
           "name": "amount",
           "type": "u64"
@@ -158,16 +164,17 @@ export type MeanStake = {
           "isSigner": false
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "nonce",
-          "type": "u8"
-        },
         {
           "name": "amount",
           "type": "u64"
@@ -194,6 +201,40 @@ export type MeanStake = {
         }
       ],
       "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "state",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tokenVaultBump",
+            "type": "u8"
+          },
+          {
+            "name": "stateBump",
+            "type": "u8"
+          },
+          {
+            "name": "totalStaked",
+            "type": "u64"
+          },
+          {
+            "name": "totalStakes",
+            "type": "u64"
+          },
+          {
+            "name": "totalUnstaked",
+            "type": "u64"
+          },
+          {
+            "name": "totalUnstakes",
+            "type": "u64"
+          }
+        ]
+      }
     }
   ],
   "events": [
@@ -263,6 +304,11 @@ export const IDL: MeanStake = {
           "isSigner": true
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -304,17 +350,17 @@ export const IDL: MeanStake = {
           "isSigner": true
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "nonce",
-          "type": "u8"
-        }
-      ]
+      "args": []
     },
     {
       "name": "stake",
@@ -350,16 +396,17 @@ export const IDL: MeanStake = {
           "isSigner": false
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "nonce",
-          "type": "u8"
-        },
         {
           "name": "amount",
           "type": "u64"
@@ -400,16 +447,17 @@ export const IDL: MeanStake = {
           "isSigner": false
         },
         {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
         }
       ],
       "args": [
-        {
-          "name": "nonce",
-          "type": "u8"
-        },
         {
           "name": "amount",
           "type": "u64"
@@ -436,6 +484,40 @@ export const IDL: MeanStake = {
         }
       ],
       "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "state",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tokenVaultBump",
+            "type": "u8"
+          },
+          {
+            "name": "stateBump",
+            "type": "u8"
+          },
+          {
+            "name": "totalStaked",
+            "type": "u64"
+          },
+          {
+            "name": "totalStakes",
+            "type": "u64"
+          },
+          {
+            "name": "totalUnstaked",
+            "type": "u64"
+          },
+          {
+            "name": "totalUnstakes",
+            "type": "u64"
+          }
+        ]
+      }
     }
   ],
   "events": [
