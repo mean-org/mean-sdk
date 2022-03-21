@@ -242,7 +242,7 @@ export class StakingClient {
         return tx;
     }
 
-    public async getStakePoolInfo(): Promise<StakePoolInfo> {
+    public async getStakePoolInfo(meanPrice?: number): Promise<StakePoolInfo> {
 
         const [vaultPubkey, _] = await this.findVaultAddress();
         const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
@@ -260,9 +260,10 @@ export class StakingClient {
             sMeanToUsdcRate: 0, // sMEAN price TODO
             meanToSMeanRate: meanToSMeanRate, // amount of sMEAN per 1 MEAN
             sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
-            tvlMeanAmount: stakeVaultMeanBalanceResponse.value,
+            totalMeanAmount: stakeVaultMeanBalanceResponse.value,
             tvl: 0,
-            apy: 0
+            apy: 0,
+            totalMeanRewards: 0,
         }
     }
 
@@ -270,7 +271,7 @@ export class StakingClient {
         return this.cluster === 'mainnet-beta' ? mainnetMintAddresses : testMintAddresses;
     }
 
-    private async getSMeanPrice(): Promise<sMeanPrice> {
+    public async getSMeanPrice(): Promise<sMeanPrice> {
         const [vault, _] = await this.findVaultAddress();
         // simulate emit_price instruction
         const eventsResponse = await this.program.simulate.emitPrice({
@@ -294,6 +295,9 @@ export class StakingClient {
     }
 
     public async getStakeQuote(meanUiAmount: number): Promise<StakeQuote> {
+        if(meanUiAmount === 0)
+            throw new Error("Invalid input amount");
+
         const meanIn = new BN(meanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
         const sMeanOut = meanIn
@@ -311,6 +315,9 @@ export class StakingClient {
     }
 
     public async getUnstakeQuote(sMeanUiAmount: number): Promise<UnstakeQuote> {
+        if(sMeanUiAmount === 0)
+            throw new Error("Invalid input amount");
+
         const sMeanIn = new BN(sMeanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
         const meanOut = sMeanIn
@@ -384,9 +391,10 @@ export type StakePoolInfo = {
     sMeanToUsdcRate: number, // sMEAN price
     meanToSMeanRate: number, // amount of sMEAN per 1 MEAN
     sMeanToMeanRate: number, // amount of MEAN per 1 sMEAN
-    tvlMeanAmount: anchor.web3.TokenAmount,
-    tvl: number,
-    apy: number,
+    totalMeanAmount: anchor.web3.TokenAmount,
+    tvl: number, // USD
+    apy: number, // 1-based percentage
+    totalMeanRewards: number, // USD
 }
 
 export type sMeanPrice = {
