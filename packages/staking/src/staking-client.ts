@@ -249,9 +249,9 @@ export class StakingClient {
 
         meanPrice = meanPrice ?? await this.getMeanPrice();
 
-        const [vaultPubkey, _] = await this.findVaultAddress();
+        const [vaultPubkey, ] = await this.findVaultAddress();
+        const [statePubkey, ] = await this.findStateAddress();
         const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
-        console.log(stakeVaultMeanBalanceResponse);
         
         if(!stakeVaultMeanBalanceResponse?.value)
             throw Error("Unable to get stake pool info");
@@ -263,15 +263,17 @@ export class StakingClient {
             .div(sMeanPrice.sMeanToMeanRateE9)
             .toNumber() / E9;
     
+        const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
+        const state = await this.program.account.state.fetch(statePubkey);
 
         return {
             meanPrice: meanPrice, // sMEAN price TODO
             meanToSMeanRate: meanToSMeanRate, // amount of sMEAN per 1 MEAN
             sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
             totalMeanAmount: stakeVaultMeanBalanceResponse.value,
-            tvl: Math.round(((stakeVaultMeanBalanceResponse.value.uiAmount ?? 0) * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
+            tvl: Math.round((totalMeanUiAmount * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
             apy: 0,
-            totalMeanRewards: 0,
+            totalMeanRewards: Math.max(totalMeanUiAmount - (state.totalStaked.toNumber() - state.totalUnstaked.toNumber()) / E6, 0) *  meanPrice,
         }
     }
 
