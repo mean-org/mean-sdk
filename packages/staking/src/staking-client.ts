@@ -10,6 +10,7 @@ import * as anchor from "@project-serum/anchor";
 import { BN, IdlAccounts, parseIdlErrors, Program, ProgramError, Provider, Wallet } from "@project-serum/anchor";
 import { IDL } from './idl/mean_stake';
 import { MeanStake } from "./idl/mean_stake";
+import fetch from 'cross-fetch';
 
 // CONSTANTS
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
@@ -243,9 +244,15 @@ export class StakingClient {
     }
 
     public async getStakePoolInfo(meanPrice?: number): Promise<StakePoolInfo> {
+        if(meanPrice && meanPrice < 0)
+            throw new Error("Invalid price input");
+
+        meanPrice = meanPrice ?? await this.getMeanPrice();
 
         const [vaultPubkey, _] = await this.findVaultAddress();
         const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
+        console.log(stakeVaultMeanBalanceResponse);
+        
         if(!stakeVaultMeanBalanceResponse?.value)
             throw Error("Unable to get stake pool info");
 
@@ -255,13 +262,14 @@ export class StakingClient {
             .mul(new BN(E9))
             .div(sMeanPrice.sMeanToMeanRateE9)
             .toNumber() / E9;
+    
 
         return {
-            sMeanToUsdcRate: 0, // sMEAN price TODO
+            meanPrice: meanPrice, // sMEAN price TODO
             meanToSMeanRate: meanToSMeanRate, // amount of sMEAN per 1 MEAN
             sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
             totalMeanAmount: stakeVaultMeanBalanceResponse.value,
-            tvl: 0,
+            tvl: Math.round(((stakeVaultMeanBalanceResponse.value.uiAmount ?? 0) * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
             apy: 0,
             totalMeanRewards: 0,
         }
@@ -333,6 +341,26 @@ export class StakingClient {
             sMeanToMeanRateUiAmount: sMeanPrice.sMeanToMeanRateE9.toNumber() / E9
         }
     }
+
+    private async getMeanPrice(): Promise<number> {
+        // const options: RequestInit = {
+        //     method: "GET",
+        //     // headers: tempoHeaders
+        // }
+        
+        try {
+            const response = await fetch('https://api.raydium.io/coin/price')
+            if (response.status !== 200) {
+                throw new Error("Unable to get token prices");
+            }
+
+            const prices = (await response.json()) as any;
+            return prices.MEAN;
+
+        } catch (error) {
+            throw (error);
+        }
+    }
 }
 
 async function createAtaCreateInstructionIfNotExists(
@@ -388,7 +416,7 @@ export type EnvMintAddresses = {
 }
 
 export type StakePoolInfo = {
-    sMeanToUsdcRate: number, // sMEAN price
+    meanPrice: number, // sMEAN price
     meanToSMeanRate: number, // amount of sMEAN per 1 MEAN
     sMeanToMeanRate: number, // amount of MEAN per 1 sMEAN
     totalMeanAmount: anchor.web3.TokenAmount,
