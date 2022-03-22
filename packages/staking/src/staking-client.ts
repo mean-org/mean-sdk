@@ -381,8 +381,7 @@ export class StakingClient {
                 headers: apiHeaders
             }
 
-            const response = await fetch(`${this.apiUrl}/stake-info`, options)
-            console.log(response);
+            const response = await fetch(`${this.apiUrl}/stake-info`, options);
             
             if (response.status !== 200) {
                 throw new Error("Unable to get apr");
