@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/staking",
-  "version": "0.1.7",
+  "version": "0.1.10",
   "description": "Typescript library to interact with the Mean Stake program",
   "private": false,
   "repository": {

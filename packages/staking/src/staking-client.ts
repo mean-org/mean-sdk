@@ -10,7 +10,7 @@ import * as anchor from "@project-serum/anchor";
 import { BN, IdlAccounts, parseIdlErrors, Program, ProgramError, Provider, Wallet } from "@project-serum/anchor";
 import { IDL } from './idl/mean_stake';
 import { MeanStake } from "./idl/mean_stake";
-import fetch from 'cross-fetch';
+import {fetch, Headers} from 'cross-fetch';
 
 // CONSTANTS
 const SYSTEM_PROGRAM_ID = anchor.web3.SystemProgram.programId;
@@ -22,14 +22,16 @@ const DECIMALS_BN = new BN(DECIMALS);
 const READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
 const MEAN_STAKE_ID = new PublicKey('MSTKTNxDrVTd32qF8kyaiUhFidmgPaYGU932FbRa7eK');
 
-const mainnetMintAddresses: EnvMintAddresses = {
+const prodEnv: Env = {
     mean: new PublicKey('MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD'),
     sMean: new PublicKey('sMEANebFMnd9uTYpyntGzBmTmzEukRFwCjEcnXT2E8z'),
+    apiUrl: "https://tempo-api.meanops.com",
 };
 
-const testMintAddresses: EnvMintAddresses = {
+const testEnv: Env = {
     mean: new PublicKey('MNZeoVuS87pFssHCbxKHfddvJk4MjmM2RHjQskrk7qs'),
     sMean: new PublicKey('sMNxc4HFhtyY9adKKmE2TBq4poD36moXN8W7YiQMsTA'),
+    apiUrl: "https://tempo-api-dev.meanops.com",
 };
 
 /**
@@ -45,6 +47,7 @@ export class StakingClient {
     private verbose: boolean;
     public mintPubkey: PublicKey = PublicKey.default;
     public xMintPubkey: PublicKey = PublicKey.default;
+    public apiUrl: string = '';
 
     /**
      * Create a Mean Staking client
@@ -68,9 +71,10 @@ export class StakingClient {
         this.connection = this.program.provider.connection;
         this.verbose = verbose;
 
-        const mints = this.cluster === 'mainnet-beta' ? mainnetMintAddresses : testMintAddresses;
-        this.mintPubkey = mints.mean;
-        this.xMintPubkey = mints.sMean;
+        const env = this.cluster === 'mainnet-beta' ? prodEnv : testEnv;
+        this.mintPubkey = env.mean;
+        this.xMintPubkey = env.sMean;
+        this.apiUrl = env.apiUrl;
     }
 
     private static createReadonlyWallet(pubKey: PublicKey): Wallet {
@@ -249,9 +253,9 @@ export class StakingClient {
 
         meanPrice = meanPrice ?? await this.getMeanPrice();
 
-        const [vaultPubkey, _] = await this.findVaultAddress();
+        const [vaultPubkey, ] = await this.findVaultAddress();
+        const [statePubkey, ] = await this.findStateAddress();
         const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
-        console.log(stakeVaultMeanBalanceResponse);
         
         if(!stakeVaultMeanBalanceResponse?.value)
             throw Error("Unable to get stake pool info");
@@ -263,20 +267,24 @@ export class StakingClient {
             .div(sMeanPrice.sMeanToMeanRateE9)
             .toNumber() / E9;
     
+        const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
+        const state = await this.program.account.state.fetch(statePubkey);
+
+        const apr = await this.getApr();
 
         return {
             meanPrice: meanPrice, // sMEAN price TODO
             meanToSMeanRate: meanToSMeanRate, // amount of sMEAN per 1 MEAN
             sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
             totalMeanAmount: stakeVaultMeanBalanceResponse.value,
-            tvl: Math.round(((stakeVaultMeanBalanceResponse.value.uiAmount ?? 0) * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
-            apy: 0,
-            totalMeanRewards: 0,
+            tvl: Math.round((totalMeanUiAmount * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
+            apy: apr,
+            totalMeanRewards: Math.max(totalMeanUiAmount - (state.totalStaked.toNumber() - state.totalUnstaked.toNumber()) / E6, 0) *  meanPrice,
         }
     }
 
-    public getMintAddresses(): EnvMintAddresses {
-        return this.cluster === 'mainnet-beta' ? mainnetMintAddresses : testMintAddresses;
+    public getMintAddresses(): Env {
+        return this.cluster === 'mainnet-beta' ? prodEnv : testEnv;
     }
 
     public async getSMeanPrice(): Promise<sMeanPrice> {
@@ -361,6 +369,31 @@ export class StakingClient {
             throw (error);
         }
     }
+
+    private async getApr(): Promise<number> {
+        
+        try {
+            const apiHeaders = new Headers();
+            apiHeaders.append('content-type', 'application/json;charset=UTF-8');
+            apiHeaders.append('X-Api-Version', '1.0');
+            const options: RequestInit = {
+                method: "GET",
+                headers: apiHeaders
+            }
+
+            const response = await fetch(`${this.apiUrl}/stake-info`, options);
+            
+            if (response.status !== 200) {
+                throw new Error("Unable to get apr");
+            }
+
+            const stakeInfo = (await response.json()) as any;
+            return stakeInfo.apr;
+
+        } catch (error) {
+            throw (error);
+        }
+    }
 }
 
 async function createAtaCreateInstructionIfNotExists(
@@ -410,9 +443,10 @@ async function createAtaCreateInstruction(
     return [ataAddress, ataCreateInstruction];
 }
 
-export type EnvMintAddresses = {
+export type Env = {
     mean: PublicKey,
     sMean: PublicKey,
+    apiUrl: string,
 }
 
 export type StakePoolInfo = {
