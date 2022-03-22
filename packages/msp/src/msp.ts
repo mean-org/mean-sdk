@@ -1442,7 +1442,7 @@ export class MSP {
       true
     );
 
-    const associatedToken = new PublicKey(treasuryInfo.associatedToken as string);
+    const associatedToken = new PublicKey(Constants.WSOL_TOKEN_MINT);
     const destinationToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
