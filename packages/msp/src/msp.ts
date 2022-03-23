@@ -209,11 +209,7 @@ export class MSP {
     let beneficiaryToken = beneficiary;
     const beneficiaryAccountInfo = await this.connection.getAccountInfo(beneficiary);
 
-    if (!beneficiaryAccountInfo) {
-      throw Error("Beneficiary account not found");
-    }
-
-    if (!beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+    if (!beneficiaryAccountInfo || !beneficiaryAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
       
       beneficiaryToken = await Token.getAssociatedTokenAddress(
         ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -594,6 +590,7 @@ export class MSP {
   public async createTreasury (
     payer: PublicKey,
     treasurer: PublicKey,
+    associatedToken: PublicKey,
     label: string,
     type: TreasuryType,
     solFeePayedByTreasury: boolean = false
@@ -612,6 +609,14 @@ export class MSP {
       this.program.programId
     );
 
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      treasury,
+      true
+    );
+
     let tx = this.program.transaction.createTreasury(
       new BN(slot),
       treasuryBump,
@@ -626,7 +631,10 @@ export class MSP {
           treasurer: treasurer,
           treasury: treasury,
           treasuryMint: treasuryMint,
+          treasuryToken: treasuryToken,
+          associatedToken: associatedToken,
           feeTreasury: Constants.FEE_TREASURY,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: SYSVAR_RENT_PUBKEY

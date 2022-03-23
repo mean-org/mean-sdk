@@ -28,8 +28,23 @@ const IDL: Idl = {
           "isSigner": false
         },
         {
+          "name": "treasuryToken",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedToken",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "feeTreasury",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -713,7 +728,7 @@ const IDL: Idl = {
         },
         {
           "name": "destinationAuthority",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
