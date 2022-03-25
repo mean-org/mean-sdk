@@ -291,6 +291,16 @@ export class MSP {
     const [treasury, treasuryBump] = await PublicKey.findProgramAddress(treasurySeeds, this.program.programId);
     const treasuryMintSeeds = [treasurer.toBuffer(), treasury.toBuffer(), slotBuffer];
     const [treasuryMint, treasuryMintBump] = await PublicKey.findProgramAddress(treasuryMintSeeds, this.program.programId);
+
+    // Get the treasury token account
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      mint,
+      treasury,
+      true
+    );
+    
     // Get the treasury pool treasurer token
     const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -316,22 +326,16 @@ export class MSP {
             treasurer: treasurer,
             treasury: treasury,
             treasuryMint: treasuryMint,
+            treasuryToken: treasuryToken,
+            associatedToken: mint,
             feeTreasury: Constants.FEE_TREASURY,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
             rent: SYSVAR_RENT_PUBKEY
           }
         }
       )
-    );
-
-    // Get the treasury token account
-    const treasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      mint,
-      treasury,
-      true
     );
 
     const feeTreasuryToken = await Token.getAssociatedTokenAddress(
@@ -461,6 +465,15 @@ export class MSP {
       this.program.programId
     );
 
+    // Get the treasury token account
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      mint,
+      treasury,
+      true
+    );
+
     // Get the treasury pool treasurer token
     const treasurerTreasuryToken = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -486,7 +499,10 @@ export class MSP {
             treasurer: treasurer,
             treasury: treasury,
             treasuryMint: treasuryMint,
+            treasuryToken: treasuryToken,
+            associatedToken: mint,
             feeTreasury: Constants.FEE_TREASURY,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
             rent: SYSVAR_RENT_PUBKEY
@@ -501,15 +517,6 @@ export class MSP {
       TOKEN_PROGRAM_ID,
       mint,
       treasurer,
-      true
-    );
-
-    // Get the treasury token account
-    const treasuryToken = await Token.getAssociatedTokenAddress(
-      ASSOCIATED_TOKEN_PROGRAM_ID,
-      TOKEN_PROGRAM_ID,
-      mint,
-      treasury,
       true
     );
 
