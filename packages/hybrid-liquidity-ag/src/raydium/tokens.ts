@@ -21,6 +21,15 @@ export const TOKENS: Tokens = {
     logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
     tags: ['raydium']
   },
+  MEAN: {
+    chainId: 101,
+    address: "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
+    symbol: "MEAN",
+    name: "MEAN",
+    decimals: 6,
+    logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD/logo.svg",
+    tags: ['raydium']
+  },
   BTC: {
     symbol: 'BTC',
     name: 'Wrapped Bitcoin',

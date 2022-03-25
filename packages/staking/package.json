@@ -1,7 +1,7 @@
 {
-  "name": "@mean-dao/ddca",
-  "version": "1.2.33",
-  "description": "Typescript library to interact with the Decentralized DCA program",
+  "name": "@mean-dao/staking",
+  "version": "0.1.10",
+  "description": "Typescript library to interact with the Mean Stake program",
   "private": false,
   "repository": {
     "type": "git",
@@ -10,7 +10,8 @@
   "keywords": [
     "mean-dao",
     "mean-protocol",
-    "ddca"
+    "stake",
+    "staking"
   ],
   "bugs": {
     "url": "https://github.com/mean-dao/mean-sdk/issues"
@@ -19,8 +20,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@project-serum/anchor": "^0.17.0",
-    "@solana/spl-token": "^0.1.8"
+    "@project-serum/anchor": "^0.22.1",
+    "@solana/spl-token": "^0.1.8",
+    "cross-fetch": "^3.1.5"
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.1",
@@ -30,7 +32,8 @@
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
   "files": [
-    "lib/*.*"
+    "lib/*.*",
+    "lib/idl/*.*"
   ],
   "scripts": {
     "build": "tsc",

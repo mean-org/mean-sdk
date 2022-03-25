@@ -16,7 +16,6 @@ import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } f
 import { AMM_POOLS, PROTOCOLS } from "../data";
 import { NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "../types";
 import { TokenSwap } from "@solana/spl-token-swap";
-import { getAmmPools } from "../utils";
 import Decimal from "decimal.js";
 import BN from "bn.js";
 

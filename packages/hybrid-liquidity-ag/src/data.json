@@ -26,6 +26,17 @@
     },
     {
       "chainId": 101,
+      "address": "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
+      "symbol": "MEAN",
+      "name": "MEAN",
+      "decimals": 6,
+      "logoURI": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD/logo.svg",
+      "extensions": {
+        "serumV3Usdc": "3WXrxhrj4PXYUwW4ozBjxdSxwEp9ELKf3vETxXTqdiQJ"
+      }
+    },
+    {
+      "chainId": 101,
       "address": "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
       "name": "Wrapped Bitcoin (Sollet)",
       "symbol": "BTC",
@@ -728,6 +739,17 @@
       "tokenAddresses": [
         "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E",
         "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"
+      ]
+    },
+    {
+      "chainId": 101,
+      "protocolAddress": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "ammAddress": "4jhCSYuGkLCiB8uvCaS34QCtPycBjayxEk27YCartTuW",
+      "address": "F5BTnwuMA6rxftTdbZ33VWKr2wrr6DuQHnd4guKmPSYQ",
+      "name": "MEAN_USDC",
+      "tokenAddresses": [
+        "MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD",
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
       ]
     }
   ]

@@ -25,6 +25,7 @@
     "install:ddca": "cd ../../../ && npm i -S @mean-dao/ddca",
     "install:hla": "cd ../../../ && npm i -S @mean-dao/hybrid-liquidity-ag",
     "install:ms": "cd ../../../ && npm i -S @mean-dao/money-streaming",
+    "install:msp": "cd ../../../ && npm i -S @mean-dao/msp",
     "install": "run-p install:*"
   }
 }

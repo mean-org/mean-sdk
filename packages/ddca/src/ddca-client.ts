@@ -654,6 +654,7 @@ export class DdcaClient {
                     // operating
                     operatingAccount: DDCA_OPERATING_ACCOUNT_ADDRESS,
                     operatingToTokenAccount: ddcaOperatingToTokenAccountAddress,
+                    toMint: toMint,
                     // system accounts
                     rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                     systemProgram: SYSTEM_PROGRAM_ID,
@@ -806,6 +807,8 @@ export class DdcaClient {
                     ownerFromTokenAccount: ownerFromTokenAccountAddress,
                     ownerToTokenAccount: ownerToTokenAccountAddress,
                     // ddca
+                    fromMint: fromMint,
+                    toMint: toMint,
                     ddcaAccount: ddcaAccountAddress,
                     ddcaFromTokenAccount: ddcaFromTokenAccountAddress,
                     ddcaToTokenAccount: ddcaToTokenAccountAddress,
@@ -814,8 +817,10 @@ export class DdcaClient {
                     operatingFromTokenAccount: ddcaOperatingFromTokenAccountAddress,
                     operatingToTokenAccount: ddcaOperatingToTokenAccountAddress,
                     // system accounts
+                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
                     tokenProgram: TOKEN_PROGRAM_ID,
                     systemProgram: SYSTEM_PROGRAM_ID,
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                 },
                 instructions: ixs,
             }

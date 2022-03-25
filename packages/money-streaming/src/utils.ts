@@ -127,8 +127,9 @@ const parseStreamV0Data = (
 
 ): StreamInfo => {
 
-  let stream: StreamInfo = defaultStreamInfo;
+  let stream: StreamInfo = defaultStreamInfo;  
   let decodedData = Layout.streamV0Layout.decode(streamData);
+  console.log('decodedData', decodedData);
   let fundedOnTimeUtc = decodedData.funded_on_utc;
   let startTimeUtc = decodedData.start_utc;
 
@@ -332,13 +333,15 @@ const parseStreamData = (
     escrowVestedAmountSnap += decodedData.cliff_vest_amount;
   }
 
+  const allocation = decodedData.allocation_assigned > 0 ? decodedData.allocation_assigned : decodedData.allocation_reserved;
+
   if (decodedData.cliff_vest_percent > 0) {
-    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
+    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * allocation / 100);
   }
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
-    : 0;
+    : 1;
 
   if (isScheduled) {
     escrowVestedAmount = 0;
