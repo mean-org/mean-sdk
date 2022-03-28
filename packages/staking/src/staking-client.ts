@@ -121,7 +121,7 @@ export class StakingClient {
 
     public async findStateAddress(): Promise<[PublicKey, number]> {
         return await anchor.web3.PublicKey.findProgramAddress(
-            [this.mintPubkey.toBuffer(), Buffer.from(anchor.utils.bytes.utf8.encode("state"))],
+            [this.mintPubkey.toBuffer(), Buffer.from(anchor.utils.bytes.utf8.encode("staking-state"))],
             this.program.programId
         );
     }
