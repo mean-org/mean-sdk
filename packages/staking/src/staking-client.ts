@@ -172,7 +172,7 @@ export class StakingClient {
                     tokenFromAuthority: this.program.provider.wallet.publicKey,
                     tokenVault: vaultPubkey,
                     xTokenTo: walletXTokenAccount,
-                    state: statePubkey,
+                    stakingState: statePubkey,
                     tokenProgram: TOKEN_PROGRAM_ID,
                 },
             }
@@ -233,7 +233,7 @@ export class StakingClient {
                     xTokenFromAuthority: this.program.provider.wallet.publicKey,
                     tokenVault: vaultPubkey,
                     tokenTo: walletTokenAccount,
-                    state: statePubkey,
+                    stakingState: statePubkey,
                     tokenProgram: TOKEN_PROGRAM_ID,
                 },
             }
@@ -268,7 +268,7 @@ export class StakingClient {
             .toNumber() / E9;
     
         const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
-        const state = await this.program.account.state.fetch(statePubkey);
+        const state = await this.program.account.stakingState.fetch(statePubkey);
 
         const apr = await this.getApr();
 

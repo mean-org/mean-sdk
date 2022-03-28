@@ -21,7 +21,7 @@ export type MeanStake = {
           "isSigner": true
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -67,7 +67,7 @@ export type MeanStake = {
           "isSigner": true
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -113,7 +113,7 @@ export type MeanStake = {
           "isSigner": false
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -164,7 +164,7 @@ export type MeanStake = {
           "isSigner": false
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -201,113 +201,9 @@ export type MeanStake = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "updateState",
-      "accounts": [
-        {
-          "name": "tokenMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "initializer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "totalUnstaked",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "migrateState",
-      "accounts": [
-        {
-          "name": "tokenMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "initializer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "stakingState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
-    {
-      "name": "state",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "tokenVaultBump",
-            "type": "u8"
-          },
-          {
-            "name": "stateBump",
-            "type": "u8"
-          },
-          {
-            "name": "totalStaked",
-            "type": "u64"
-          },
-          {
-            "name": "totalStakes",
-            "type": "u64"
-          },
-          {
-            "name": "totalUnstaked",
-            "type": "u64"
-          },
-          {
-            "name": "totalUnstakes",
-            "type": "u64"
-          }
-        ]
-      }
-    },
     {
       "name": "stakingState",
       "type": {
@@ -454,7 +350,7 @@ export const IDL: MeanStake = {
           "isSigner": true
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -500,7 +396,7 @@ export const IDL: MeanStake = {
           "isSigner": true
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -546,7 +442,7 @@ export const IDL: MeanStake = {
           "isSigner": false
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -597,7 +493,7 @@ export const IDL: MeanStake = {
           "isSigner": false
         },
         {
-          "name": "state",
+          "name": "stakingState",
           "isMut": true,
           "isSigner": false
         },
@@ -634,113 +530,9 @@ export const IDL: MeanStake = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "updateState",
-      "accounts": [
-        {
-          "name": "tokenMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "initializer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "totalUnstaked",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "migrateState",
-      "accounts": [
-        {
-          "name": "tokenMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "initializer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "stakingState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [
-    {
-      "name": "state",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "tokenVaultBump",
-            "type": "u8"
-          },
-          {
-            "name": "stateBump",
-            "type": "u8"
-          },
-          {
-            "name": "totalStaked",
-            "type": "u64"
-          },
-          {
-            "name": "totalStakes",
-            "type": "u64"
-          },
-          {
-            "name": "totalUnstaked",
-            "type": "u64"
-          },
-          {
-            "name": "totalUnstakes",
-            "type": "u64"
-          }
-        ]
-      }
-    },
     {
       "name": "stakingState",
       "type": {
