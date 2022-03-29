@@ -271,7 +271,7 @@ export class StakingClient {
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
 
         const tx = await this.program.transaction.deposit(
-            new anchor.BN(depositPercentage * 1_000_000),
+            new anchor.BN(depositPercentage * 10_000),
             {
                 preInstructions: ixs,
                 accounts: {
@@ -292,6 +292,39 @@ export class StakingClient {
         tx.recentBlockhash = hash.blockhash;
 
         return tx;
+    }
+
+    private getDepositRecords(depositsRaw: any[], lenght: number, numberOfDays: number): DepositRecord[] {
+        const deposits: DepositRecord[] = [];
+        if (lenght === 0) {
+            return deposits;
+        }
+
+        numberOfDays = Math.min(depositsRaw.length, numberOfDays);
+        const nowTs = Math.floor(Date.now() / 1000);
+        const todayStartTs = Math.floor(nowTs / 86400) * 86400;
+        const historyStartTs = todayStartTs - 86400 * numberOfDays;
+
+        for (let i = 0; i < lenght; i++) {
+
+            const depositRaw = depositsRaw[i];
+            if (depositRaw.depositedTs < historyStartTs) {
+                continue;
+            }
+
+            const deposit: DepositRecord = {
+                totalStakeUiAmount: depositRaw.totalStaked.toNumber() / E6,
+                totalStakedPlusRewardsUiAmount: depositRaw.totalStakedPlusRewards.toNumber() / E6,
+                depositedTs: depositRaw.depositedTs,
+                depositedUtc: tsToUTCString(depositRaw.depositedTs.toNumber()),
+                depositedPercentage: depositRaw.depositedPercentageE4.toNumber() / 10_000,
+                depositedUiAmount: depositRaw.depositedAmount.toNumber() / E6,
+            };
+
+            deposits.push(deposit);
+        }
+
+        return deposits;
     }
 
     public async getStakePoolInfo(meanPrice?: number): Promise<StakePoolInfo> {
@@ -316,18 +349,9 @@ export class StakingClient {
     
         const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
         const state = await this.program.account.stakingState.fetch(statePubkey);
-        const records: DepositRecord[] = (state.deposits as any[]).map(d => {
-                const r: DepositRecord = {
-                totalStakeUiAmount: d.totalStaked.toNumber() / E6,
-                totalStakedPlusRewardsUiAmount: d.totalStakedPlusRewards.toNumber() / E6,
-                depositedUtc: tsToUTCString(d.depositedTs.toNumber()),
-                depositedPercentage: d.depositedPercentageE4.toNumber() / 10_000,
-                depositedUiAmount: d.depositedAmount.toNumber() / E6,
-            };
-            return r;
-        });
-
-        const apr = this.calculateApr(records);
+        const depositsRaw = state.deposits as any[];
+        const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), 7);
+        const apr = this.calculateApr(deposits);
 
         return {
             meanPrice: meanPrice, // sMEAN price TODO
@@ -428,28 +452,21 @@ export class StakingClient {
     }
 
     private calculateApr(depositRecords: DepositRecord[]): number {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
         return 0;
     }
 
     public async getDepositsInfo(): Promise<DepositsInfo> {
         const [statePubkey, ] = await this.findStateAddress();
         const state = await this.program.account.stakingState.fetch(statePubkey);
-        const records: DepositRecord[] = (state.deposits as any[]).map(d => {
-                const r: DepositRecord = {
-                totalStakeUiAmount: d.totalStaked.toNumber() / E6,
-                totalStakedPlusRewardsUiAmount: d.totalStakedPlusRewards.toNumber() / E6,
-                depositedUtc: tsToUTCString(d.depositedTs.toNumber()),
-                depositedPercentage: d.depositedPercentageE4.toNumber() / 10_000,
-                depositedUiAmount: d.depositedAmount.toNumber() / E6,
-            };
-            return r;
-        });
-
-        const apr = this.calculateApr(records);
+        const depositsRaw = state.deposits as any[];
+        const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), 7);
+        const apr = this.calculateApr(deposits);
 
         return {
             apr: apr,
-            depositRecords: records,
+            depositRecords: deposits,
         }
     }
 }
@@ -549,7 +566,7 @@ export type DepositRecord = {
     totalStakeUiAmount: number,
     // totalStakedPlusRewards: BN,
     totalStakedPlusRewardsUiAmount: number,
-    // depositedTs: BN,
+    depositedTs: BN,
     depositedUtc: string,
     // depositedPercentageE4: BN,
     depositedPercentage: number,
