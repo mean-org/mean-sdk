@@ -201,6 +201,47 @@ export type MeanStake = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "deposit",
+      "accounts": [
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenFrom",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenFromAuthority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "stakingState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "depositPercentageE4",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -245,7 +286,7 @@ export type MeanStake = {
             "name": "deposits",
             "type": {
               "vec": {
-                "defined": "Deposit"
+                "defined": "DepositRecord"
               }
             }
           }
@@ -255,7 +296,7 @@ export type MeanStake = {
   ],
   "types": [
     {
-      "name": "Deposit",
+      "name": "DepositRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -268,15 +309,15 @@ export type MeanStake = {
             "type": "u64"
           },
           {
-            "name": "addedTs",
+            "name": "depositedTs",
             "type": "u64"
           },
           {
-            "name": "addedPercentageE4",
+            "name": "depositedPercentageE4",
             "type": "u64"
           },
           {
-            "name": "addedAmount",
+            "name": "depositedAmount",
             "type": "u64"
           }
         ]
@@ -323,6 +364,13 @@ export type MeanStake = {
           "index": false
         }
       ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Deposit amount is invalid"
     }
   ]
 };
@@ -530,6 +578,47 @@ export const IDL: MeanStake = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "deposit",
+      "accounts": [
+        {
+          "name": "tokenMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenFrom",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenFromAuthority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "stakingState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "depositPercentageE4",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -574,7 +663,7 @@ export const IDL: MeanStake = {
             "name": "deposits",
             "type": {
               "vec": {
-                "defined": "Deposit"
+                "defined": "DepositRecord"
               }
             }
           }
@@ -584,7 +673,7 @@ export const IDL: MeanStake = {
   ],
   "types": [
     {
-      "name": "Deposit",
+      "name": "DepositRecord",
       "type": {
         "kind": "struct",
         "fields": [
@@ -597,15 +686,15 @@ export const IDL: MeanStake = {
             "type": "u64"
           },
           {
-            "name": "addedTs",
+            "name": "depositedTs",
             "type": "u64"
           },
           {
-            "name": "addedPercentageE4",
+            "name": "depositedPercentageE4",
             "type": "u64"
           },
           {
-            "name": "addedAmount",
+            "name": "depositedAmount",
             "type": "u64"
           }
         ]
@@ -652,6 +741,13 @@ export const IDL: MeanStake = {
           "index": false
         }
       ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Deposit amount is invalid"
     }
   ]
 };

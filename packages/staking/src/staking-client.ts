@@ -247,6 +247,53 @@ export class StakingClient {
         return tx;
     }
 
+    /**
+     * 
+     * @param depositPercentage 0-1 based percentage
+     * @returns 
+     */
+    public async depositTransaction(depositPercentage: number): Promise<Transaction> {
+
+        if (!this.walletPubKey)
+            throw new Error("Wallet not connected");
+
+        const [vaultPubkey, vaultBump] = await this.findVaultAddress();
+        const [statePubkey, stateBump] = await this.findStateAddress();
+
+        const walletTokenAccount = await Token.getAssociatedTokenAddress(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            this.mintPubkey,
+            this.program.provider.wallet.publicKey,
+        );
+
+        // Instructions
+        let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
+
+        const tx = await this.program.transaction.deposit(
+            new anchor.BN(depositPercentage * 1_000_000),
+            {
+                preInstructions: ixs,
+                accounts: {
+                    tokenMint: this.mintPubkey,
+                    tokenFrom: walletTokenAccount,
+                    tokenFromAuthority: this.program.provider.wallet.publicKey,
+                    tokenVault: vaultPubkey,
+                    stakingState: statePubkey,
+                    tokenProgram: TOKEN_PROGRAM_ID,
+                },
+            }
+        );
+
+        tx.feePayer = this.program.provider.wallet.publicKey;
+        // this line fails in local with 'failed to get recent blockhash: Error: failed to get latest blockhash: Method not found'
+        // let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
+        let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
+        tx.recentBlockhash = hash.blockhash;
+
+        return tx;
+    }
+
     public async getStakePoolInfo(meanPrice?: number): Promise<StakePoolInfo> {
         if(meanPrice && meanPrice < 0)
             throw new Error("Invalid price input");
@@ -269,8 +316,18 @@ export class StakingClient {
     
         const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
         const state = await this.program.account.stakingState.fetch(statePubkey);
+        const records: DepositRecord[] = (state.deposits as any[]).map(d => {
+                const r: DepositRecord = {
+                totalStakeUiAmount: d.totalStaked.toNumber() / E6,
+                totalStakedPlusRewardsUiAmount: d.totalStakedPlusRewards.toNumber() / E6,
+                depositedUtc: tsToUTCString(d.depositedTs.toNumber()),
+                depositedPercentage: d.depositedPercentageE4.toNumber() / 10_000,
+                depositedUiAmount: d.depositedAmount.toNumber() / E6,
+            };
+            return r;
+        });
 
-        const apr = await this.getApr();
+        const apr = this.calculateApr(records);
 
         return {
             meanPrice: meanPrice, // sMEAN price TODO
@@ -278,7 +335,7 @@ export class StakingClient {
             sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
             totalMeanAmount: stakeVaultMeanBalanceResponse.value,
             tvl: Math.round((totalMeanUiAmount * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
-            apy: apr,
+            apr: apr,
             totalMeanRewards: Math.max(totalMeanUiAmount - (state.totalStaked.toNumber() - state.totalUnstaked.toNumber()) / E6, 0) *  meanPrice,
         }
     }
@@ -370,28 +427,29 @@ export class StakingClient {
         }
     }
 
-    private async getApr(): Promise<number> {
-        
-        try {
-            const apiHeaders = new Headers();
-            apiHeaders.append('content-type', 'application/json;charset=UTF-8');
-            apiHeaders.append('X-Api-Version', '1.0');
-            const options: RequestInit = {
-                method: "GET",
-                headers: apiHeaders
-            }
+    private calculateApr(depositRecords: DepositRecord[]): number {
+        return 0;
+    }
 
-            const response = await fetch(`${this.apiUrl}/stake-info`, options);
-            
-            if (response.status !== 200) {
-                throw new Error("Unable to get apr");
-            }
+    public async getDepositsInfo(): Promise<DepositsInfo> {
+        const [statePubkey, ] = await this.findStateAddress();
+        const state = await this.program.account.stakingState.fetch(statePubkey);
+        const records: DepositRecord[] = (state.deposits as any[]).map(d => {
+                const r: DepositRecord = {
+                totalStakeUiAmount: d.totalStaked.toNumber() / E6,
+                totalStakedPlusRewardsUiAmount: d.totalStakedPlusRewards.toNumber() / E6,
+                depositedUtc: tsToUTCString(d.depositedTs.toNumber()),
+                depositedPercentage: d.depositedPercentageE4.toNumber() / 10_000,
+                depositedUiAmount: d.depositedAmount.toNumber() / E6,
+            };
+            return r;
+        });
 
-            const stakeInfo = (await response.json()) as any;
-            return stakeInfo.apr;
+        const apr = this.calculateApr(records);
 
-        } catch (error) {
-            throw (error);
+        return {
+            apr: apr,
+            depositRecords: records,
         }
     }
 }
@@ -443,6 +501,10 @@ async function createAtaCreateInstruction(
     return [ataAddress, ataCreateInstruction];
 }
 
+function tsToUTCString(ts: number): string {
+    return ts === 0 ? '' : new Date(ts * 1000).toUTCString();
+}
+
 export type Env = {
     mean: PublicKey,
     sMean: PublicKey,
@@ -455,7 +517,7 @@ export type StakePoolInfo = {
     sMeanToMeanRate: number, // amount of MEAN per 1 sMEAN
     totalMeanAmount: anchor.web3.TokenAmount,
     tvl: number, // USD
-    apy: number, // 1-based percentage
+    apr: number, // 1-based percentage
     totalMeanRewards: number, // USD
 }
 
@@ -480,4 +542,22 @@ export type UnstakeQuote = {
     meanOutUiAmount: number,
     sMeanToMeanRateE9: BN,
     sMeanToMeanRateUiAmount: number,
+}
+
+export type DepositRecord = {
+    // totalStaked: BN,
+    totalStakeUiAmount: number,
+    // totalStakedPlusRewards: BN,
+    totalStakedPlusRewardsUiAmount: number,
+    // depositedTs: BN,
+    depositedUtc: string,
+    // depositedPercentageE4: BN,
+    depositedPercentage: number,
+    // depositedAmount: BN,
+    depositedUiAmount: number,
+}
+
+export type DepositsInfo = {
+    apr: number, // 1-based percentage
+    depositRecords: DepositRecord[],
 }
