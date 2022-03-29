@@ -316,7 +316,7 @@ export class StakingClient {
             const deposit: DepositRecord = {
                 totalStakeUiAmount: depositRaw.totalStaked.toNumber() / E6,
                 totalStakedPlusRewardsUiAmount: depositRaw.totalStakedPlusRewards.toNumber() / E6,
-                depositedTs: depositRaw.depositedTs,
+                depositedTs: depositRaw.depositedTs.toNumber(),
                 depositedUtc: tsToUTCString(depositRaw.depositedTs.toNumber()),
                 depositedPercentage: depositRaw.depositedPercentageE4.toNumber() / 10_000,
                 depositedUiAmount: depositRaw.depositedAmount.toNumber() / E6,
@@ -325,6 +325,7 @@ export class StakingClient {
             deposits.push(deposit);
         }
 
+        deposits.sort((a, b) => b.depositedTs - a.depositedTs);
         return deposits;
     }
 
@@ -460,7 +461,7 @@ export class StakingClient {
         const group: { [id: number] : DepositRecord[] } = {};
         for (let i = 0; i < depositRecords.length; i++) {
             const d = depositRecords[i];
-            const tsKey = Math.floor(d.depositedTs.toNumber() / 86400) * 86400;
+            const tsKey = Math.floor(d.depositedTs / 86400) * 86400;
             if(!(tsKey in group)) {
                 group[tsKey] = [d];
             }
@@ -471,7 +472,7 @@ export class StakingClient {
 
         const aprs: number[] = [];
         for (var k in group) {
-            group[k].sort((a, b) => b.depositedTs.toNumber() - a.depositedTs.toNumber());
+            group[k].sort((a, b) => b.depositedTs - a.depositedTs);
             const dayRoi = group[k]
                 .map(d => d.depositedUiAmount / d.totalStakedPlusRewardsUiAmount)
                 .reduce((partialSum, r) => partialSum + r);
@@ -591,7 +592,7 @@ export type DepositRecord = {
     totalStakeUiAmount: number,
     // totalStakedPlusRewards: BN,
     totalStakedPlusRewardsUiAmount: number,
-    depositedTs: BN,
+    depositedTs: number,
     depositedUtc: string,
     // depositedPercentageE4: BN,
     depositedPercentage: number,
