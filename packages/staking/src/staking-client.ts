@@ -351,7 +351,7 @@ export class StakingClient {
         const state = await this.program.account.stakingState.fetch(statePubkey);
         const depositsRaw = state.deposits as any[];
         const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), 7);
-        const apr = this.calculateApr(deposits);
+        const apr = this.calculateApr(deposits, 0); // todo
 
         return {
             meanPrice: meanPrice, // sMEAN price TODO
@@ -451,10 +451,34 @@ export class StakingClient {
         }
     }
 
-    private calculateApr(depositRecords: DepositRecord[]): number {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        return 0;
+    private calculateApr(depositRecords: DepositRecord[], latestStakedPlusRewardsAmount: number): number {
+        if(depositRecords.length === 0) {
+            return 0;
+        }
+        
+        const group: { [id: number] : DepositRecord[] } = {};
+        for (let i = 0; i < depositRecords.length; i++) {
+            const d = depositRecords[i];
+            const tsKey = Math.floor(d.depositedTs.toNumber() / 86400) * 86400;
+            if(!(tsKey in group)) {
+                group[tsKey] = [d];
+            }
+            else {
+                group[tsKey].push(d);
+            }
+        }
+
+        const aprs: number[] = [];
+        for (var k in group) {
+            group[k].sort((a, b) => b.depositedTs.toNumber() - a.depositedTs.toNumber());
+            const dayRoi = group[k]
+                .map(d => d.depositedUiAmount / d.totalStakedPlusRewardsUiAmount)
+                .reduce((partialSum, r) => partialSum + r);
+            aprs.push(dayRoi);
+        }
+
+        const apr = aprs.reduce((partialSum, a) => partialSum + a);
+        return apr;
     }
 
     public async getDepositsInfo(): Promise<DepositsInfo> {
@@ -462,7 +486,7 @@ export class StakingClient {
         const state = await this.program.account.stakingState.fetch(statePubkey);
         const depositsRaw = state.deposits as any[];
         const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), 7);
-        const apr = this.calculateApr(deposits);
+        const apr = this.calculateApr(deposits, 0); // todo
 
         return {
             apr: apr,
