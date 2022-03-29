@@ -21,6 +21,7 @@ const E9 = 1_000_000_000;
 const DECIMALS_BN = new BN(DECIMALS);
 const READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
 const MEAN_STAKE_ID = new PublicKey('MSTKTNxDrVTd32qF8kyaiUhFidmgPaYGU932FbRa7eK');
+const DEPOSITS_HISTORY_N_DAYS = 7;
 
 const prodEnv: Env = {
     mean: new PublicKey('MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD'),
@@ -350,7 +351,7 @@ export class StakingClient {
         const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
         const state = await this.program.account.stakingState.fetch(statePubkey);
         const depositsRaw = state.deposits as any[];
-        const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), 7);
+        const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), DEPOSITS_HISTORY_N_DAYS);
         const apr = this.calculateApr(deposits, 0); // todo
 
         return {
@@ -477,7 +478,7 @@ export class StakingClient {
             aprs.push(dayRoi);
         }
 
-        const apr = aprs.reduce((partialSum, a) => partialSum + a);
+        const apr = aprs.reduce((partialSum, a) => partialSum + a) / DEPOSITS_HISTORY_N_DAYS;
         return apr;
     }
 
@@ -485,7 +486,7 @@ export class StakingClient {
         const [statePubkey, ] = await this.findStateAddress();
         const state = await this.program.account.stakingState.fetch(statePubkey);
         const depositsRaw = state.deposits as any[];
-        const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), 7);
+        const deposits = this.getDepositRecords(depositsRaw, Math.min(state.depositsHead.toNumber(), depositsRaw.length), DEPOSITS_HISTORY_N_DAYS);
         const apr = this.calculateApr(deposits, 0); // todo
 
         return {
