@@ -561,8 +561,9 @@ export class StakingClient {
         let aprSum = dayDeposits
             .map(d => d.totalApr)
             .reduce((partialSum, a) => partialSum + a);
-        aprSum += dayDeposits[0].totalDepositedUiAmount / (latestStakedPlusRewardsAmount.toNumber() / 1_000_000) * 365;
-        const apr = aprSum / (DEPOSITS_HISTORY_N_DAYS + 2)
+        // aprSum += dayDeposits[0].totalDepositedUiAmount / (latestStakedPlusRewardsAmount.toNumber() / 1_000_000) * 365;
+        // const apr = aprSum / (DEPOSITS_HISTORY_N_DAYS + 2);
+        const apr = aprSum / (DEPOSITS_HISTORY_N_DAYS + 1)
         return apr;
     }
 
