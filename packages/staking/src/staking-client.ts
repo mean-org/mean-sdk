@@ -308,10 +308,14 @@ export class StakingClient {
             throw Error("Unable to get sMEAN token supply");
         const sMeanSupplyAmount = new BN(sMeanSupplyResponse.value.amount ?? 0);
 
-        return {
+        const amounts: StakeTokenAmounts = {
             meanPoolTotalAmount: totalMeanAmount,
             sMeanTotalSupply: sMeanSupplyAmount,
         }
+        // console.log("amounts.meanPoolTotalAmount:", amounts.meanPoolTotalAmount.toNumber());
+        // console.log("amounts.sMeanTotalSupply:", amounts.sMeanTotalSupply.toNumber());
+        
+        return amounts;
 
     }
 
@@ -392,7 +396,7 @@ export class StakingClient {
         if(meanUiAmount === 0)
             throw new Error("Invalid input amount");
 
-        console.log(`meanUiAmount * E6: ${meanUiAmount * E6}`);
+        // console.log(`meanUiAmount * E6: ${meanUiAmount * E6}`);
         
         const meanIn = new BN(meanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
@@ -419,7 +423,7 @@ export class StakingClient {
         if(sMeanUiAmount === 0)
             throw new Error("Invalid input amount");
             
-        console.log(`sMeanUiAmount * E6: ${sMeanUiAmount * E6}`);
+        // console.log(`sMeanUiAmount * E6: ${sMeanUiAmount * E6}`);
 
         const sMeanIn = new BN(sMeanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
@@ -501,6 +505,9 @@ export class StakingClient {
         hasMissingDepositsData: boolean,
         historyStartTs: number,
         ): number {
+
+        return 0.21; // TODO
+
         if(depositRecords.length === 0) {
             return 0;
         }
@@ -547,11 +554,11 @@ export class StakingClient {
         if(dayDeposits.length < DEPOSITS_HISTORY_N_DAYS && hasMissingDepositsData) {
             const lastDayDeposit = dayDeposits[dayDeposits.length - 1];
             const nDaysToFill = (lastDayDeposit.dayTs - historyStartTs) / 86400;
-            console.log(`\nnDaysToFill: ${nDaysToFill}`);
+            // console.log(`\nnDaysToFill: ${nDaysToFill}`);
             for (let i = 0; i < nDaysToFill; i++) {
                 dayDeposits.push(lastDayDeposit);  
             }
-            console.log(`\ndayDeposits: ${dayDeposits}`);
+            // console.log(`\ndayDeposits: ${dayDeposits}`);
         }
 
         // const apr = dayDeposits
