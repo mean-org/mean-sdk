@@ -295,6 +295,26 @@ export class StakingClient {
         return tx;
     }
 
+    public async getStakeTokenAmounts(): Promise<StakeTokenAmounts> {
+
+        const [vaultPubkey, ] = await this.findVaultAddress();
+        const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
+        if(!stakeVaultMeanBalanceResponse?.value)
+            throw Error("Unable to MEAN token balance");
+        const totalMeanAmount = new BN(stakeVaultMeanBalanceResponse.value.amount ?? 0);
+
+        const sMeanSupplyResponse = await this.connection.getTokenSupply(this.xMintPubkey)
+        if(!sMeanSupplyResponse?.value)
+            throw Error("Unable to get sMEAN token supply");
+        const sMeanSupplyAmount = new BN(sMeanSupplyResponse.value.amount ?? 0);
+
+        return {
+            meanPoolTotalAmount: totalMeanAmount,
+            sMeanTotalSupply: sMeanSupplyAmount,
+        }
+
+    }
+
     public async getStakePoolInfo(meanPrice?: number): Promise<StakePoolInfo> {
         if(meanPrice && meanPrice <= 0)
             throw new Error("Invalid price input");
@@ -372,11 +392,18 @@ export class StakingClient {
         if(meanUiAmount === 0)
             throw new Error("Invalid input amount");
 
+        console.log(`meanUiAmount * E6: ${meanUiAmount * E6}`);
+        
         const meanIn = new BN(meanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
+        // const sMeanOut = meanIn
+        //     .mul(new BN(E9))
+        //     .div(sMeanPrice.sMeanToMeanRateE9);
+
+        const stakeTokenAmounts = await this.getStakeTokenAmounts();
         const sMeanOut = meanIn
-            .mul(new BN(E9))
-            .div(sMeanPrice.sMeanToMeanRateE9);
+            .mul(stakeTokenAmounts.sMeanTotalSupply)
+            .div(stakeTokenAmounts.meanPoolTotalAmount);
 
         return {
             meanIn: meanIn,
@@ -391,12 +418,19 @@ export class StakingClient {
     public async getUnstakeQuote(sMeanUiAmount: number): Promise<UnstakeQuote> {
         if(sMeanUiAmount === 0)
             throw new Error("Invalid input amount");
+            
+        console.log(`sMeanUiAmount * E6: ${sMeanUiAmount * E6}`);
 
         const sMeanIn = new BN(sMeanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
+        // const meanOut = sMeanIn
+        //     .mul(sMeanPrice.sMeanToMeanRateE9)
+        //     .div(new BN(10 ** 9));
+        
+        const stakeTokenAmounts = await this.getStakeTokenAmounts();
         const meanOut = sMeanIn
-            .mul(sMeanPrice.sMeanToMeanRateE9)
-            .div(new BN(10 ** 9));
+            .mul(stakeTokenAmounts.meanPoolTotalAmount)
+            .div(stakeTokenAmounts.sMeanTotalSupply);
 
         return {
             sMeanIn: sMeanIn,
@@ -616,6 +650,11 @@ export type Env = {
     mean: PublicKey,
     sMean: PublicKey,
     apiUrl: string,
+}
+
+export type StakeTokenAmounts = {
+    meanPoolTotalAmount: BN,
+    sMeanTotalSupply: BN,
 }
 
 export type StakePoolInfo = {
