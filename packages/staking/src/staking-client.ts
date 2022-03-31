@@ -66,7 +66,7 @@ export class StakingClient {
         this.walletPubKey = walletPubKey;
         this.cluster = cluster;
         this.rpcUrl = rpcUrl;
-        const readonlyWallet = StakingClient.createReadonlyWallet(walletPubKey ?? READONLY_PUBKEY);
+        const readonlyWallet = StakingClient.createReadonlyWallet(READONLY_PUBKEY);
         this.program = StakingClient.createProgram(rpcUrl, readonlyWallet, confirmOptions);
         this.provider = this.program.provider;
         this.connection = this.program.provider.connection;
@@ -132,6 +132,9 @@ export class StakingClient {
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
+        const wallet = StakingClient.createReadonlyWallet(this.walletPubKey);
+        const program = StakingClient.createProgram(this.rpcUrl, wallet, this.program.provider.opts);
+
         const [vaultPubkey, vaultBump] = await this.findVaultAddress();
         const [statePubkey, stateBump] = await this.findStateAddress();
 
@@ -139,14 +142,14 @@ export class StakingClient {
             ASSOCIATED_TOKEN_PROGRAM_ID,
             TOKEN_PROGRAM_ID,
             this.mintPubkey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
         );
 
         const walletXTokenAccount = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
             TOKEN_PROGRAM_ID,
             this.xMintPubkey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
         );
 
         // Instructions
@@ -155,13 +158,13 @@ export class StakingClient {
         let walletXTokenCreateInstruction = await createAtaCreateInstructionIfNotExists(
             walletXTokenAccount,
             this.xMintPubkey,
-            this.program.provider.wallet.publicKey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
+            wallet.publicKey,
             this.connection);
         if (walletXTokenCreateInstruction)
             ixs.push(walletXTokenCreateInstruction);
 
-        const tx = await this.program.transaction.stake(
+        const tx = await program.transaction.stake(
             // vaultBump,
             new anchor.BN(uiAmount * E6),
             {
@@ -170,7 +173,7 @@ export class StakingClient {
                     tokenMint: this.mintPubkey,
                     xTokenMint: this.xMintPubkey,
                     tokenFrom: walletTokenAccount,
-                    tokenFromAuthority: this.program.provider.wallet.publicKey,
+                    tokenFromAuthority: wallet.publicKey,
                     tokenVault: vaultPubkey,
                     xTokenTo: walletXTokenAccount,
                     stakingState: statePubkey,
@@ -179,7 +182,7 @@ export class StakingClient {
             }
         );
 
-        tx.feePayer = this.program.provider.wallet.publicKey;
+        tx.feePayer = wallet.publicKey;
         // this line fails in local with 'failed to get recent blockhash: Error: failed to get latest blockhash: Method not found'
         // let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
@@ -193,6 +196,9 @@ export class StakingClient {
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
+        const wallet = StakingClient.createReadonlyWallet(this.walletPubKey);
+        const program = StakingClient.createProgram(this.rpcUrl, wallet, this.program.provider.opts);
+
         const [vaultPubkey, vaultBump] = await this.findVaultAddress();
         const [statePubkey, stateBump] = await this.findStateAddress();
 
@@ -200,14 +206,14 @@ export class StakingClient {
             ASSOCIATED_TOKEN_PROGRAM_ID,
             TOKEN_PROGRAM_ID,
             this.mintPubkey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
         );
 
         const walletXTokenAccount = await Token.getAssociatedTokenAddress(
             ASSOCIATED_TOKEN_PROGRAM_ID,
             TOKEN_PROGRAM_ID,
             this.xMintPubkey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
         );
 
         // Instructions
@@ -216,13 +222,13 @@ export class StakingClient {
         let walletTokenCreateInstruction = await createAtaCreateInstructionIfNotExists(
             walletTokenAccount,
             this.mintPubkey,
-            this.program.provider.wallet.publicKey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
+            wallet.publicKey,
             this.connection);
         if (walletTokenCreateInstruction)
             ixs.push(walletTokenCreateInstruction);
 
-        const tx = await this.program.transaction.unstake(
+        const tx = await program.transaction.unstake(
             // vaultBump,
             new anchor.BN(uiAmount * E6),
             {
@@ -231,7 +237,7 @@ export class StakingClient {
                     tokenMint: this.mintPubkey,
                     xTokenMint: this.xMintPubkey,
                     xTokenFrom: walletXTokenAccount,
-                    xTokenFromAuthority: this.program.provider.wallet.publicKey,
+                    xTokenFromAuthority: wallet.publicKey,
                     tokenVault: vaultPubkey,
                     tokenTo: walletTokenAccount,
                     stakingState: statePubkey,
@@ -240,7 +246,7 @@ export class StakingClient {
             }
         );
 
-        tx.feePayer = this.program.provider.wallet.publicKey;
+        tx.feePayer = wallet.publicKey;
         // let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
         tx.recentBlockhash = hash.blockhash;
@@ -258,6 +264,9 @@ export class StakingClient {
         if (!this.walletPubKey)
             throw new Error("Wallet not connected");
 
+        const wallet = StakingClient.createReadonlyWallet(this.walletPubKey);
+        const program = StakingClient.createProgram(this.rpcUrl, wallet, this.program.provider.opts);
+
         const [vaultPubkey, vaultBump] = await this.findVaultAddress();
         const [statePubkey, stateBump] = await this.findStateAddress();
 
@@ -265,20 +274,20 @@ export class StakingClient {
             ASSOCIATED_TOKEN_PROGRAM_ID,
             TOKEN_PROGRAM_ID,
             this.mintPubkey,
-            this.program.provider.wallet.publicKey,
+            wallet.publicKey,
         );
 
         // Instructions
         let ixs: Array<TransactionInstruction> | undefined = new Array<TransactionInstruction>();
 
-        const tx = await this.program.transaction.deposit(
+        const tx = await program.transaction.deposit(
             new anchor.BN(depositPercentage * 10_000),
             {
                 preInstructions: ixs,
                 accounts: {
                     tokenMint: this.mintPubkey,
                     tokenFrom: walletTokenAccount,
-                    tokenFromAuthority: this.program.provider.wallet.publicKey,
+                    tokenFromAuthority: wallet.publicKey,
                     tokenVault: vaultPubkey,
                     stakingState: statePubkey,
                     tokenProgram: TOKEN_PROGRAM_ID,
@@ -286,7 +295,7 @@ export class StakingClient {
             }
         );
 
-        tx.feePayer = this.program.provider.wallet.publicKey;
+        tx.feePayer = wallet.publicKey;
         // this line fails in local with 'failed to get recent blockhash: Error: failed to get latest blockhash: Method not found'
         // let hash = await this.connection.getLatestBlockhash(this.connection.commitment);
         let hash = await this.connection.getRecentBlockhash(this.connection.commitment);
@@ -405,7 +414,9 @@ export class StakingClient {
         //     .div(sMeanPrice.sMeanToMeanRateE9);
 
         const stakeTokenAmounts = await this.getStakeTokenAmounts();
-        const sMeanOut = meanIn
+        const sMeanOut = stakeTokenAmounts.meanPoolTotalAmount.isZero() || stakeTokenAmounts.meanPoolTotalAmount.isZero()
+        ? meanIn
+        : meanIn
             .mul(stakeTokenAmounts.sMeanTotalSupply)
             .div(stakeTokenAmounts.meanPoolTotalAmount);
 
@@ -422,8 +433,6 @@ export class StakingClient {
     public async getUnstakeQuote(sMeanUiAmount: number): Promise<UnstakeQuote> {
         if(sMeanUiAmount === 0)
             throw new Error("Invalid input amount");
-            
-        // console.log(`sMeanUiAmount * E6: ${sMeanUiAmount * E6}`);
 
         const sMeanIn = new BN(sMeanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
