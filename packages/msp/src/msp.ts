@@ -792,55 +792,72 @@ export class MSP {
       true
     );
 
-    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
     const now = new Date();
     const startDate = startUtc && startUtc.getTime() >= now.getTime() ? startUtc : now;
     const startUtcInSeconds = parseInt((startDate.getTime() / 1000).toString());
+    const cliffVestPercentValue = cliffVestPercent ? cliffVestPercent * Constants.CLIFF_PERCENT_NUMERATOR : 0;
 
     // Create Streams
     let txs: Transaction[] = [];
+    let group = (size: number, data: any) => {
+      let result = [];
+      for (let i = 0; i < data.length; i += size) {
+        result.push(data.slice(i, i + size));
+      }
+      return result;
+    };
 
-    for (let beneficiary of beneficiaries) {
+    for (let groupItem of group(3, beneficiaries)) {
 
-      if (beneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
+      let signers: Signer[] = [];
+      let ixs: TransactionInstruction[] = [];
 
-      let streamAccount = Keypair.generate();
-      let ix = this.program.instruction.createStream(
-        beneficiary.streamName,
-        new BN(startUtcInSeconds),
-        new BN(rateAmount as number),
-        new BN(rateIntervalInSeconds as number),
-        new BN(allocationAssigned),
-        new BN(cliffVestAmount as number),
-        new BN(cliffVestPercentValue),
-        feePayedByTreasurer ?? false,
-        {
-          accounts: {
-            payer: payer,
-            initializer: payer,
-            treasurer: treasurer,
-            treasury: treasury,
-            treasuryToken: treasuryToken,
-            associatedToken: associatedToken,
-            beneficiary: beneficiary.address,
-            stream: streamAccount.publicKey,
-            feeTreasury: Constants.FEE_TREASURY,
-            feeTreasuryToken: feeTreasuryToken,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY
+      for (let beneficiary of groupItem) {
+
+        if (beneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
+
+        let streamAccount = Keypair.generate();
+        let ix = this.program.instruction.createStream(
+          beneficiary.streamName,
+          new BN(startUtcInSeconds),
+          new BN(rateAmount as number),
+          new BN(rateIntervalInSeconds as number),
+          new BN(allocationAssigned),
+          new BN(cliffVestAmount as number),
+          new BN(cliffVestPercentValue),
+          feePayedByTreasurer ?? false,
+          {
+            accounts: {
+              payer: payer,
+              initializer: payer,
+              treasurer: treasurer,
+              treasury: treasury,
+              treasuryToken: treasuryToken,
+              associatedToken: associatedToken,
+              beneficiary: beneficiary.address,
+              stream: streamAccount.publicKey,
+              feeTreasury: Constants.FEE_TREASURY,
+              feeTreasuryToken: feeTreasuryToken,
+              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+              tokenProgram: TOKEN_PROGRAM_ID,
+              systemProgram: SystemProgram.programId,
+              rent: SYSVAR_RENT_PUBKEY
+            }
           }
-        }
-      );
+        );
 
-      let currentTx = new Transaction().add(ix);
-      currentTx.feePayer = payer;
+        ixs.push(ix);
+        signers.push(streamAccount);
+      }
+
+      let tx = new Transaction().add(...ixs);
+      tx.feePayer = payer;
       let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
-      currentTx.recentBlockhash = blockhash;
-      currentTx.partialSign(streamAccount);
-      txs.push(currentTx);
-    }
+      tx.recentBlockhash = blockhash;
+      tx.partialSign(...signers);
+
+      txs.push(tx);
+    }    
 
     return txs;
   }
@@ -1742,45 +1759,64 @@ export class MSP {
 
     // Create Streams
     let txs: Transaction[] = [];
+    let group = (size: number, data: any) => {
+      let result = [];
+      for (let i = 0; i < data.length; i += size) {
+        result.push(data.slice(i, i + size));
+      }
+      return result;
+    };
 
-    for (let stream of streams) {
+    for (let groupItem of group(3, streams)) {
 
-      if (stream.beneficiary.toBase58() === treasurer.toBase58()) { continue; }
+      let signers: Signer[] = [];
+      let ixs: TransactionInstruction[] = [];
 
-      let ix = this.program.instruction.createStream(
-        stream.name,
-        new BN(startUtcInSeconds),
-        new BN(rateAmount as number),
-        new BN(rateIntervalInSeconds as number),
-        new BN(allocationAssigned),
-        new BN(cliffVestAmount as number),
-        new BN(cliffVestPercentValue),
-        feePayedByTreasurer ?? false,
-        {
-          accounts: {
-            payer: payer,
-            initializer: payer,
-            treasurer: treasurer,
-            treasury: treasury,
-            treasuryToken: treasuryToken,
-            associatedToken: associatedToken,
-            beneficiary: stream.beneficiary,
-            stream: stream.address,
-            feeTreasury: Constants.FEE_TREASURY,
-            feeTreasuryToken: feeTreasuryToken,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY
+      for (let beneficiary of groupItem) {
+
+        if (beneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
+
+        let streamAccount = Keypair.generate();
+        let ix = this.program.instruction.createStream(
+          beneficiary.streamName,
+          new BN(startUtcInSeconds),
+          new BN(rateAmount as number),
+          new BN(rateIntervalInSeconds as number),
+          new BN(allocationAssigned),
+          new BN(cliffVestAmount as number),
+          new BN(cliffVestPercentValue),
+          feePayedByTreasurer ?? false,
+          {
+            accounts: {
+              payer: payer,
+              initializer: payer,
+              treasurer: treasurer,
+              treasury: treasury,
+              treasuryToken: treasuryToken,
+              associatedToken: associatedToken,
+              beneficiary: beneficiary.address,
+              stream: streamAccount.publicKey,
+              feeTreasury: Constants.FEE_TREASURY,
+              feeTreasuryToken: feeTreasuryToken,
+              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+              tokenProgram: TOKEN_PROGRAM_ID,
+              systemProgram: SystemProgram.programId,
+              rent: SYSVAR_RENT_PUBKEY
+            }
           }
-        }
-      );
+        );
 
-      let currentTx = new Transaction().add(ix);
-      currentTx.feePayer = payer;
+        ixs.push(ix);
+        signers.push(streamAccount);
+      }
+
+      let tx = new Transaction().add(...ixs);
+      tx.feePayer = payer;
       let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
-      currentTx.recentBlockhash = blockhash;
-      txs.push(currentTx);
+      tx.recentBlockhash = blockhash;
+      tx.partialSign(...signers);
+
+      txs.push(tx);
     }
 
     return txs;
