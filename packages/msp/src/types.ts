@@ -179,7 +179,7 @@ export type Beneficiary = {
  * Stream Beneficiary Info
  */
 export type StreamBeneficiary = {
-  name: string,
+  streamName: string,
   address: PublicKey,
   beneficiary: PublicKey
 }
