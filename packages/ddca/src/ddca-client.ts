@@ -6,6 +6,7 @@ import {
     Signer,
     Connection,
     Transaction,
+    GetProgramAccountsFilter,
     TransactionInstruction,
     AccountMeta,
     LAMPORTS_PER_SOL
@@ -848,7 +849,19 @@ export class DdcaClient {
 
     public async listDdcas(stortByStartTs: boolean = true, desc: boolean = true): Promise<Array<DdcaAccount>> {
 
-        const ddcaAccounts = await this.program.account.ddcaAccount.all(this.ownerAccountAddress.toBuffer());
+        const walletFilter: GetProgramAccountsFilter[] = [
+            {
+                dataSize: 500
+            },
+            {
+                memcmp: {
+                  offset: 8,    // Skip discriminator
+                  bytes: this.ownerAccountAddress.toBase58()
+                }
+            }
+        ];
+
+        const ddcaAccounts = await this.program.account.ddcaAccount.all(walletFilter);
         const results: Array<DdcaAccount> = ddcaAccounts.map(x => {
             const values: DdcaAccount = {
                 ddcaAccountAddress: x.publicKey.toBase58(),
