@@ -515,8 +515,6 @@ export class StakingClient {
         historyStartTs: number,
         ): number {
 
-        return 0.21; // TODO
-
         if(depositRecords.length === 0) {
             return 0;
         }
