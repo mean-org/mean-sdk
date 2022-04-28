@@ -21,7 +21,7 @@ const E9 = 1_000_000_000;
 const DECIMALS_BN = new BN(DECIMALS);
 const READONLY_PUBKEY = new PublicKey("3KmMEv7A8R3MMhScQceXBQe69qLmnFfxSM3q8HyzkrSx");
 const MEAN_STAKE_ID = new PublicKey('MSTKTNxDrVTd32qF8kyaiUhFidmgPaYGU932FbRa7eK');
-const DEPOSITS_HISTORY_N_DAYS = 6;
+const DEPOSITS_HISTORY_N_DAYS = 7;
 
 const prodEnv: Env = {
     mean: new PublicKey('MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD'),
@@ -320,12 +320,9 @@ export class StakingClient {
         const amounts: StakeTokenAmounts = {
             meanPoolTotalAmount: totalMeanAmount,
             sMeanTotalSupply: sMeanSupplyAmount,
-        }
-        // console.log("amounts.meanPoolTotalAmount:", amounts.meanPoolTotalAmount.toNumber());
-        // console.log("amounts.sMeanTotalSupply:", amounts.sMeanTotalSupply.toNumber());
+        };
         
         return amounts;
-
     }
 
     public async getStakePoolInfo(meanPrice?: number): Promise<StakePoolInfo> {
@@ -337,7 +334,6 @@ export class StakingClient {
         const [vaultPubkey, ] = await this.findVaultAddress();
         const [statePubkey, ] = await this.findStateAddress();
         const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
-        
         if(!stakeVaultMeanBalanceResponse?.value)
             throw Error("Unable to get stake pool info");
 
@@ -351,17 +347,12 @@ export class StakingClient {
         const totalMeanUiAmount = stakeVaultMeanBalanceResponse.value.uiAmount ?? 0;
         const state = await this.program.account.stakingState.fetch(statePubkey);
         const depositsRaw = state.deposits as any[];
-        const depositsDataLength = Math.min(state.depositsHead.toNumber(), depositsRaw.length);
+        const depositsRawLength = Math.min(state.depositsHead.toNumber(), depositsRaw.length);
         
-
-        const numberOfDays = Math.min(depositsRaw.length, DEPOSITS_HISTORY_N_DAYS);
-        const nowTs = Math.floor(Date.now() / 1000);
-        const todayStartTs = Math.floor(nowTs / 86400) * 86400;
-        const historyStartTs = todayStartTs - 86400 * numberOfDays;
-        
-        const deposits = this.getDepositRecords(depositsRaw, depositsDataLength, historyStartTs);
-        const hasMissingDepositsData = depositsDataLength < depositsRaw.length;
-        const apr = this.calculateApr(deposits, new BN(stakeVaultMeanBalanceResponse.value.amount), hasMissingDepositsData, historyStartTs);
+        const aprResult = this.calculateApr(depositsRaw,
+            depositsRawLength,
+            new BN(stakeVaultMeanBalanceResponse.value.amount)
+        );
 
         return {
             meanPrice: meanPrice, // sMEAN price TODO
@@ -369,7 +360,7 @@ export class StakingClient {
             sMeanToMeanRate: sMeanToMeanRate, // amount of MEAN per 1 sMEAN
             totalMeanAmount: stakeVaultMeanBalanceResponse.value,
             tvl: Math.round((totalMeanUiAmount * meanPrice + Number.EPSILON) * 1_000_000) / 1_000_000,
-            apr: apr,
+            apr: aprResult.apr,
             totalMeanRewards: Math.max(totalMeanUiAmount - (state.totalStaked.toNumber() - state.totalUnstaked.toNumber()) / E6, 0) *  meanPrice,
         }
     }
@@ -404,8 +395,6 @@ export class StakingClient {
     public async getStakeQuote(meanUiAmount: number): Promise<StakeQuote> {
         if(meanUiAmount === 0)
             throw new Error("Invalid input amount");
-
-        // console.log(`meanUiAmount * E6: ${meanUiAmount * E6}`);
         
         const meanIn = new BN(meanUiAmount * E6);
         const sMeanPrice = await this.getSMeanPrice();
@@ -457,15 +446,15 @@ export class StakingClient {
 
     private getDepositRecords(
         depositsRaw: any[], 
-        lenght: number, 
+        depositsRawLenght: number, 
         historyStartTs: number
         ): DepositRecord[] {
         const deposits: DepositRecord[] = [];
-        if (lenght === 0) {
+        if (depositsRawLenght === 0) {
             return deposits;
         }
 
-        for (let i = 0; i < lenght; i++) {
+        for (let i = 0; i < depositsRawLenght; i++) {
 
             const depositRaw = depositsRaw[i];
             if (depositRaw.depositedTs < historyStartTs) {
@@ -509,104 +498,130 @@ export class StakingClient {
     }
 
     private calculateApr(
-        depositRecords: DepositRecord[], 
-        latestStakedPlusRewardsAmount: BN, 
-        hasMissingDepositsData: boolean,
-        historyStartTs: number,
-        ): number {
+        depositsRaw: any[],
+        depositsRawLength: number,
+        latestStakedPlusRewardsAmount: BN,
+        ): DepositsInfo {
 
+        let nowTs = Math.floor(Date.now() / 1000);
+        const latestDepositTs = Math.max(...depositsRaw.map(d => d.depositedTs.toNumber()));
+        if(nowTs < latestDepositTs)
+            nowTs = latestDepositTs;
+
+        const todayStartTs = Math.floor(nowTs / 86400) * 86400;
+        const historyStartTs = nowTs === todayStartTs
+            ? todayStartTs - 86400 * DEPOSITS_HISTORY_N_DAYS
+            : todayStartTs - 86400 * (DEPOSITS_HISTORY_N_DAYS - 1);
+        
+        const depositRecords = this.getDepositRecords(
+            depositsRaw,
+            depositsRawLength,
+            historyStartTs
+        );
+        
         if(depositRecords.length === 0) {
-            return 0;
+            return { apr: 0, depositRecords: [], dayDeposits: [] };
         }
         
-        const group: { [id: number] : DepositRecord[] } = {};
+        const depositsByKey: { [id: number] : DepositRecord[] } = {};
+        for (let i = 0; i < DEPOSITS_HISTORY_N_DAYS; i++) {
+            const tsKey = historyStartTs + i * 86400;
+            depositsByKey[tsKey] = [];
+        }
+        
         for (let i = 0; i < depositRecords.length; i++) {
             const d = depositRecords[i];
             const tsKey = Math.floor(d.depositedTs / 86400) * 86400;
-            if(!(tsKey in group)) {
-                group[tsKey] = [d];
-            }
-            else {
-                group[tsKey].push(d);
-            }
+            // if(!(tsKey in depositByKey)) {
+            //     depositByKey[tsKey] = [d];
+            // }
+            // else {
+            //     depositByKey[tsKey].push(d);
+            // }
+            
+            depositsByKey[tsKey].push(d);
         }
 
-        // const aprs: number[] = [];
-        // for (var k in group) {
-        //     group[k].sort((a, b) => b.depositedTs - a.depositedTs);
-        //     const dayRoi = group[k]
-        //         .map(d => d.depositedUiAmount / d.totalStakedPlusRewardsUiAmount)
-        //         .reduce((partialSum, r) => partialSum + r);
-        //     aprs.push(dayRoi * 365);
-        // }
-
         const dayDeposits: DayDepositRecord[] = [];
-        for (var k in group) {
-            group[k].sort((a, b) => b.depositedTs - a.depositedTs);
-            const dayTotalDepositedUiAmount = group[k]
+        for (var tsKey in depositsByKey) {
+            if (depositsByKey[tsKey].length === 0) {
+                dayDeposits.push({ dayTs: parseInt(tsKey), totalDepositedUiAmount: 0, totalApr: 0, depositRecords: [] });
+                continue;
+            }
+
+            depositsByKey[tsKey].sort((a, b) => b.depositedTs - a.depositedTs);
+            const dayTotalDepositedUiAmount = depositsByKey[tsKey]
                 .map(d => d.depositedUiAmount)
                 .reduce((partialSum, r) => partialSum + r);
-            const dayRoi = group[k]
+            const dayRoi = depositsByKey[tsKey]
                 .map(d => d.depositedUiAmount / d.totalStakedPlusRewardsUiAmount)
                 .reduce((partialSum, r) => partialSum + r);
             const dayDeposit: DayDepositRecord = {
-                dayTs: parseInt(k),
+                dayTs: parseInt(tsKey),
                 totalDepositedUiAmount: dayTotalDepositedUiAmount,
-                totalApr: dayRoi * 365
+                totalApr: dayRoi * 365,
+                depositRecords: depositsByKey[tsKey].map(gv => gv)
             };
             dayDeposits.push(dayDeposit);
         }
-        dayDeposits.sort((a, b) => b.dayTs - a.dayTs);
+        dayDeposits.sort((a, b) => b.dayTs - a.dayTs); // sort by date desc
+        const latestStakedPlusRewardsAmountUiAmount = latestStakedPlusRewardsAmount.toNumber() / 10 ** DECIMALS;
+        if (dayDeposits[0].depositRecords.length === 0) {
+            let previousDaysAprSum = dayDeposits.slice(1)
+                .map(d => d.totalApr)
+                .reduce((partialSum, a) => partialSum + a);
+            const estDailyRoi = (previousDaysAprSum / (DEPOSITS_HISTORY_N_DAYS - 1)) / 365;
+            const currentDayHoursElapsed = nowTs === todayStartTs ? 24 : ((nowTs - todayStartTs) / 3600);
+            const currentDayProgress = currentDayHoursElapsed / 24;
 
-        if(dayDeposits.length < DEPOSITS_HISTORY_N_DAYS && hasMissingDepositsData) {
-            const lastDayDeposit = dayDeposits[dayDeposits.length - 1];
-            const nDaysToFill = (lastDayDeposit.dayTs - historyStartTs) / 86400;
-            // console.log(`\nnDaysToFill: ${nDaysToFill}`);
-            for (let i = 0; i < nDaysToFill; i++) {
-                dayDeposits.push(lastDayDeposit);  
-            }
-            // console.log(`\ndayDeposits: ${dayDeposits}`);
+            const currentDayEstRewards = estDailyRoi * latestStakedPlusRewardsAmountUiAmount * currentDayProgress;
+
+            dayDeposits[0].totalDepositedUiAmount = currentDayEstRewards;
+            dayDeposits[0].totalApr = currentDayEstRewards / latestStakedPlusRewardsAmountUiAmount * 365;
+            dayDeposits[0].depositRecords.push({
+                totalStakeUiAmount: 0,
+                totalStakedPlusRewardsUiAmount: latestStakedPlusRewardsAmountUiAmount,
+                depositedTs: nowTs,
+                depositedUtc: tsToUTCString(nowTs),
+                depositedPercentage: dayDeposits[0].totalApr,
+                depositedUiAmount: currentDayEstRewards,
+            });
+        } else {
+            dayDeposits[0].totalApr = dayDeposits[0].totalDepositedUiAmount / latestStakedPlusRewardsAmountUiAmount * 365;
+            dayDeposits[0].depositRecords = [
+                {
+                    totalStakeUiAmount: 0,
+                    totalStakedPlusRewardsUiAmount: latestStakedPlusRewardsAmountUiAmount,
+                    depositedTs: nowTs,
+                    depositedUtc: tsToUTCString(nowTs),
+                    depositedPercentage: dayDeposits[0].totalApr,
+                    depositedUiAmount: dayDeposits[0].totalDepositedUiAmount,
+                }
+            ];
         }
-
-        // const apr = dayDeposits
-        //     .map(d => d.totalApr)
-        //     .reduce((partialSum, a) => partialSum + a) / DEPOSITS_HISTORY_N_DAYS;
 
         let aprSum = dayDeposits
             .map(d => d.totalApr)
             .reduce((partialSum, a) => partialSum + a);
-        // aprSum += dayDeposits[0].totalDepositedUiAmount / (latestStakedPlusRewardsAmount.toNumber() / 1_000_000) * 365;
-        // const apr = aprSum / (DEPOSITS_HISTORY_N_DAYS + 2);
-        const apr = aprSum / (DEPOSITS_HISTORY_N_DAYS + 1)
-        return apr;
+        const apr = aprSum / DEPOSITS_HISTORY_N_DAYS
+        return { apr: apr, depositRecords: depositRecords, dayDeposits: dayDeposits };
     }
 
-    public async getDepositsInfo(): Promise<DepositsInfo> {
-        const [statePubkey, ] = await this.findStateAddress();
-        const state = await this.program.account.stakingState.fetch(statePubkey);
-        const depositsRaw = state.deposits as any[];
-        
-        
-        const depositsDataLength = Math.min(state.depositsHead.toNumber(), depositsRaw.length);
-        const numberOfDays = Math.min(depositsRaw.length, DEPOSITS_HISTORY_N_DAYS);
-        const nowTs = Math.floor(Date.now() / 1000);
-        const todayStartTs = Math.floor(nowTs / 86400) * 86400;
-        const historyStartTs = todayStartTs - 86400 * numberOfDays;
-        
-        const deposits = this.getDepositRecords(depositsRaw, depositsDataLength, historyStartTs);
-        const hasMissingDepositsData = depositsDataLength < depositsRaw.length;
-
-        const [vaultPubkey, ] = await this.findVaultAddress();
+    public async getDepositsInfo(): Promise<DepositsInfo> {const [vaultPubkey, ] = await this.findVaultAddress();
         const stakeVaultMeanBalanceResponse = await this.connection.getTokenAccountBalance(vaultPubkey);
         if(!stakeVaultMeanBalanceResponse?.value)
             throw Error("Unable to get stake pool info");
 
-        const apr = this.calculateApr(deposits, new BN(stakeVaultMeanBalanceResponse.value.amount), hasMissingDepositsData, historyStartTs); // todo
-
-        return {
-            apr: apr,
-            depositRecords: deposits,
-        }
+        const [statePubkey, ] = await this.findStateAddress();
+        const state = await this.program.account.stakingState.fetch(statePubkey);
+        const depositsRaw = state.deposits as any[];
+        const depositsRawLength = Math.min(state.depositsHead.toNumber(), depositsRaw.length);
+        
+        const aprResult = this.calculateApr(depositsRaw,
+            depositsRawLength,
+            new BN(stakeVaultMeanBalanceResponse.value.amount)
+        );
+        return aprResult;
     }
 }
 
@@ -722,9 +737,16 @@ export type DayDepositRecord = {
     dayTs: number,
     totalDepositedUiAmount: number,
     totalApr: number,
+    depositRecords: DepositRecord[]
 }
 
 export type DepositsInfo = {
     apr: number, // 1-based percentage
     depositRecords: DepositRecord[],
+    dayDeposits: DayDepositRecord[] // aggregated daily deposits
 }
+
+// export type AprResult = {
+//     apr: number,
+//     dayDeposits: DayDepositRecord[]
+// }
