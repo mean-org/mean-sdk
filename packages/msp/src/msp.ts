@@ -1769,16 +1769,14 @@ export class MSP {
 
     for (let groupItem of group(3, streams)) {
 
-      let signers: Signer[] = [];
       let ixs: TransactionInstruction[] = [];
 
-      for (let beneficiary of groupItem) {
+      for (let streamBeneficiary of groupItem) {
 
-        if (beneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
+        if (streamBeneficiary.address.toBase58() === treasurer.toBase58()) { continue; }
 
-        let streamAccount = Keypair.generate();
         let ix = this.program.instruction.createStream(
-          beneficiary.streamName,
+          streamBeneficiary.streamName,
           new BN(startUtcInSeconds),
           new BN(rateAmount as number),
           new BN(rateIntervalInSeconds as number),
@@ -1794,8 +1792,8 @@ export class MSP {
               treasury: treasury,
               treasuryToken: treasuryToken,
               associatedToken: associatedToken,
-              beneficiary: beneficiary.address,
-              stream: streamAccount.publicKey,
+              beneficiary: streamBeneficiary.beneficiary,
+              stream: streamBeneficiary.address,
               feeTreasury: Constants.FEE_TREASURY,
               feeTreasuryToken: feeTreasuryToken,
               associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1807,14 +1805,12 @@ export class MSP {
         );
 
         ixs.push(ix);
-        signers.push(streamAccount);
       }
 
       let tx = new Transaction().add(...ixs);
       tx.feePayer = payer;
       let { blockhash } = await this.connection.getRecentBlockhash(this.commitment as Commitment || "finalized");
       tx.recentBlockhash = blockhash;
-      tx.partialSign(...signers);
 
       txs.push(tx);
     }
