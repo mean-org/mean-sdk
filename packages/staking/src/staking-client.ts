@@ -565,17 +565,20 @@ export class StakingClient {
             dayDeposits.push(dayDeposit);
         }
         dayDeposits.sort((a, b) => b.dayTs - a.dayTs); // sort by date desc
-        const latestStakedPlusRewardsAmountUiAmount = latestStakedPlusRewardsAmount.toNumber() / 10 ** DECIMALS;
+        let latestStakedPlusRewardsAmountUiAmount = latestStakedPlusRewardsAmount.toNumber() / 10 ** DECIMALS;
+        // latestStakedPlusRewardsAmountUiAmount += 10000;
+        
         if (dayDeposits[0].depositRecords.length === 0) {
-            let previousDaysAprSum = dayDeposits.slice(1)
-                .map(d => d.totalApr)
-                .reduce((partialSum, a) => partialSum + a);
-            const estDailyRoi = (previousDaysAprSum / (DEPOSITS_HISTORY_N_DAYS - 1)) / 365;
+            
             const currentDayHoursElapsed = nowTs === todayStartTs ? 24 : ((nowTs - todayStartTs) / 3600);
             const currentDayProgress = currentDayHoursElapsed / 24;
 
-            const currentDayEstRewards = estDailyRoi * latestStakedPlusRewardsAmountUiAmount * currentDayProgress;
-
+            let estimatedDailyDepositsUiAmountSum = dayDeposits.slice(1)
+                .map(d => d.totalDepositedUiAmount)
+                .reduce((partialSum, a) => partialSum + a);
+            const estimatedDailyDepositsUiAmount = estimatedDailyDepositsUiAmountSum / (DEPOSITS_HISTORY_N_DAYS - 1);
+            
+            const currentDayEstRewards = estimatedDailyDepositsUiAmount * currentDayProgress;
             dayDeposits[0].totalDepositedUiAmount = currentDayEstRewards;
             dayDeposits[0].totalApr = currentDayEstRewards / latestStakedPlusRewardsAmountUiAmount * 365;
             dayDeposits[0].depositRecords.push({
@@ -587,6 +590,7 @@ export class StakingClient {
                 depositedUiAmount: currentDayEstRewards,
             });
         } else {
+            
             dayDeposits[0].totalApr = dayDeposits[0].totalDepositedUiAmount / latestStakedPlusRewardsAmountUiAmount * 365;
             dayDeposits[0].depositRecords = [
                 {
@@ -745,8 +749,3 @@ export type DepositsInfo = {
     depositRecords: DepositRecord[],
     dayDeposits: DayDepositRecord[] // aggregated daily deposits
 }
-
-// export type AprResult = {
-//     apr: number,
-//     dayDeposits: DayDepositRecord[]
-// }
