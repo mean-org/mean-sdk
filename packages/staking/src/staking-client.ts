@@ -484,13 +484,13 @@ export class StakingClient {
         // }
         
         try {
-            const response = await fetch('https://api.raydium.io/coin/price')
+            const response = await fetch('https://api.raydium.io/v2/main/price')
             if (response.status !== 200) {
                 throw new Error("Unable to get token prices");
             }
 
             const prices = (await response.json()) as any;
-            return prices.MEAN;
+            return prices['MEANeD3XDdUmNMsRGjASkSWdC8prLYsoRJ61pPeHctD'];
 
         } catch (error) {
             throw (error);
