@@ -15,7 +15,7 @@ import {
 import { ExchangeInfo, LPClient, NATIVE_SOL_MINT, WRAPPED_SOL_MINT } from "./types";
 import { AMM_POOLS } from "./data";
 import { ACCOUNT_LAYOUT } from "./layouts";
-import { MercurialClient } from "./mercurial/client";
+// import { MercurialClient } from "./mercurial/client";
 import { OrcaClient } from "./orca/client";
 import { RaydiumClient } from "./raydium/client";
 import { SaberClient } from "./saber/client";
@@ -176,7 +176,7 @@ export const getProtocolClient = (
       break;
     }
     case MERCURIAL.toBase58(): {
-      client = new MercurialClient(connection, pool.address);
+      // client = new MercurialClient(connection, pool.address);
       break;
     }
     case SERUM.toBase58(): {

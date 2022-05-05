@@ -184,7 +184,7 @@ export * from "./types";
 export * from "./data";
 export * from "./layouts";
 export * from "./raydium/client";
-export * from "./mercurial/client";
+// export * from "./mercurial/client";
 export * from "./orca/client";
 export * from "./saber/client";
 export * from "./serum/client";
