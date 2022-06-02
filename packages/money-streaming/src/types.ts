@@ -159,7 +159,7 @@ export enum STREAM_STATE {
   streamResumedBlockTime: number,
   autoPauseInSeconds: number,
   isUpdatePending: boolean,
-  transactionSignature: string | undefined,
+  // transactionSignature: string | undefined,
   createdBlockTime: number,
   lastRetrievedBlockTime: number,
   upgradeRequired: boolean,

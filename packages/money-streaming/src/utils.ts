@@ -81,7 +81,7 @@ let defaultStreamInfo: StreamInfo = {
   streamResumedBlockTime: 0,
   autoPauseInSeconds: 0,
   isUpdatePending: false,
-  transactionSignature: undefined,
+  // transactionSignature: undefined,
   createdBlockTime: 0,
   lastRetrievedBlockTime: 0,
   upgradeRequired: false,
@@ -131,7 +131,7 @@ const parseStreamV0Data = (
   let decodedData = Layout.streamV0Layout.decode(streamData);
   console.log('decodedData', decodedData);
   let fundedOnTimeUtc = decodedData.funded_on_utc;
-  let startTimeUtc = decodedData.start_utc;
+  const startTimeUtcInMilliseconds = decodedData.start_utc;
 
   let escrowVestedAmountSnapBlockHeight = parseFloat(
     u64Number
@@ -162,7 +162,7 @@ const parseStreamV0Data = (
   );
 
   let now = new Date();
-  let isScheduled = startTimeUtc > now.getTime();
+  let isScheduled = startTimeUtcInMilliseconds > now.getTime();
   let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
   let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
   let escrowVestedAmount = 0.0;
@@ -198,7 +198,7 @@ const parseStreamV0Data = (
 
   if (!decodedData.escrow_estimated_depletion_utc) {
     let depletionTimeInSeconds = rate ? decodedData.total_deposits / rate : 0;
-    escrowEstimatedDepletionDateUtc.setTime(startTimeUtc + depletionTimeInSeconds * 1000);
+    escrowEstimatedDepletionDateUtc.setTime(startTimeUtcInMilliseconds + depletionTimeInSeconds * 1000);
   }
 
   const beneficiaryAssociatedToken = new PublicKey(decodedData.stream_associated_token);
@@ -220,7 +220,7 @@ const parseStreamV0Data = (
 
   let state: STREAM_STATE | undefined;
 
-  if (startTimeUtc > now.getTime()) {
+  if (startTimeUtcInMilliseconds > now.getTime()) {
     state = STREAM_STATE.Schedule;
   } else if (escrowVestedAmount < decodedData.total_deposits - decodedData.total_withdrawals && isStreaming) {
     state = STREAM_STATE.Running;
@@ -238,7 +238,7 @@ const parseStreamV0Data = (
       rateAmount: decodedData.rate_amount,
       rateIntervalInSeconds: rateIntervalInSeconds,
       fundedOnUtc: new Date(fundedOnTimeUtc).toString(),
-      startUtc: new Date(startTimeUtc).toString(),
+      startUtc: new Date(startTimeUtcInMilliseconds).toString(),
       rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
       cliffVestAmount: decodedData.cliff_vest_amount,
       cliffVestPercent: decodedData.cliff_vest_percent,
@@ -259,7 +259,7 @@ const parseStreamV0Data = (
       autoPauseInSeconds: autoPauseInSeconds,
       isUpdatePending: false,
       transactionSignature: "",
-      createdBlockTime: 0,
+      createdBlockTime: Math.round(startTimeUtcInMilliseconds / 1000),
       lastRetrievedBlockTime: currentBlockTime,
       upgradeRequired: true,
       state,
@@ -286,7 +286,7 @@ const parseStreamData = (
     .toString()
   );
 
-  let startTimeUtc = parseFloat(
+  const startTimeUtcInMilliseconds = parseFloat(
     u64Number
       .fromBuffer(decodedData.start_utc)
       .toString()
@@ -321,7 +321,7 @@ const parseStreamData = (
   );
 
   let now = new Date();
-  let isScheduled = startTimeUtc > now.getTime();
+  let isScheduled = startTimeUtcInMilliseconds > now.getTime();
   let isStreaming = streamResumedBlockTime >= escrowVestedAmountSnapBlockTime ? 1 : 0;
   let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
   let escrowVestedAmount = 0.0;
@@ -363,7 +363,7 @@ const parseStreamData = (
 
   if (escrowEstimatedDepletionDateUtcValue === 0) {
     let depletionTimeInSeconds = rate ? decodedData.allocation_left / rate : decodedData.allocation_left / 60;
-    escrowEstimatedDepletionDateUtc = new Date(startTimeUtc + depletionTimeInSeconds * 1000);
+    escrowEstimatedDepletionDateUtc = new Date(startTimeUtcInMilliseconds + depletionTimeInSeconds * 1000);
   } else {
     escrowEstimatedDepletionDateUtc.setTime(escrowEstimatedDepletionDateUtcValue);
   }
@@ -387,7 +387,7 @@ const parseStreamData = (
 
   let state: STREAM_STATE | undefined;
 
-  if (startTimeUtc > now.getTime()) {
+  if (startTimeUtcInMilliseconds > now.getTime()) {
     state = STREAM_STATE.Schedule;
   } else if (escrowVestedAmount < decodedData.allocation_left && isStreaming) {
     state = STREAM_STATE.Running;
@@ -408,7 +408,7 @@ const parseStreamData = (
       allocationLeft: decodedData.allocation_left,
       allocationAssigned: decodedData.allocation_assigned,
       fundedOnUtc: new Date(fundedOnTimeUtc).toString(),
-      startUtc: new Date(startTimeUtc).toString(),
+      startUtc: new Date(startTimeUtcInMilliseconds).toString(),
       rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
       cliffVestAmount: decodedData.cliff_vest_amount,
       cliffVestPercent: decodedData.cliff_vest_percent,
@@ -426,7 +426,7 @@ const parseStreamData = (
       autoPauseInSeconds: autoPauseInSeconds,
       isUpdatePending: false,
       transactionSignature: "",
-      createdBlockTime: 0,
+      createdBlockTime: Math.round(startTimeUtcInMilliseconds / 1000),
       lastRetrievedBlockTime: currentBlockTime,
       upgradeRequired: false,
       state,
@@ -670,12 +670,12 @@ export const getStream = async (
     // );
 
     // stream.isUpdatePending = terms !== undefined && terms.streamId === stream.id;
-    let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, "confirmed");
+    // let signatures = await connection.getConfirmedSignaturesForAddress2(id, {}, "confirmed");
 
-    if (signatures.length > 0) {
-      stream.transactionSignature = signatures[0].signature;
-      stream.createdBlockTime = signatures[0].blockTime as number;
-    }
+    // if (signatures.length > 0) {
+    //   stream.transactionSignature = signatures[0].signature;
+    //   stream.createdBlockTime = signatures[0].blockTime as number;
+    // }
   }
 
   return stream;
@@ -916,16 +916,16 @@ export async function listStreams(
               
         let info = Object.assign({}, parsedStreamData);
 
-        let signatures = await connection.getConfirmedSignaturesForAddress2(
-          friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
-          { limit: 1 }, 
-          'confirmed'
-        );
+        // let signatures = await connection.getConfirmedSignaturesForAddress2(
+        //   friendly ? new PublicKey(info.id as string) : (info.id as PublicKey),
+        //   { limit: 1 }, 
+        //   'confirmed'
+        // );
 
-        if (signatures.length > 0) {
-          info.createdBlockTime = signatures[0].blockTime as number;
-          info.transactionSignature = signatures[0].signature;
-        }
+        // if (signatures.length > 0) {
+        //   info.createdBlockTime = signatures[0].blockTime as number;
+        //   info.transactionSignature = signatures[0].signature;
+        // }
 
         streams.push(info);
     }
