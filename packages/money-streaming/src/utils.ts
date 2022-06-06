@@ -167,20 +167,22 @@ const parseStreamV0Data = (
   let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
   let escrowVestedAmount = 0.0;
   let escrowUnvestedAmount = 0.0; 
-  let escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
+  let escrowVestedAmountSnap = 0.0;
   let rateAmount = decodedData.rate_amount;
 
   if (decodedData.cliff_vest_amount > 0) {
     escrowVestedAmountSnap += decodedData.cliff_vest_amount;
+    console.log('escrowVestedAmountSnap 1', escrowVestedAmountSnap);
   }
 
   if (decodedData.cliff_vest_percent > 0 && decodedData.cliff_vest_percent < 100) {
     escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
+    console.log('escrowVestedAmountSnap 2', escrowVestedAmountSnap);
   }
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
-    : 0;
+    : 1;
 
   if (isScheduled) {
     escrowVestedAmount = 0;
@@ -194,7 +196,7 @@ const parseStreamV0Data = (
     escrowUnvestedAmount = decodedData.total_deposits - decodedData.total_withdrawals - escrowVestedAmount; 
   }
 
-  let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc); 
+  let escrowEstimatedDepletionDateUtc = new Date(decodedData.escrow_estimated_depletion_utc);
 
   if (!decodedData.escrow_estimated_depletion_utc) {
     let depletionTimeInSeconds = rate ? decodedData.total_deposits / rate : 0;
@@ -326,7 +328,7 @@ const parseStreamData = (
   let lastTimeSnap = Math.max(streamResumedBlockTime, escrowVestedAmountSnapBlockTime);
   let escrowVestedAmount = 0.0;
   let escrowUnvestedAmount = 0.0;
-  let escrowVestedAmountSnap = decodedData.escrow_vested_amount_snap;
+  let escrowVestedAmountSnap = 0.0;
   let rateAmount = decodedData.rate_amount;
 
   if (decodedData.cliff_vest_amount > 0 && decodedData.cliff_vest_percent < 100) {

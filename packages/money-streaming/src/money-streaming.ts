@@ -880,6 +880,21 @@ export class MoneyStreaming {
       true
     );
 
+    const treasurerTokenInfo = this.connection.getAccountInfo(treasurerToken);
+
+    if (!treasurerTokenInfo) {
+      tx.add(
+        Token.createAssociatedTokenAccountInstruction(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          associatedToken,
+          treasurerToken,
+          treasurer,
+          initializer
+        )
+      );
+    }
+
     const treasury = new PublicKey(streamInfo.treasuryAddress as string);
     const treasuryInfo = await getTreasury(
       this.connection,
