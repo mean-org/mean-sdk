@@ -107,7 +107,8 @@ export enum TreasuryType {
   createdOnUtc: Date | string,
   depletionRate: number,
   type: TreasuryType,
-  autoClose: boolean
+  autoClose: boolean,
+  version: number,
 };
 
 /**

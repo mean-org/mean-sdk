@@ -880,7 +880,7 @@ export class MoneyStreaming {
       true
     );
 
-    const treasurerTokenInfo = this.connection.getAccountInfo(treasurerToken);
+    const treasurerTokenInfo = await this.connection.getAccountInfo(treasurerToken);
 
     if (!treasurerTokenInfo) {
       tx.add(
@@ -1013,6 +1013,8 @@ export class MoneyStreaming {
       }
     }
 
+    
+
     if (associatedToken) {
 
       treasurerToken = await Token.getAssociatedTokenAddress(
@@ -1022,6 +1024,21 @@ export class MoneyStreaming {
         treasurer,
         true
       );
+  
+      const treasurerTokenInfo = await this.connection.getAccountInfo(treasurerToken);
+  
+      if (!treasurerTokenInfo) {
+        tx.add(
+          Token.createAssociatedTokenAccountInstruction(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            associatedToken,
+            treasurerToken,
+            treasurer,
+            treasurer
+          )
+        );
+      }
 
       // Get the money streaming program operations token account or create a new one
       mspOpsToken = await Token.getAssociatedTokenAddress(

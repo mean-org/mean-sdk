@@ -106,7 +106,8 @@ let defaultTreasuryInfo: TreasuryInfo = {
   createdOnUtc: "",
   depletionRate: 0,
   type: TreasuryType.Open,
-  autoClose: false
+  autoClose: false,
+  version: 0
 };
 
 let defaultStreamActivity: StreamActivity = {
@@ -468,13 +469,15 @@ const parseTreasuryV0Data = (
       mintAddress: treasuryMintAddress,
       balance: 0,
       allocationReserved: 0,
+      allocationleft: 0,
       allocation: 0,
       streamsAmount: 0,
       createdOnUtc: "",
       depletionRate: 0,
       type: TreasuryType.Open,
       upgradeRequired: true,
-      autoClose: true
+      autoClose: true,
+      version: 0
     }
   );
 
@@ -621,7 +624,8 @@ const parseTreasuryData = (
       depletionRate: decodedData.depletion_rate,
       type: decodedData.type === 0 ? TreasuryType.Open : TreasuryType.Lock,
       autoClose: decodedData.auto_close ? true : false,
-      upgradeRequired: false
+      upgradeRequired: false,
+      version: 1
     }
   );
 
