@@ -1013,8 +1013,6 @@ export class MoneyStreaming {
       }
     }
 
-    
-
     if (associatedToken) {
 
       treasurerToken = await Token.getAssociatedTokenAddress(

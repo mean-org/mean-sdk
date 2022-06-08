@@ -440,12 +440,13 @@ const parseStreamData = (
   return stream;
 };
 
-const parseTreasuryV0Data = (
+const parseTreasuryV0Data = async (
+  connection: Connection,
   id: PublicKey,
   treasuryData: Buffer,
   friendly: boolean = true
 
-): TreasuryInfo => {
+): Promise<TreasuryInfo> => {
 
   let treasury: TreasuryInfo = defaultTreasuryInfo;
   let decodedData = Layout.treasuryV0Layout.decode(treasuryData);
@@ -456,6 +457,26 @@ const parseTreasuryV0Data = (
   const treasuryMintAddress = friendly === true ? treasuryMint.toBase58() : treasuryMint;
   const treasuryBase = new PublicKey(decodedData.treasury_base_address);
   const treasuryBaseAddress = friendly === true ? treasuryBase.toBase58() : treasuryBase;
+  let associatedToken: any;
+  let balance = 0;
+
+  const tokenAccountsResult = await connection.getTokenAccountsByOwner(
+    id, { programId: TOKEN_PROGRAM_ID }
+  );
+
+  if (tokenAccountsResult.value && tokenAccountsResult.value.length) {
+    const tokenAccount = AccountLayout.decode(tokenAccountsResult.value[0].account.data);
+    associatedToken = new PublicKey(tokenAccount.mint);
+    const treasuryToken = await Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      associatedToken,
+      id,
+      true
+    );
+    const tokenAmount = await connection.getTokenAccountBalance(treasuryToken);
+    balance = tokenAmount && tokenAmount.value ? (tokenAmount.value.uiAmount ?? 0) : 0;
+  }
 
   Object.assign(
     treasury,
@@ -465,9 +486,9 @@ const parseTreasuryV0Data = (
       slot: treasuryBlockHeight,
       label: "",
       treasurerAddress: treasuryBaseAddress,
-      associatedTokenAddress: "",
+      associatedTokenAddress: associatedToken && friendly ? associatedToken.toBase58() : "",
       mintAddress: treasuryMintAddress,
-      balance: 0,
+      balance: balance,
       allocationReserved: 0,
       allocationleft: 0,
       allocation: 0,
@@ -1109,7 +1130,8 @@ export async function getTreasury(
 
     let parsedTreasury = 
       accountInfo.data.length === Layout.treasuryV0Layout.span
-        ? parseTreasuryV0Data(
+        ? await parseTreasuryV0Data(
+            connection,
             id, 
             accountInfo.data, 
             friendly
