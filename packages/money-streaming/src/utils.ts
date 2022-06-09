@@ -171,15 +171,13 @@ const parseStreamV0Data = (
   let escrowVestedAmountSnap = 0.0;
   let rateAmount = decodedData.rate_amount;
 
-  if (decodedData.cliff_vest_amount > 0) {
-    escrowVestedAmountSnap += decodedData.cliff_vest_amount;
-    console.log('escrowVestedAmountSnap 1', escrowVestedAmountSnap);
-  }
+  // if (decodedData.cliff_vest_amount > 0) {
+  //   escrowVestedAmountSnap += decodedData.cliff_vest_amount;
+  // }
 
-  if (decodedData.cliff_vest_percent > 0 && decodedData.cliff_vest_percent < 100) {
-    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
-    console.log('escrowVestedAmountSnap 2', escrowVestedAmountSnap);
-  }
+  // if (decodedData.cliff_vest_percent > 0 && decodedData.cliff_vest_percent < 100) {
+  //   escrowVestedAmountSnap += (decodedData.cliff_vest_percent * decodedData.allocation_assigned / 100);
+  // }
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
@@ -243,8 +241,8 @@ const parseStreamV0Data = (
       fundedOnUtc: new Date(fundedOnTimeUtc).toString(),
       startUtc: new Date(startTimeUtcInMilliseconds).toString(),
       rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
-      cliffVestAmount: decodedData.cliff_vest_amount,
-      cliffVestPercent: decodedData.cliff_vest_percent,
+      cliffVestAmount: 0, //decodedData.cliff_vest_amount,
+      cliffVestPercent: 0, //decodedData.cliff_vest_percent,
       beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
       associatedToken: associatedToken,
       escrowVestedAmount: escrowVestedAmount,
@@ -332,15 +330,15 @@ const parseStreamData = (
   let escrowVestedAmountSnap = 0.0;
   let rateAmount = decodedData.rate_amount;
 
-  if (decodedData.cliff_vest_amount > 0 && decodedData.cliff_vest_percent < 100) {
-    escrowVestedAmountSnap += decodedData.cliff_vest_amount;
-  }
+  // if (decodedData.cliff_vest_amount > 0 && decodedData.cliff_vest_percent < 100) {
+  //   escrowVestedAmountSnap += decodedData.cliff_vest_amount;
+  // }
 
-  const allocation = decodedData.allocation_assigned > 0 ? decodedData.allocation_assigned : decodedData.allocation_reserved;
+  // const allocation = decodedData.allocation_assigned > 0 ? decodedData.allocation_assigned : decodedData.allocation_reserved;
 
-  if (decodedData.cliff_vest_percent > 0) {
-    escrowVestedAmountSnap += (decodedData.cliff_vest_percent * allocation / 100);
-  }
+  // if (decodedData.cliff_vest_percent > 0) {
+  //   escrowVestedAmountSnap += (decodedData.cliff_vest_percent * allocation / 100);
+  // }
 
   const rate = rateIntervalInSeconds > 0
     ? (rateAmount / rateIntervalInSeconds) * isStreaming
@@ -413,8 +411,8 @@ const parseStreamData = (
       fundedOnUtc: new Date(fundedOnTimeUtc).toString(),
       startUtc: new Date(startTimeUtcInMilliseconds).toString(),
       rateCliffInSeconds: parseFloat(u64Number.fromBuffer(decodedData.rate_cliff_in_seconds).toString()),
-      cliffVestAmount: decodedData.cliff_vest_amount,
-      cliffVestPercent: decodedData.cliff_vest_percent,
+      cliffVestAmount: 0, //decodedData.cliff_vest_amount,
+      cliffVestPercent: 0, //decodedData.cliff_vest_percent,
       beneficiaryAddress: friendly !== undefined ? beneficiaryAddress.toBase58() : beneficiaryAddress,
       associatedToken: associatedToken,
       escrowVestedAmount: escrowVestedAmount,
