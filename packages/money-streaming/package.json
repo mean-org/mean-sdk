@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/money-streaming",
-  "version": "1.8.0-alpha.4",
+  "version": "1.8.0-alpha.5",
   "description": "Typescript SDKs for the Money Streaming Protocol",
   "private": false,
   "repository": {
@@ -26,7 +26,7 @@
     "@types/bn.js": "^5.1.0",
     "@types/bs58": "^4.0.1",
     "@types/jest": "^26.0.15",
-    "@types/node": "^20.14.10",
+    "@types/node": "^18",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",
@@ -57,7 +57,7 @@
     "build": "tsc",
     "watch": "tsc -w src/*.ts --noEmit --esModuleInterop",
     "prebuild": "rm -rf lib",
-    "publish-sdk": "echo 'No need to add a \"publish\" script since it will run twice. Just run \"npm publish\". The default is already \"npm publish --access public\"'",
+    "publish-sdk": "npm publish --access public",
     "start": "ts-node main.ts",
     "prettier-format": "prettier --config .prettierrc.json 'src/**/*.ts' --write"
   },
