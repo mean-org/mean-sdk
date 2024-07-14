@@ -1,5 +1,5 @@
-import { Buffer } from "buffer";
-import BN from "bn.js";
+import { Buffer } from 'buffer';
+import { BN } from 'bn.js';
 
 /**
  * u64Number
@@ -20,18 +20,5 @@ export class u64Number extends BN {
     buffer.copy(zeroPad);
 
     return zeroPad;
-  }
-
-  /**
-   * Construct a u64 from Buffer
-   */
-  static fromBuffer(buffer: Buffer): u64Number {
-    return new u64Number(
-      [...buffer]
-        .reverse()
-        .map((i) => `00${i.toString(16)}`.slice(-2))
-        .join(""),
-      16
-    );
   }
 }

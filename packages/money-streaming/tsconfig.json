@@ -1,25 +1,29 @@
 {
     "extends": "@tsconfig/recommended/tsconfig.json",
     "compilerOptions": {
-        "outDir": "./lib",
-        "declaration": true,
         "target": "es6",
+        "module": "CommonJS",
+        "rootDir": "./src",
+        "outDir": "./lib",
+        "types": [],
         "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
+            "ES6"
         ],
+        "declaration": true,
+        "baseUrl": "./src",
         "allowJs": true,
-        "allowSyntheticDefaultImports": true,
-        "module": "commonjs",
-        "strict": true,
-        "sourceMap": false,
+        "sourceMap": true,
         "esModuleInterop": true,
-        "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true
+        "allowSyntheticDefaultImports": true,
+        "strict": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
     "display": "Recommended",
-    "exclude": ["main.ts", "index.ts"]
-  }
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "./lib/**/*"
+    ],
+}
