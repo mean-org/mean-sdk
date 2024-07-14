@@ -3,9 +3,9 @@ import { ExchangeInfo, LPClient, MERCURIAL } from "../types";
 import { AMM_POOLS, PROTOCOLS } from "../data";
 import { MercurialPoolInfo } from "./types";
 import { AccountLayout, ASSOCIATED_TOKEN_PROGRAM_ID, MintLayout, Token, TOKEN_PROGRAM_ID } from "@solana/spl-token"
-import { findLogAndParse, GetDyUnderlying, SIMULATION_USER, StableSwapNPool } from "@mercurial-finance/stable-swap-n-pool";
+// import { findLogAndParse, GetDyUnderlying, SIMULATION_USER, StableSwapNPool } from "@mercurial-finance/stable-swap-n-pool";
 import { USDC_MINT, USDT_MINT } from "../types";
-import { SwapInstruction } from "@mercurial-finance/stable-swap-n-pool/dist/cjs/instructions";
+// import { SwapInstruction } from "@mercurial-finance/stable-swap-n-pool/dist/cjs/instructions";
 import { getAmmPools } from "../utils";
 import { BN } from "bn.js";
 import { AmmPoolInfo } from "..";
@@ -98,141 +98,143 @@ export class MercurialClient implements LPClient {
     
     try {
 
-      if (!this.currentPool) {
-        throw Error("Mercurial pool not found");
-      }
+      throw Error("Not implemented");
 
-      let tx = new Transaction();
-      let sig: Signer[] = [];
+      // if (!this.currentPool) {
+      //   throw Error("Mercurial pool not found");
+      // }
 
-      const fromMint = from === USDC_MINT.toBase58() ? USDC_MINT : USDT_MINT;
-      const toMint = to === USDC_MINT.toBase58() ? USDC_MINT : USDT_MINT;
+      // let tx = new Transaction();
+      // let sig: Signer[] = [];
 
-      const fromAccount = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        fromMint,
-        owner,
-        true
-      );
+      // const fromMint = from === USDC_MINT.toBase58() ? USDC_MINT : USDT_MINT;
+      // const toMint = to === USDC_MINT.toBase58() ? USDC_MINT : USDT_MINT;
 
-      const fromAccountInfo = await this.connection.getAccountInfo(fromAccount);
+      // const fromAccount = await Token.getAssociatedTokenAddress(
+      //   ASSOCIATED_TOKEN_PROGRAM_ID,
+      //   TOKEN_PROGRAM_ID,
+      //   fromMint,
+      //   owner,
+      //   true
+      // );
 
-      if (!fromAccountInfo) {
-        tx.add(
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            fromMint,
-            fromAccount,
-            owner,
-            owner
-          )
-        );
-      }
+      // const fromAccountInfo = await this.connection.getAccountInfo(fromAccount);
 
-      const toAccount = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        toMint,
-        owner,
-        true
-      );
+      // if (!fromAccountInfo) {
+      //   tx.add(
+      //     Token.createAssociatedTokenAccountInstruction(
+      //       ASSOCIATED_TOKEN_PROGRAM_ID,
+      //       TOKEN_PROGRAM_ID,
+      //       fromMint,
+      //       fromAccount,
+      //       owner,
+      //       owner
+      //     )
+      //   );
+      // }
 
-      const toAccountInfo = await this.connection.getAccountInfo(toAccount);
+      // const toAccount = await Token.getAssociatedTokenAddress(
+      //   ASSOCIATED_TOKEN_PROGRAM_ID,
+      //   TOKEN_PROGRAM_ID,
+      //   toMint,
+      //   owner,
+      //   true
+      // );
 
-      if (!toAccountInfo) {
-        tx.add(
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            toMint,
-            toAccount,
-            owner,
-            owner
-          )
-        );
-      }
+      // const toAccountInfo = await this.connection.getAccountInfo(toAccount);
 
-      const amountInBn = new BN(parseFloat(amountIn.toFixed(6)) * this.USDX_POW);
-      const minimumAmountOut = amountOut * (100 - slippage) / 100;
-      const minimumAmountOutBn = new BN(parseFloat(minimumAmountOut.toFixed(6)) * this.USDX_POW);
-      const ephemeralKeypair = Keypair.generate();
+      // if (!toAccountInfo) {
+      //   tx.add(
+      //     Token.createAssociatedTokenAccountInstruction(
+      //       ASSOCIATED_TOKEN_PROGRAM_ID,
+      //       TOKEN_PROGRAM_ID,
+      //       toMint,
+      //       toAccount,
+      //       owner,
+      //       owner
+      //     )
+      //   );
+      // }
+
+      // const amountInBn = new BN(parseFloat(amountIn.toFixed(6)) * this.USDX_POW);
+      // const minimumAmountOut = amountOut * (100 - slippage) / 100;
+      // const minimumAmountOutBn = new BN(parseFloat(minimumAmountOut.toFixed(6)) * this.USDX_POW);
+      // const ephemeralKeypair = Keypair.generate();
       
-      tx.add(
-        Token.createApproveInstruction(
-          TOKEN_PROGRAM_ID,
-          fromAccount,
-          ephemeralKeypair.publicKey,
-          owner,
-          [],
-          amountInBn.toNumber()
-        ),
-        SwapInstruction.exchange(
-          this.currentPool.stable.poolAccount,
-          this.currentPool.stable.authority,
-          ephemeralKeypair.publicKey,
-          this.currentPool.stable.tokenAccounts,
-          fromAccount,
-          toAccount,
-          amountInBn.toNumber(),
-          minimumAmountOutBn.toNumber()
-        ),
-        Token.createRevokeInstruction(
-          TOKEN_PROGRAM_ID, 
-          fromAccount, 
-          owner, 
-          []
-        )
-      );
+      // tx.add(
+      //   Token.createApproveInstruction(
+      //     TOKEN_PROGRAM_ID,
+      //     fromAccount,
+      //     ephemeralKeypair.publicKey,
+      //     owner,
+      //     [],
+      //     amountInBn.toNumber()
+      //   ),
+      //   SwapInstruction.exchange(
+      //     this.currentPool.stable.poolAccount,
+      //     this.currentPool.stable.authority,
+      //     ephemeralKeypair.publicKey,
+      //     this.currentPool.stable.tokenAccounts,
+      //     fromAccount,
+      //     toAccount,
+      //     amountInBn.toNumber(),
+      //     minimumAmountOutBn.toNumber()
+      //   ),
+      //   Token.createRevokeInstruction(
+      //     TOKEN_PROGRAM_ID, 
+      //     fromAccount, 
+      //     owner, 
+      //     []
+      //   )
+      // );
 
-      sig.push(ephemeralKeypair);
-      const feeBnAmount = new BN(parseFloat(feeAmount.toFixed(6)) * this.USDX_POW);
-      // Transfer fees
-      const feeAccount = new PublicKey(feeAddress);
-      const feeAccountToken = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        fromMint,
-        feeAccount,
-        true
-      );
+      // sig.push(ephemeralKeypair);
+      // const feeBnAmount = new BN(parseFloat(feeAmount.toFixed(6)) * this.USDX_POW);
+      // // Transfer fees
+      // const feeAccount = new PublicKey(feeAddress);
+      // const feeAccountToken = await Token.getAssociatedTokenAddress(
+      //   ASSOCIATED_TOKEN_PROGRAM_ID,
+      //   TOKEN_PROGRAM_ID,
+      //   fromMint,
+      //   feeAccount,
+      //   true
+      // );
 
-      const feeAccountTokenInfo = await this.connection.getAccountInfo(feeAccountToken);
+      // const feeAccountTokenInfo = await this.connection.getAccountInfo(feeAccountToken);
 
-      if (!feeAccountTokenInfo) {
-        tx.add(
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            fromMint,
-            feeAccountToken,
-            feeAccount,
-            owner
-          )
-        );
-      }
+      // if (!feeAccountTokenInfo) {
+      //   tx.add(
+      //     Token.createAssociatedTokenAccountInstruction(
+      //       ASSOCIATED_TOKEN_PROGRAM_ID,
+      //       TOKEN_PROGRAM_ID,
+      //       fromMint,
+      //       feeAccountToken,
+      //       feeAccount,
+      //       owner
+      //     )
+      //   );
+      // }
 
-      tx.add(
-        Token.createTransferInstruction(
-          TOKEN_PROGRAM_ID,
-          fromAccount,
-          feeAccountToken,
-          owner,
-          [],
-          feeBnAmount.toNumber()
-        )
-      );
+      // tx.add(
+      //   Token.createTransferInstruction(
+      //     TOKEN_PROGRAM_ID,
+      //     fromAccount,
+      //     feeAccountToken,
+      //     owner,
+      //     [],
+      //     feeBnAmount.toNumber()
+      //   )
+      // );
 
-      tx.feePayer = owner;
-      const { blockhash } = await this.connection.getRecentBlockhash(this.connection.commitment);
-      tx.recentBlockhash = blockhash;
+      // tx.feePayer = owner;
+      // const { blockhash } = await this.connection.getRecentBlockhash(this.connection.commitment);
+      // tx.recentBlockhash = blockhash;
 
-      if (sig.length) {
-        tx.partialSign(...sig);
-      }
+      // if (sig.length) {
+      //   tx.partialSign(...sig);
+      // }
 
-      return tx;
+      // return tx;
 
     } catch (_error) {
       throw _error;
@@ -244,47 +246,49 @@ export class MercurialClient implements LPClient {
 
     try {
 
-      if (!this.poolAddress) {
-        throw new Error("Unknown pool");
-      }
+      throw Error("Not implemented");
 
-      const poolInfo = AMM_POOLS.filter(info => info.address === this.poolAddress)[0];
+      // if (!this.poolAddress) {
+      //   throw new Error("Unknown pool");
+      // }
 
-      if (!poolInfo) {
-        throw new Error("Mercurial pool not found.");
-      }
+      // const poolInfo = AMM_POOLS.filter(info => info.address === this.poolAddress)[0];
 
-      const stablePool = await StableSwapNPool.load(
-        this.connection,
-        new PublicKey(poolInfo.address),
-        SIMULATION_USER
-      );
+      // if (!poolInfo) {
+      //   throw new Error("Mercurial pool not found.");
+      // }
 
-      const tokenInfos = await this.connection.getMultipleAccountsInfo(
-        poolInfo.tokenAddresses.map(t => new PublicKey(t)),
-        this.connection.commitment
-      );
+      // const stablePool = await StableSwapNPool.load(
+      //   this.connection,
+      //   new PublicKey(poolInfo.address),
+      //   SIMULATION_USER
+      // );
 
-      let tokens: any = {};
-      let index = 0;
+      // const tokenInfos = await this.connection.getMultipleAccountsInfo(
+      //   poolInfo.tokenAddresses.map(t => new PublicKey(t)),
+      //   this.connection.commitment
+      // );
 
-      for (let info of tokenInfos) {
-        if (info) {
-          const decoded = MintLayout.decode(info.data);
-          tokens[poolInfo.tokenAddresses[index]] = decoded;
-          index ++;
-        }
-      }
+      // let tokens: any = {};
+      // let index = 0;
 
-      const mercurialPool: MercurialPoolInfo = {
-        name: poolInfo.name,
-        stable: stablePool,
-        protocol: MERCURIAL,
-        simulatioUser: SIMULATION_USER,
-        tokens
-      };
+      // for (let info of tokenInfos) {
+      //   if (info) {
+      //     const decoded = MintLayout.decode(info.data);
+      //     tokens[poolInfo.tokenAddresses[index]] = decoded;
+      //     index ++;
+      //   }
+      // }
 
-      this.currentPool = mercurialPool;
+      // const mercurialPool: MercurialPoolInfo = {
+      //   name: poolInfo.name,
+      //   stable: stablePool,
+      //   protocol: MERCURIAL,
+      //   simulatioUser: SIMULATION_USER,
+      //   tokens
+      // };
+
+      // this.currentPool = mercurialPool;
 
     } catch (_error) {
       throw _error;
@@ -307,58 +311,60 @@ export class MercurialClient implements LPClient {
     inAmount: number
 
   ): Promise<number> {
+
+    throw Error("Not implemented");
     
-    const kp1 = Keypair.generate();
-    const kp2 = Keypair.generate();
-    const balanceNeeded = await Token.getMinBalanceRentForExemptAccount(this.connection)
+    // const kp1 = Keypair.generate();
+    // const kp2 = Keypair.generate();
+    // const balanceNeeded = await Token.getMinBalanceRentForExemptAccount(this.connection)
 
-    // We use new fresh token accounts so we don't need the user to have any to simulate
-    const instructions: TransactionInstruction[] = [
-      SystemProgram.createAccount({
-        fromPubkey: SIMULATION_USER,
-        newAccountPubkey: kp1.publicKey,
-        lamports: balanceNeeded,
-        space: AccountLayout.span,
-        programId: TOKEN_PROGRAM_ID
-      }),
-      Token.createInitAccountInstruction(
-        TOKEN_PROGRAM_ID, 
-        sourceTokenMint, 
-        kp1.publicKey, 
-        SIMULATION_USER
-      ),
-      SystemProgram.createAccount({
-        fromPubkey: SIMULATION_USER,
-        newAccountPubkey: kp2.publicKey,
-        lamports: balanceNeeded,
-        space: AccountLayout.span,
-        programId: TOKEN_PROGRAM_ID
-      }),
-      Token.createInitAccountInstruction(
-        TOKEN_PROGRAM_ID, 
-        destinationTokenMint, 
-        kp2.publicKey, 
-        SIMULATION_USER
-      ),
-      SwapInstruction.exchange(
-        this.currentPool?.stable.poolAccount as PublicKey,
-        this.currentPool?.stable.authority as PublicKey,
-        SIMULATION_USER,
-        this.currentPool?.stable.tokenAccounts as PublicKey[],
-        kp1.publicKey,
-        kp2.publicKey,
-        inAmount,
-        0
-      )
-    ]
+    // // We use new fresh token accounts so we don't need the user to have any to simulate
+    // const instructions: TransactionInstruction[] = [
+    //   SystemProgram.createAccount({
+    //     fromPubkey: SIMULATION_USER,
+    //     newAccountPubkey: kp1.publicKey,
+    //     lamports: balanceNeeded,
+    //     space: AccountLayout.span,
+    //     programId: TOKEN_PROGRAM_ID
+    //   }),
+    //   Token.createInitAccountInstruction(
+    //     TOKEN_PROGRAM_ID, 
+    //     sourceTokenMint, 
+    //     kp1.publicKey, 
+    //     SIMULATION_USER
+    //   ),
+    //   SystemProgram.createAccount({
+    //     fromPubkey: SIMULATION_USER,
+    //     newAccountPubkey: kp2.publicKey,
+    //     lamports: balanceNeeded,
+    //     space: AccountLayout.span,
+    //     programId: TOKEN_PROGRAM_ID
+    //   }),
+    //   Token.createInitAccountInstruction(
+    //     TOKEN_PROGRAM_ID, 
+    //     destinationTokenMint, 
+    //     kp2.publicKey, 
+    //     SIMULATION_USER
+    //   ),
+    //   SwapInstruction.exchange(
+    //     this.currentPool?.stable.poolAccount as PublicKey,
+    //     this.currentPool?.stable.authority as PublicKey,
+    //     SIMULATION_USER,
+    //     this.currentPool?.stable.tokenAccounts as PublicKey[],
+    //     kp1.publicKey,
+    //     kp2.publicKey,
+    //     inAmount,
+    //     0
+    //   )
+    // ]
 
-    const tx = new Transaction().add(...instructions);
-    tx.feePayer = SIMULATION_USER;
-    const { blockhash } = await this.connection.getRecentBlockhash('recent');
-    tx.recentBlockhash = blockhash;
-    tx.partialSign(...[kp1, kp2]);
-    const { value } = await this.connection.simulateTransaction(tx.compileMessage());
+    // const tx = new Transaction().add(...instructions);
+    // tx.feePayer = SIMULATION_USER;
+    // const { blockhash } = await this.connection.getRecentBlockhash('recent');
+    // tx.recentBlockhash = blockhash;
+    // tx.partialSign(...[kp1, kp2]);
+    // const { value } = await this.connection.simulateTransaction(tx.compileMessage());
 
-    return findLogAndParse<GetDyUnderlying>(value?.logs, 'GetDyUnderlying').dy
+    // return findLogAndParse<GetDyUnderlying>(value?.logs, 'GetDyUnderlying').dy
   }
 }

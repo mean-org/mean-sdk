@@ -1,7 +1,7 @@
 import { AccountMeta, Connection, PublicKey, SYSVAR_CLOCK_PUBKEY, Transaction } from "@solana/web3.js";
 import { AMM_POOLS, PROTOCOLS } from "../data";
 import { ExchangeInfo, LPClient, SABER } from "../types";
-import { deserializeMint, deserializeAccount, Token as SaberToken , TokenAmount } from "@saberhq/token-utils/";
+import { deserializeMint, deserializeAccount, Token as SaberToken , TokenAmount } from "@saberhq/token-utils";
 import { SLPInfo } from "./types";
 import { getMultipleAccounts } from "../utils";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, Token, u64 } from "@solana/spl-token";

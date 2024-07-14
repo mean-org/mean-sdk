@@ -60,8 +60,6 @@ export const getStream = async (
         stream: address
       }
     });
-
-    // console.log('streamEventResponse', streamEventResponse.events[0].data);
   
     if (
       !streamEventResponse || 

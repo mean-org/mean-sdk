@@ -1,7 +1,7 @@
 /**
  * Solana
  */
-import { Commitment, PublicKey } from "@solana/web3.js";
+import { Commitment, PublicKey } from '@solana/web3.js';
 
 declare global {
   export interface String {
@@ -59,11 +59,11 @@ export type TransactionMessage = {
 };
 
 export interface ListStreamParams {
-  treasurer?: PublicKey | undefined,
-  treasury?: PublicKey | undefined,
-  beneficiary?: PublicKey | undefined,
-  commitment?: Commitment,
-  friendly?: boolean
+  treasurer?: PublicKey | undefined;
+  treasury?: PublicKey | undefined;
+  beneficiary?: PublicKey | undefined;
+  commitment?: Commitment;
+  friendly?: boolean;
 }
 
 /**
@@ -84,30 +84,31 @@ export type StreamActivity = {
  */
 export enum TreasuryType {
   Open = 0,
-  Lock = 1
+  Lock = 1,
 }
 
 /**
  * TreasuryV2 info
  */
- export type TreasuryInfo = {
-  id: PublicKey | string,
-  initialized: boolean,
-  slot: number,
-  treasurerAddress: PublicKey | string,
-  associatedTokenAddress: PublicKey | string,
-  mintAddress: PublicKey | string,
-  label: string,
-  balance: number,
-  allocationReserved: number,
-  allocationLeft: number,
-  allocationAssigned: number,
-  streamsAmount: number,
-  upgradeRequired: boolean,
-  createdOnUtc: Date | string,
-  depletionRate: number,
-  type: TreasuryType,
-  autoClose: boolean
+export type TreasuryInfo = {
+  id: PublicKey | string;
+  initialized: boolean;
+  slot: number;
+  treasurerAddress: PublicKey | string;
+  associatedTokenAddress: PublicKey | string;
+  mintAddress: PublicKey | string;
+  label: string;
+  balance: number;
+  allocationReserved: number;
+  allocationLeft: number;
+  allocationAssigned: number;
+  streamsAmount: number;
+  upgradeRequired: boolean;
+  createdOnUtc: Date | string;
+  depletionRate: number;
+  type: TreasuryType;
+  autoClose: boolean;
+  version: number;
 };
 
 /**
@@ -116,53 +117,53 @@ export enum TreasuryType {
 export enum STREAM_STATE {
   Schedule = 1,
   Running = 2,
-  Paused = 3
+  Paused = 3,
 }
 
 /**
  * Allocation type
  */
- export enum AllocationType {
+export enum AllocationType {
   All = 0,
   Specific = 1,
-  None = 2
+  None = 2,
 }
 
 /**
  * Stream info
  */
- export type StreamInfo = {
-  id: PublicKey | string | undefined,
-  initialized: boolean,
-  streamName: String,
-  treasurerAddress: PublicKey | string | undefined,
-  rateAmount: number,
-  rateIntervalInSeconds: number,
-  allocationReserved: number,
-  allocationLeft: number,
-  allocationAssigned: number,
-  fundedOnUtc: Date | string | undefined,
-  startUtc: Date | string | undefined,
-  rateCliffInSeconds: number,
-  cliffVestAmount: number,
-  cliffVestPercent: number,
-  beneficiaryAddress: PublicKey | string | undefined,
-  associatedToken: PublicKey | string | undefined,
-  escrowVestedAmount: number,
-  escrowUnvestedAmount: number,
-  treasuryAddress: PublicKey | string | undefined,
-  escrowEstimatedDepletionUtc: Date | string | undefined,
-  escrowVestedAmountSnap: number,
-  escrowVestedAmountSnapSlot: number,
-  escrowVestedAmountSnapBlockTime: number,
-  streamResumedSlot: number,
-  streamResumedBlockTime: number,
-  autoPauseInSeconds: number,
-  isUpdatePending: boolean,
+export type StreamInfo = {
+  id: PublicKey | string | undefined;
+  initialized: boolean;
+  streamName: String;
+  treasurerAddress: PublicKey | string | undefined;
+  rateAmount: number;
+  rateIntervalInSeconds: number;
+  allocationReserved: number;
+  allocationLeft: number;
+  allocationAssigned: number;
+  fundedOnUtc: Date | string | undefined;
+  startUtc: Date | string | undefined;
+  rateCliffInSeconds: number;
+  cliffVestAmount: number;
+  cliffVestPercent: number;
+  beneficiaryAddress: PublicKey | string | undefined;
+  associatedToken: PublicKey | string | undefined;
+  escrowVestedAmount: number;
+  escrowUnvestedAmount: number;
+  treasuryAddress: PublicKey | string | undefined;
+  escrowEstimatedDepletionUtc: Date | string | undefined;
+  escrowVestedAmountSnap: number;
+  escrowVestedAmountSnapSlot: number;
+  escrowVestedAmountSnapBlockTime: number;
+  streamResumedSlot: number;
+  streamResumedBlockTime: number;
+  autoPauseInSeconds: number;
+  isUpdatePending: boolean;
   // transactionSignature: string | undefined,
-  createdBlockTime: number,
-  lastRetrievedBlockTime: number,
-  upgradeRequired: boolean,
-  state: STREAM_STATE,
-  version: number,
+  createdBlockTime: number;
+  lastRetrievedBlockTime: number;
+  upgradeRequired: boolean;
+  state: STREAM_STATE;
+  version: number;
 };
