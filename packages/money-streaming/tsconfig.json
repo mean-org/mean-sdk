@@ -10,6 +10,7 @@
             "ES6"
         ],
         "declaration": true,
+        "useDefineForClassFields": true,
         "baseUrl": "./src",
         "allowJs": true,
         "sourceMap": true,

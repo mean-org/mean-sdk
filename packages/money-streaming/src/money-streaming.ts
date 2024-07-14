@@ -47,7 +47,7 @@ import { AllocationType, listTreasuries, TreasuryType } from '.';
 /**
  * API class with functions to interact with the Money Streaming Program using Solana Web3 JS API
  */
-class MoneyStreaming {
+export class MoneyStreaming {
   private connection: Connection;
   private programId: PublicKey;
   private commitment: Commitment | ConnectionConfig | undefined;
@@ -1065,5 +1065,3 @@ class MoneyStreaming {
     return tx;
   }
 }
-
-export default MoneyStreaming;
