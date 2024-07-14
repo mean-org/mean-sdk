@@ -57,7 +57,7 @@
     "build": "tsc",
     "watch": "tsc -w src/*.ts --noEmit --esModuleInterop",
     "prebuild": "rm -rf lib",
-    "publish": "npm publish --access public",
+    "publish-sdk": "echo 'No need to add a \"publish\" script since it will run twice. Just run \"npm publish\". The default is already \"npm publish --access public\"'",
     "start": "ts-node main.ts",
     "prettier-format": "prettier --config .prettierrc.json 'src/**/*.ts' --write"
   },
