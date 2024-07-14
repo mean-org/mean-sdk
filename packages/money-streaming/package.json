@@ -33,6 +33,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "prettier": "^3.3.2",
+    "rimraf": "6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.2.2"
   },
@@ -59,5 +60,8 @@
     "publish": "npm publish --access public",
     "start": "ts-node main.ts",
     "prettier-format": "prettier --config .prettierrc.json 'src/**/*.ts' --write"
+  },
+  "resolutions": {
+    "rimraf": "6.0.1"
   }
 }
