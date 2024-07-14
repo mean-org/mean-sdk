@@ -44,7 +44,7 @@ import {
   TreasuryInfo,
   TreasuryType,
 } from './types';
-import { TextDecoder } from 'node:util';
+import { TextDecoder } from "@kayahr/text-encoding";
 
 String.prototype.toPublicKey = function (): PublicKey {
   return new PublicKey(this.toString());

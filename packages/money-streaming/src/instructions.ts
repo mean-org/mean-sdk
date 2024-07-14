@@ -13,7 +13,7 @@ import { u64Number } from './u64n';
 import { Buffer } from 'buffer';
 import { AllocationType } from './types';
 import { TreasuryType } from '.';
-import { TextEncoder } from 'util';
+import { TextEncoder } from "@kayahr/text-encoding";
 
 export const createStreamInstruction = async (
   programId: PublicKey,
