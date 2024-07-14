@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/money-streaming",
-  "version": "1.8.0-alpha.1",
+  "version": "1.8.0-alpha.2",
   "description": "Typescript SDKs for the Money Streaming Protocol",
   "private": false,
   "repository": {
@@ -55,7 +55,7 @@
   "license": "ISC",
   "scripts": {
     "build": "tsc",
-    "watch": "./node_modules/.bin/tsc -w src/*.ts --noEmit --esModuleInterop",
+    "watch": "tsc -w src/*.ts --noEmit --esModuleInterop",
     "prebuild": "rm -rf lib",
     "publish": "npm publish --access public",
     "start": "ts-node main.ts",
