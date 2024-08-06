@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/ddca",
-  "version": "1.2.35",
+  "version": "1.2.36",
   "description": "Typescript library to interact with the Decentralized DCA program",
   "private": false,
   "repository": {
@@ -25,7 +25,7 @@
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.1",
     "json-loader": "^0.5.7",
-    "typescript": "^4.4.2"
+    "typescript": "^5.5.4"
   },
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
@@ -38,6 +38,11 @@
     "publish": "npm publish --access public"
   },
   "resolutions": {
-    "cross-fetch": "3.1.5"
+    "cross-fetch": "4.0.0",
+    "ws": "8.18.0"
+  },
+  "overrides": {
+    "cross-fetch": "4.0.0",
+    "ws": "8.18.0"
   }
 }
