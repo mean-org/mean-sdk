@@ -1,6 +1,6 @@
 {
   "name": "@mean-dao/hybrid-liquidity-ag",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Typescript library to interact with the Hybrid Liquidity Aggregator program",
   "private": false,
   "repository": {
@@ -33,23 +33,23 @@
     "@solana/spl-token-registry": "^0.2",
     "@solana/spl-token-swap": "^0.1.2",
     "@solana/wallet-adapter-base": "^0.7",
-    "@solana/web3.js": "^1.30",
-    "bignumber.js": "^9.0.1",
-    "bn.js": "^5.2.0",
+    "@solana/web3.js": "1.95.2",
+    "bignumber.js": "^9.1.2",
+    "bn.js": "^5.2.1",
     "borsh": "^0.6.0",
     "bs58": "^4.0.1",
     "buffer": "6.0.3",
     "buffer-layout": "^1.2.2",
-    "decimal.js": "^10.3.1",
-    "jsbi": "^4.1.0"
+    "decimal.js": "^10.4.3",
+    "jsbi": "^4.3.0"
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.1",
-    "@types/bn.js": "^5.1.0",
-    "@types/bs58": "^4.0.1",
-    "@types/lodash-es": "^4.17.5",
-    "ts-node": "^9.1.1",
-    "typescript": "^4.4.4"
+    "@types/bn.js": "^5.1.5",
+    "@types/bs58": "^4.0.4",
+    "@types/lodash-es": "^4.17.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
@@ -59,7 +59,16 @@
   ],
   "scripts": {
     "build": "tsc",
-    "clean": "rmdir /s lib",
+    "clean": "rm -rf lib",
     "publish": "npm publish --access public"
-  }
+  },
+  "resolutions": {
+    "@solana/web3.js": "1.95.2",
+    "cross-fetch": "4.0.0",
+		"ws": "8.18.0"
+	},
+	"overrides": {
+    "cross-fetch": "4.0.0",
+		"ws": "8.18.0"
+	}
 }
